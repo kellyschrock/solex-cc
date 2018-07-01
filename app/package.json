@@ -1,0 +1,23 @@
+{
+  "name": "solex-cc",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "bufferutil": "^3.0.3",
+    "ejs": "^2.5.7",
+    "express": "3.4.8",
+    "jade": "*",
+    "jspack": "0.0.4",
+    "node-addon-api": "^0.6.3",
+    "request": "^2.85.0",
+    "serialport": "^6.0.5",
+    "supports-color": "^5.2.0",
+    "underscore": "^1.8.3",
+    "utf-8-validate": "^4.0.0",
+    "ws": "^1.0.1",
+    "xml2js": "^0.4.19"
+  }
+}
