@@ -11,6 +11,8 @@ const LOOP_INTERVAL = 1000;
 const UDP_PORT = 14550; // Could (should?) change this to use a different port from normal GCS clients
 
 var mWorkers = [];
+var mMavlinkLookup = {};
+
 var mLoopTimer = null;
 var mMavlink;
 
@@ -93,18 +95,21 @@ function findFiles(dir, filter) {
 }
 
 function onReceivedMavlinkMessage(msg) {
-    log("onReceivedMavlinkMessage(): msg=" + msg);
+    // log("onReceivedMavlinkMessage(): msg=" + msg);
 
-    if(mWorkers) {
-        mWorkers.forEach(function(worker) {
-            if(worker.attributes.mavlinkMessages && worker.attributes.mavlinkMessages.includes(msg.name)) {
+    if(mMavlinkLookup && msg.name) {
+        const lookup = mMavlinkLookup[msg.name];
+        if(lookup) {
+            const workers = lookup.workers;
+            for(var i = 0, size = workers.length; i < size; ++i) {
+                const worker = workers[i];
                 try {
                     worker.worker.onMavlinkMessage(msg);
-                } catch(ex) {
+                } catch (ex) {
                     log("Exception hitting onMavlinkMessage() in " + worker.attributes.name + ": " + ex.message);
                 }
             }
-        });
+        }
     }
 }
 
@@ -138,26 +143,32 @@ function stop() {
 
 function unloadWorkers() {
     if(mWorkers) {
-        mWorkers.forEach(function(worker) {
-            if(worker.worker && worker.worker.onUnload) {
+        for(var i = 0, size = mWorkers.length; i < size; ++i) {
+            const worker = mWorkers[i];
+
+            if (worker.worker && worker.worker.onUnload) {
                 log("Unload " + worker.attributes.name);
                 worker.worker.onUnload();
             }
-        });
-
-        mWorkers = [];
+        }
     }
+
+    mWorkers = [];
 }
 
 function reload(basedir) {
     unloadWorkers();
+    mMavlinkLookup = {};
 
     const files = findFiles(basedir, "worker.js");
 
     for(var i = 0, size = files.length; i < size; ++i) {
         try {
             const worker = require(files[i]);
-            worker.onLoad();
+
+            if(worker.onLoad) {
+                worker.onLoad();
+            }
 
             if(worker.setListener) {
                 worker.setListener(mWorkerListener);
@@ -169,6 +180,22 @@ function reload(basedir) {
                 worker: worker,
                 attributes: attrs
             };
+
+            // If this guy is looking for mavlink messages, index the messages by name for fast
+            // lookup in onReceivedMavlinkMessage().
+            if (attrs.mavlinkMessages) {
+                for(var x = 0, sz = attrs.mavlinkMessages.length; x < sz; ++x) {
+                    const name = attrs.mavlinkMessages[x];
+
+                    if (mMavlinkLookup[name]) {
+                        mMavlinkLookup[name].workers.push(shell);
+                    } else {
+                        mMavlinkLookup[name] = {
+                            workers: [shell]
+                        };
+                    }
+                }
+            }
 
             mWorkers.push(shell);
         } catch(ex) {

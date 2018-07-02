@@ -47,7 +47,7 @@ function onUnload() {
 
 // Called when a Mavlink message arrives
 function onMavlinkMessage(msg) {
-    console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg);
+    console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg.name);
 }
 
 // Set the listener for this worker. A listener looks like this:
