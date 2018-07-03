@@ -1,11 +1,9 @@
 
 const path = require("path");
 
-// global.appRoot = path.resolve(__dirname);
 global.appRoot = process.cwd();
+global.workerRoot = path.join(global.appRoot, "/workers");
 console.log("global.appRoot=" + global.appRoot);
-
-console.log(global.appRoot);
 
 // global.BIN_DIR = global.appRoot + "/bin";
 global.BIN_DIR = path.join(global.appRoot, "/bin");
@@ -36,54 +34,6 @@ const WebSocketServer = ws.Server;
 const mMavlinkSubscribers = [];
 
 const mRtcmSubscribers = [];
-const mRTCMListener = {
-    onRTCMMessage: function(message) {
-        log("app.js: msg=" + message.messageno + " subscribers=" + mRtcmSubscribers.length);
-
-        system.onRTCMMessage(message);
-
-        mRtcmSubscribers.forEach(function(client) {
-            send(client, {event: "msg", type: "rtcm3", msg: message}, {
-                onError: function(err) {
-                    var idx = mRtcmSubscribers.indexOf(client);
-                    if(idx >= 0) {
-                        mRtcmSubscribers.splice(idx, 1);
-                        log("Removed errored RTCM listener");
-                    }
-                }
-            });
-        });
-    },
-
-    onRTCMPacket: function(packetId, packetData) {
-        // TODO: Set this to the right mavid!
-        const messages = mavutil.toCorrectionMessages(1, 1, 1, packetId, packetData);
-        if(gcs.isConnected()) {
-            log("***** SEND MESSAGE FOR RTCM " + packetId);
-
-            gcs.sendMavlinkMessages(messages);
-        }
-    }
-};
-
-const mMavlinkMainListener = {
-    onHeartbeatTimeout: function() {
-        log("onHeartbeatTimeout()");
-        
-        mMavlinkSubscribers.forEach(function (client) {
-            log("Send to " + client + ":");
-            send(client, { event: "mavlink-status", msg: "heartbeat-timeout" }, {
-                onError: function (err) {
-                    var idx = mMavlinkSubscribers.indexOf(client);
-                    if (idx >= 0) {
-                        mMavlinkSubscribers.splice(idx, 1);
-                        log("Removed errored Mavlink listener");
-                    }
-                }
-            });
-        });
-    }
-}
 
 // console.log("db=" + db);
 const app = express();
@@ -133,58 +83,6 @@ function setupRoutes() {
     app.get("/dispatch/stop", dispatcher.stop);
     app.get("/dispatch/reload", dispatcher.reload);
 
-    // Commands
-
-    // System
-    // app.get("/sys/info", system.getSystemInfo);
-    // app.get("/sys/reboot", system.rebootSystem);
-    // app.get("/sys/shutdown", system.shutdownSystem);
-    // app.get("/sys/startup/errors", system.getStartupErrors);
-    // app.get("/sys/state", system.getSystemState);
-    // app.post("/sys/state", system.putSystemState);
-    // app.delete("/sys/state/:name", system.clearSystemState);
-    // app.get("/sys/regstate", system.getRegistrationState);
-    // app.get("/sys/check/inet", system.checkInternetConnection);
-    // app.post("/sys/check/registration", system.checkRegistration);
-    // app.post("/sys/send/registration", system.sendRegistration);
-
-    // Settings
-    // app.use("/settings", settings);
-    // app.get("/settings", settings.getSettings);
-    // app.get("/settings/:cat", settings.getSettings);
-    // app.post("/settings/:cat", settings.postSetting);
-    // app.delete("/settings/:cat/:name", settings.deleteSetting);
-    // app.get("/settings/clear/:cat", settings.clearSettings);
-
-    // Startup
-    // app.get("/settings/startup/list", settings.getStartupSettings);
-    // app.post("/settings/startup/apply", settings.applyStartupSettings);
-
-    // BasePos upload
-    // app.post("/settings/basepos/upload", settings.handleBasePosUpload);
-    // app.get("/settings/basepos/export", settings.handleBasePosExport);
-
-    // Net
-    // app.get("/net/connections", settings.getNetConnections);
-    // app.get("/net/connection/:id", settings.getNetConnection);
-    // app.get("/net/current", settings.getCurrentNetConnection);
-    // app.post("/net/save", settings.postNetConfig);
-    // app.delete("/net/:id", settings.deleteNetConfig);
-    // app.get("/net/apply/:id", settings.applyNetConfig);
-    // app.get("/net/wifi/scan", settings.scanWifiNetworks);
-    // app.post("/net/wifi/connect", settings.connectToSsid);
-
-    // Files
-    // app.get("/files/list", files.listFiles);
-    // app.get("/files/download/:file", files.downloadFile);
-
-    // GCS
-    // app.use("/gcs", gcs);
-    // app.post("/gcs/port/connect", gcs.connectGCS);
-    // app.get("/gcs/port/disconnect", gcs.disconnectGCS);
-    // app.get("/gcs/port/check", gcs.checkConnection);
-    // app.get("/gcs/command/arm/:arm", gcs.sendArmCommand);
-
     app.get('/', routes.index);
 
     // Return the caller's IP address
@@ -217,7 +115,6 @@ function send(ws, data, cb) {
             log("send result: error=" + error);
             if(cb && cb.onError) cb.onError(error);
         } else {
-            // log("sent " + str);
             if(cb && cb.onSuccess) cb.onSuccess();
         }
     });
@@ -395,9 +292,6 @@ wss.on('connection', function(client) {
 // Do startup stuff
 system.onStartup();
 
-// Make sure we're listening to top-level Mavlink
-gcs.setMavlinkMainListener(mMavlinkMainListener);
-
-server.listen(app.get('port'), function(){
+server.listen(app.get('port'), function() {
     log('Express server listening on port ' + app.get('port'));
 });

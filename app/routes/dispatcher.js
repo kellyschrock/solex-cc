@@ -13,7 +13,7 @@ function stop(req, res) {
 }
 
 function reload(req, res) {
-    dispatch.reload();
+    dispatch.reload(global.workerRoot);
     res.json({message: "reloaded"});
 }
 
