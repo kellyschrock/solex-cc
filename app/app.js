@@ -2,6 +2,7 @@
 const path = require("path");
 
 global.appRoot = process.cwd();
+// Default, actually overridden in a config file if present.
 global.workerRoot = path.join(global.appRoot, "/workers");
 console.log("global.appRoot=" + global.appRoot);
 
@@ -19,6 +20,7 @@ const http = require('http');
 const ws = require("ws");
 const mavutil = require('./util/mavutil');
 const Log = require("./util/logger");
+const config = require('./util/config');
 
 const routes = require('./routes');
 const commands = require('./routes/commands');
@@ -288,6 +290,21 @@ wss.on('connection', function(client) {
 });
 
 // End websockets
+
+config.readConfig(global.appRoot, function(configData) {
+    log("Read config info");
+
+    if(configData) {
+        log(JSON.stringify(configData));
+
+        if(configData.worker_root) {
+            global.workerRoot = configData.worker_root;
+        }
+
+        dispatcher.reloadDirect();
+        dispatcher.startDirect();
+    }
+});
 
 // Do startup stuff
 system.onStartup();

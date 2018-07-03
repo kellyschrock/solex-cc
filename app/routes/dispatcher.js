@@ -17,6 +17,17 @@ function reload(req, res) {
     res.json({message: "reloaded"});
 }
 
+function reloadDirect() {
+    dispatch.reload(global.workerRoot);
+}
+
+function startDirect() {
+    dispatch.start();
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.reload = reload;
+exports.reloadDirect = reloadDirect;
+exports.startDirect = startDirect;
+
