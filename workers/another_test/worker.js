@@ -1,6 +1,7 @@
 'use strict';
 
 const ATTRS = {
+    id: "1130a982-d72e-420b-89f0-071a57509aeb",
     // Name/description
     name: "Another test",
     description: "Just another test to mess with stuff",

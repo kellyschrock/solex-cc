@@ -1,6 +1,7 @@
 'use strict';
 
 const ATTRS = {
+    id: "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
     // Name/description
     name: "Test worker",
     description: "Does basically nothing, just illustrates the idea",
@@ -27,7 +28,7 @@ function loop() {
 
     // Example of sending a GCS message every once in a while
     if(mListener && ++loopIterations > 10) {
-        mListener.onGCSMessage(module.exports, {
+        mListener.onGCSMessage(ATTRS.id, {
             name: "a message", value: "Some meaningless but illustrative value"
         });
 
@@ -50,6 +51,12 @@ function onMavlinkMessage(msg) {
     console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg.name);
 }
 
+// Called when the GCS sends a message to this worker. Message format is 
+// entirely dependent on agreement between the FCS and worker implementation.
+function onGCSMessage(msg) {
+    console.log(ATTRS.name + " onGCSMessage(): msg=" + msg);
+}
+
 // Set the listener for this worker. A listener looks like this:
 /*
 {
@@ -66,4 +73,5 @@ exports.loop = loop;
 exports.onLoad = onLoad;
 exports.onUnload = onUnload;
 exports.onMavlinkMessage = onMavlinkMessage;
+exports.onGCSMessage = onGCSMessage;
 exports.setListener = setListener;

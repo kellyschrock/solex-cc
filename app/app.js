@@ -23,8 +23,6 @@ const Log = require("./util/logger");
 const config = require('./util/config');
 
 const routes = require('./routes');
-const commands = require('./routes/commands');
-// const settings = require("./routes/settings");
 const gcs = require("./routes/gcs");
 const dispatcher = require("./routes/dispatcher");
 const system = require("./routes/system");
@@ -33,7 +31,7 @@ const files = require("./routes/files");
 
 const WebSocketServer = ws.Server;
 
-const mMavlinkSubscribers = [];
+const mGCSSubscribers = [];
 
 const mRtcmSubscribers = [];
 
@@ -66,6 +64,31 @@ function log(str) {
 //
 // LISTENERS
 //
+const mGCSMessageListener = {
+    onGCSMessage: function(workerId, msg) {
+        log("onGCSMessage(): msg=" + msg);
+
+        for(var i = 0, size = mGCSSubscribers.length; i < size; ++i) {
+            const client = mGCSSubscribers[i];
+
+            send(client, { event: "worker-to-gcs", data: {worker_id: workerId, message: msg } }, {
+                onError: function(err) {
+                    log("Error sending message to " + client);
+
+                    const idx = mGCSSubscribers.indexOf(client);
+                    if(idx >= 0) {
+                        mGCSSubscribers.splice(idx, 1);
+                    }
+                },
+
+                onSuccess() {
+                    // log("Sent " + msg + " to " + client);
+                }
+            });
+        }
+    }
+};
+
 function setupRoutes() {
     // global controller
     app.use(function (req, res, next) {
@@ -84,6 +107,11 @@ function setupRoutes() {
     app.get("/dispatch/start", dispatcher.start);
     app.get("/dispatch/stop", dispatcher.stop);
     app.get("/dispatch/reload", dispatcher.reload);
+
+    // Worker list
+    app.get("/workers", dispatcher.getWorkers);
+    // POST a message to a worker
+    app.post("/worker/msg/:worker_id", dispatcher.workerMessage);
 
     app.get('/', routes.index);
 
@@ -140,132 +168,43 @@ wss.on('connection', function(client) {
 
             if(jo.type) {
                 switch(jo.type) {
-                    case "subscribe-mavlink": {
-                        if(jo.name) {
-                            if(mMavlinkSubscribers.indexOf(client) == -1) {
-                                mMavlinkSubscribers.push(client);
-                            }
+                    /*
+                    Data looks like this:
 
-                            gcs.subscribeMavlink(jo.name, {
-                                onMavlinkMessage: function(msg) {
-                                    send(client, { event: "mavlink", data: msg }, {
-                                        onError: function (err) {
-                                            gcs.unsubscribeMavlink(jo.name);
-                                        }
-                                    });
-                                }
-                            });
+                    {
+                        type: "gcs-to-worker",
+                        worker_id: "some-uuid",
+
+                        msg: {
+                            some_attribute: "Some value",
+                            more_stuff: "Stuff here"
                         }
-
-                        break;
                     }
-
-                    case "unsubscribe-mavlink": {
-                        var idx = mMavlinkSubscribers.indexOf(client);
-                        if(idx >= 0) {
-                            mMavlinkSubscribers.splice(idx, 1);
-                        }
-
-                        if(jo.name) {
-                            gcs.unsubscribeMavlink(jo.name);
+                    */
+                    case "gcs-to-worker": {
+                        if(jo.worker_id && jo.msg) {
+                            dispatcher.handleGCSMessage(jo.worker_id, jo.msg);
                         }
                         break;
                     }
 
-                    case "subscribe-cmd": {
-                        log("subscribing to " + jo.command + " output");
-
-                        var listener = {
-                            onData: function(chunk) {
-                                send(client, { event: "output", data: chunk }, {
-                                    onError: function (err) {
-                                        commands.stopDaemon(jo);
-                                    }
-                                });
-                            },
-
-                            onError: function(err) {
-                                send(client, {event: "error", error: err });
-                                send(client, { event: "closed" });
-                            },
-
-                            onClose: function() {
-                                send(client, { event: "closed" });
-                            }
+                    case "subscribe-gcs": {
+                        if(mGCSSubscribers.indexOf(client) == -1) {
+                            mGCSSubscribers.push(client);
                         }
-
-                        commands.startDaemon(jo, listener);
-
                         break;
                     }
 
-                    case "unsubscribe-cmd": {
-                        log("unsubscribing " + jo.id);
-                        commands.stopDaemon(jo, {
-                            onClose: function() {
-                                send(client, { message: "unsubscribed" });
-                            }
-                        });
-
+                    case "unsubscribe-gcs": {
+                        var idx = mGCSSubscribers.indexOf(client);
+                        if (idx >= 0) {
+                            mGCSSubscribers.splice(idx, 1);
+                        }
                         break;
                     }
 
                     case "ping": {
                         send(client, { message: "ok" });
-                        break;
-                    }
-
-                    case "subscribe-rtcm3": {
-                        log("Subscribing to RTCM3 output");
-
-                        if(mRtcmSubscribers.indexOf(client) == -1) {
-                            mRtcmSubscribers.push(client);
-                            send(client, {
-                                type: jo.type,
-                                message: "ok"
-                            });
-                        }
-
-                        break;
-                    }
-
-                    case "unsubscribe-rtcm3": {
-                        log("Unsubscribing from RTCM3 output");
-
-                        const idx = mRtcmSubscribers.indexOf(client);
-                        if(idx >= 0) {
-                            mRtcmSubscribers.splice(idx, 1);
-                            send(client, {
-                                type: jo.type,
-                                message: "ok"
-                            });
-                        }
-                        break;
-                    }
-
-                    case "subscribe-ubx": {
-                        log("Subscribing to UBX output");
-
-                        if(mUBXSubscribers.indexOf(client) == -1) {
-                            mUBXSubscribers.push(client);
-                            send(client, {
-                                type: jo.type,
-                                message: "ok"
-                            });
-                        }
-                        break;
-                    }
-
-                    case "unsubscribe-ubx": {
-                        log("Unsubscribe from UBX output");
-                        const idx = mUBXSubscribers.indexOf(client);
-                        if(idx >= 0) {
-                            mUBXSubscribers.splice(idx, 1);
-                            send(client, {
-                                type: jo.type,
-                                message: "ok"
-                            });
-                        }
                         break;
                     }
                 }
@@ -301,6 +240,7 @@ config.readConfig(global.appRoot, function(configData) {
             global.workerRoot = configData.worker_root;
         }
 
+        dispatcher.addGCSListener(mGCSMessageListener);
         dispatcher.reloadDirect();
         dispatcher.startDirect();
     }

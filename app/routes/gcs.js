@@ -147,15 +147,6 @@ function onHeartbeatTimeout() {
     }
 }
 
-function onTestMavlinkMessage(msg) {
-    try {
-        const name = msg.name;
-        log("onTestMavlinkMessage(): name=" + name);
-    } catch(ex) {
-        log(ex.message);
-    }
-}
-
 function onMavlinkMessage(msg) {
     try {
         const name = msg.name;

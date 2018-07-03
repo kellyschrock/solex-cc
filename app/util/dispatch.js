@@ -4,26 +4,32 @@ const path = require("path");
 const fs = require("fs");
 const mavlink = require("./mavlink");
 const udpclient = require("../server/udpclient");
+const logger = require("../util/logger");
 
 const SYSID = 221;
 const COMPID = 101;
 const LOOP_INTERVAL = 1000;
-const UDP_PORT = 14550; // Could (should?) change this to use a different port from normal GCS clients
+const UDP_PORT = 14550; 
 
-var mWorkers = [];
+var mWorkers = {};
 var mMavlinkLookup = {};
+const mGCSMessageListeners = [];
 
 var mLoopTimer = null;
 var mMavlink;
 
 const mWorkerListener = {
     onMavlinkMessage: function (worker, msg) {
-        // TODO: Send msg to the autopilot
+        // TODO: Send msg to the autopilot. Should be async.
     },
 
-    onGCSMessage: function (worker, msg) {
-        log("GCS message from " + worker + ": " + msg);
-        // TODO: Send msg to the GCS
+    onGCSMessage: function (workerId, msg) {
+        log("GCS message from " + workerId + ": " + msg);
+        
+        // TODO: Should be async
+        for(var i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
+            mGCSMessageListeners[i].onGCSMessage(workerId, msg);
+        }
     }
 };
 
@@ -56,7 +62,7 @@ const mConnectionCallback = {
 };
 
 function log(s) {
-    console.log(s);
+    logger.v("dispatch", s);
 }
 
 function findFiles(dir, filter) {
@@ -143,17 +149,17 @@ function stop() {
 
 function unloadWorkers() {
     if(mWorkers) {
-        for(var i = 0, size = mWorkers.length; i < size; ++i) {
-            const worker = mWorkers[i];
+        for(var prop in mWorkers) {
+            const worker = mWorkers[prop];
 
-            if (worker.worker && worker.worker.onUnload) {
+            if (worker && worker.worker && worker.worker.onUnload) {
                 log("Unload " + worker.attributes.name);
                 worker.worker.onUnload();
             }
         }
     }
 
-    mWorkers = [];
+    mWorkers = {};
 }
 
 function reload(basedir) {
@@ -164,17 +170,25 @@ function reload(basedir) {
 
     for(var i = 0, size = files.length; i < size; ++i) {
         try {
+            // Load the module
             const worker = require(files[i]);
 
-            if(worker.onLoad) {
+            const attrs = worker.getAttributes() || { name: "No name", looper: false };
+
+            if(!attrs.id) {
+                log("Worker " + attrs.name + " in " + files[i] + " has no id, not loading");
+                continue;
+            }
+
+            const workerId = attrs.id;
+
+            if (worker.onLoad) {
                 worker.onLoad();
             }
 
-            if(worker.setListener) {
+            if (worker.setListener) {
                 worker.setListener(mWorkerListener);
             }
-
-            const attrs = worker.getAttributes() || { name: "No name", looper: false };
 
             const shell = {
                 worker: worker,
@@ -197,7 +211,7 @@ function reload(basedir) {
                 }
             }
 
-            mWorkers.push(shell);
+            mWorkers[workerId] = shell;
         } catch(ex) {
             log("Error loading worker at " + files[i] + ": " + ex.message);
         }
@@ -210,9 +224,10 @@ function reload(basedir) {
 function loop() {
     if(mWorkers) {
         var hasLoopers = false;
-        for (var i = 0, size = mWorkers.length; i < size; ++i) {
-            const worker = mWorkers[i];
-            if(worker.attributes.looper && worker.worker && worker.worker.loop) {
+
+        for(var prop in mWorkers) {
+            const worker = mWorkers[prop];
+            if(worker && worker.attributes.looper && worker.worker && worker.worker.loop) {
                 hasLoopers = true;
                 worker.worker.loop();
             }
@@ -228,9 +243,57 @@ function loop() {
     }
 }
 
+function addGCSMessageListener(listener) {
+    const idx = mGCSMessageListeners.indexOf(listener);
+    
+    if(idx < 0) {
+        mGCSMessageListeners.push(listener);
+    }
+
+    return (idx < 0);
+}
+
+function removeGCSMessageListener(listener) {
+    const idx = mGCSMessageListeners.indexOf(listener);
+    if(idx >= 0) {
+        mGCSMessageListeners.splice(idx, 1);
+    }
+
+    return (idx >= 0);
+}
+
+function handleGCSMessage(workerId, msg) {
+    if(mWorkers) {
+        const worker = mWorkers[workerId];
+
+        if (worker && worker.worker && worker.worker.onGCSMessage) {
+            worker.worker.onGCSMessage();
+        }
+    }
+}
+
+function getWorkers() {
+    const workers = [];
+
+    if(mWorkers) {
+        for(var prop in mWorkers) {
+            const worker = mWorkers[prop];
+            if(worker.attributes) {
+                workers.push(worker.attributes);
+            }
+        }
+    }
+
+    return workers;
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.reload = reload;
+exports.addGCSMessageListener = addGCSMessageListener;
+exports.removeGCSMessageListener = removeGCSMessageListener;
+exports.handleGCSMessage = handleGCSMessage;
+exports.getWorkers = getWorkers;
 
 function test() {
     reload("/home/kellys/work/drone/projects/solex-cc/workers");
