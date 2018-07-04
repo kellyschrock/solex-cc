@@ -6,10 +6,14 @@ const mavlink = require("./mavlink");
 const udpclient = require("../server/udpclient");
 const logger = require("../util/logger");
 
-const SYSID = 221;
-const COMPID = 101;
-const LOOP_INTERVAL = 1000;
-const UDP_PORT = 14550; 
+// Config
+const mConfig = {
+    loopTime: 1000,
+    sysid: 221,
+    compid: 101,
+    udpPort: 14550,
+    workerRoots: []
+};
 
 // Worker list/map
 var mWorkers = {};
@@ -26,12 +30,14 @@ const mWorkerListener = {
     onMavlinkMessage: function (workerId, msg) {
         log("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
 
-        // Send the passed Mavlink message to the vehicle.
-        try {
-            const packet = Buffer.from(msg.pack(mMavlink));
-            udpclient.sendMessage(packet);    
-        } catch(ex) {
-            log("Error sending mavlink message from worker: " + ex.message);
+        if(udpclient.isConnected()) {
+            // Send the passed Mavlink message to the vehicle.
+            try {
+                const packet = Buffer.from(msg.pack(mMavlink));
+                udpclient.sendMessage(packet);
+            } catch (ex) {
+                log("Error sending mavlink message from worker: " + ex.message);
+            }
         }
     },
 
@@ -50,7 +56,7 @@ const mConnectionCallback = {
         // Connection opened
         log("onOpen()");
         // Start listening for mavlink packets.
-        mMavlink = new MAVLink(null, SYSID, COMPID);
+        mMavlink = new MAVLink(null, mConfig.sysid, mConfig.compid);
         mMavlink.on("message", onReceivedMavlinkMessage);
     },
 
@@ -137,7 +143,7 @@ function onReceivedMavlinkMessage(msg) {
 function start() {
     // Open the UDP port and start listening for Mavlink messages.
     udpclient.connect({
-        udp_port: UDP_PORT
+        udp_port: mConfig.udpPort
     }, mConnectionCallback);
 
     // Start the looper.
@@ -171,17 +177,32 @@ function unloadWorkers() {
     mWorkers = {};
 }
 
-function reload(basedir) {
+function reload() {
     unloadWorkers();
     mMavlinkLookup = {};
-    
-    if(mLoopTimer) {
+
+    if (mLoopTimer) {
         clearTimeout(mLoopTimer);
     }
 
+    const roots = mConfig.workerRoots;
+    for(var i = 0, size = roots.length; i < size; ++i) {
+        loadWorkerDir(roots[i]);
+    }
+
+    log(mWorkers);
+}
+
+function loadWorkerDir(basedir) {
+    if(!basedir) {
+        log("No basedir, not reloading");
+        return;
+    }
+
+    log("Loading workers from " + basedir);
+
     const files = findFiles(basedir, "worker.js");
 
-    var hasLoopers = false;
     for(var i = 0, size = files.length; i < size; ++i) {
         try {
             // Load the module
@@ -204,12 +225,8 @@ function reload(basedir) {
                 worker.setListener(mWorkerListener);
             }
 
-            if(attrs.looper) {
-                hasLoopers = true;
-            }
-
-            attrs.sysid = SYSID;
-            attrs.compid = COMPID;
+            attrs.sysid = mConfig.sysid;
+            attrs.compid = mConfig.compid;
 
             const shell = {
                 worker: worker,
@@ -237,8 +254,6 @@ function reload(basedir) {
             log("Error loading worker at " + files[i] + ": " + ex.message);
         }
     }
-
-    log(mWorkers);
 }
 
 // Called periodically to loop the workers.
@@ -255,7 +270,7 @@ function loop() {
         }
 
         if(hasLoopers) {
-            mLoopTimer = setTimeout(loop, LOOP_INTERVAL);
+            mLoopTimer = setTimeout(loop, mConfig.loopTime);
         } else {
             mLoopTimer = null;
         }
@@ -308,6 +323,14 @@ function getWorkers() {
     return workers;
 }
 
+function setConfig(config) {
+    mConfig.sysid = config.sysid || 221;
+    mConfig.compid = config.compid || 101;
+    mConfig.loopTime = config.loop_time_ms || 1000;
+    mConfig.udpPort = config.udp_port || 14550;
+    mConfig.workerRoots = config.worker_roots || [];
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.reload = reload;
@@ -315,6 +338,7 @@ exports.addGCSMessageListener = addGCSMessageListener;
 exports.removeGCSMessageListener = removeGCSMessageListener;
 exports.handleGCSMessage = handleGCSMessage;
 exports.getWorkers = getWorkers;
+exports.setConfig = setConfig;
 
 function test() {
     reload("/home/kellys/work/drone/projects/solex-cc/workers");

@@ -76,6 +76,8 @@ function connect(options, callback) {
         if(callback.onError) {
             callback.onError("Error opening port on " + portNum + ": " + ex.message);
         }
+
+        mClient = null;
     }
 }
 

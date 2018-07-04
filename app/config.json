@@ -1,3 +1,11 @@
 {
-    "worker_root": "/home/kellys/work/drone/projects/solex-cc/workers"
+    "dispatcher": {
+        "worker_roots": [
+            "/home/kellys/work/drone/projects/solex-cc/workers"
+        ],
+        "sysid": 221,
+        "compid": 101,
+        "loop_time_ms": 1000,
+        "udp_port": 14550
+    }
 }

@@ -236,10 +236,7 @@ config.readConfig(global.appRoot, function(configData) {
     if(configData) {
         log(JSON.stringify(configData));
 
-        if(configData.worker_root) {
-            global.workerRoot = configData.worker_root;
-        }
-
+        dispatcher.setConfig(configData.dispatcher);
         dispatcher.addGCSListener(mGCSMessageListener);
         dispatcher.reloadDirect();
         dispatcher.startDirect();

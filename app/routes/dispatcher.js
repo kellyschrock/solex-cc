@@ -13,7 +13,7 @@ function stop(req, res) {
 }
 
 function reload(req, res) {
-    dispatch.reload(global.workerRoot);
+    dispatch.reload();
     res.json({message: "reloaded"});
 }
 
@@ -52,6 +52,10 @@ function handleGCSMessage(workerId, msg) {
     dispatch.handleGCSMessage(workerId, msg);
 }
 
+function setConfig(config) {
+    dispatch.setConfig(config);
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.reload = reload;
@@ -62,3 +66,4 @@ exports.addGCSListener = addGCSListener;
 exports.removeGCSListener = removeGCSListener;
 exports.handleGCSMessage = handleGCSMessage;
 exports.getWorkers = getWorkers;
+exports.setConfig = setConfig;
