@@ -11,16 +11,28 @@ const COMPID = 101;
 const LOOP_INTERVAL = 1000;
 const UDP_PORT = 14550; 
 
+// Worker list/map
 var mWorkers = {};
+// Lookup table (message id to list of workers interested in that message)
 var mMavlinkLookup = {};
+// Listeners for GCS messages from workers
 const mGCSMessageListeners = [];
-
+// Driver for looping
 var mLoopTimer = null;
+// Mavlink message parser
 var mMavlink;
 
 const mWorkerListener = {
-    onMavlinkMessage: function (worker, msg) {
-        // TODO: Send msg to the autopilot. Should be async.
+    onMavlinkMessage: function (workerId, msg) {
+        log("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
+
+        // Send the passed Mavlink message to the vehicle.
+        try {
+            const packet = Buffer.from(msg.pack(mMavlink));
+            udpclient.sendMessage(packet);    
+        } catch(ex) {
+            log("Error sending mavlink message from worker: " + ex.message);
+        }
     },
 
     onGCSMessage: function (workerId, msg) {
@@ -123,13 +135,10 @@ function onReceivedMavlinkMessage(msg) {
 // Public interface
 //
 function start() {
-
     // Open the UDP port and start listening for Mavlink messages.
     udpclient.connect({
         udp_port: UDP_PORT
     }, mConnectionCallback);
-
-    // TODO: Start listening for GCS messages.
 
     // Start the looper.
     loop();
@@ -165,9 +174,14 @@ function unloadWorkers() {
 function reload(basedir) {
     unloadWorkers();
     mMavlinkLookup = {};
+    
+    if(mLoopTimer) {
+        clearTimeout(mLoopTimer);
+    }
 
     const files = findFiles(basedir, "worker.js");
 
+    var hasLoopers = false;
     for(var i = 0, size = files.length; i < size; ++i) {
         try {
             // Load the module
@@ -189,6 +203,13 @@ function reload(basedir) {
             if (worker.setListener) {
                 worker.setListener(mWorkerListener);
             }
+
+            if(attrs.looper) {
+                hasLoopers = true;
+            }
+
+            attrs.sysid = SYSID;
+            attrs.compid = COMPID;
 
             const shell = {
                 worker: worker,

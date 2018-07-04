@@ -21,16 +21,34 @@ function getAttributes() {
 }
 
 var loopIterations = 0;
+var armed = false;
 
 // Called from dispatch.loop()
 function loop() {
-    console.log(ATTRS.name + " loop()");
+    console.log(ATTRS.name + " loop(): attrs.sysid=" + ATTRS.sysid);
 
     // Example of sending a GCS message every once in a while
-    if(mListener && ++loopIterations > 10) {
-        mListener.onGCSMessage(ATTRS.id, {
-            name: "a message", value: "Some meaningless but illustrative value"
-        });
+    if(mListener && ++loopIterations > 4) {
+        // mListener.onGCSMessage(ATTRS.id, {
+        //     name: "a message", value: "Some meaningless but illustrative value"
+        // });
+
+        // Toggle armed on and off every 10 seconds
+        const arm = (armed) ? 1 : 0;
+        armed = !armed;
+        console.log("ARM: " + armed);
+
+        const msg = new mavlink.messages.command_long(
+            ATTRS.sysid, // sysid
+            ATTRS.compid, // compid
+            mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+            0, // confirmation
+            arm,
+            0, // emergencyDisarm
+            0, 0, 0, 0
+        );
+
+        mListener.onMavlinkMessage(ATTRS.id, msg);
 
         loopIterations = 0;
     }
