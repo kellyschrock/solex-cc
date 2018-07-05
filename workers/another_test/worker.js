@@ -11,8 +11,6 @@ const ATTRS = {
     mavlinkMessages: ["ATTITUDE"]
 };
 
-var mListener = null;
-
 /*
 Return an object describing this worker. If looper is true, this module must expose a loop() export.
 */
@@ -35,19 +33,7 @@ function onMavlinkMessage(msg) {
     console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg.name);
 }
 
-// Set the listener for this worker. A listener looks like this:
-/*
-{
-    onSendMavlinkMessage: function(module, msg) {}
-    onSendGCSMessage: function(module, msg) {}
-}
-*/
-function setListener(listener) {
-    mListener = listener;
-}
-
 exports.getAttributes = getAttributes;
 exports.onLoad = onLoad;
 exports.onUnload = onUnload;
 exports.onMavlinkMessage = onMavlinkMessage;
-exports.setListener = setListener;

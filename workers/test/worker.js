@@ -11,8 +11,6 @@ const ATTRS = {
     mavlinkMessages: ["HEARTBEAT", "GLOBAL_POSITION_INT"]
 };
 
-var mListener = null;
-
 /*
 Return an object describing this worker. If looper is true, this module must expose a loop() export.
 */
@@ -28,10 +26,8 @@ function loop() {
     console.log(ATTRS.name + " loop(): attrs.sysid=" + ATTRS.sysid);
 
     // Example of sending a GCS message every once in a while
-    if(mListener && ++loopIterations > 4) {
-        // mListener.onGCSMessage(ATTRS.id, {
-        //     name: "a message", value: "Some meaningless but illustrative value"
-        // });
+    if(++loopIterations > 4) {
+        // sendGCSMessage(ATTRS.id, {name: "Some message", value: "Some value"});
 
         // Toggle armed on and off every 10 seconds
         const arm = (armed) ? 1 : 0;
@@ -48,7 +44,7 @@ function loop() {
             0, 0, 0, 0
         );
 
-        mListener.onMavlinkMessage(ATTRS.id, msg);
+        ATTRS.sendMavlinkMessage(ATTRS.id, msg);
 
         loopIterations = 0;
     }
@@ -75,21 +71,9 @@ function onGCSMessage(msg) {
     console.log(ATTRS.name + " onGCSMessage(): msg=" + msg);
 }
 
-// Set the listener for this worker. A listener looks like this:
-/*
-{
-    onSendMavlinkMessage: function(module, msg) {}
-    onSendGCSMessage: function(module, msg) {}
-}
-*/
-function setListener(listener) {
-    mListener = listener;
-}
-
 exports.getAttributes = getAttributes;
 exports.loop = loop;
 exports.onLoad = onLoad;
 exports.onUnload = onUnload;
 exports.onMavlinkMessage = onMavlinkMessage;
 exports.onGCSMessage = onGCSMessage;
-exports.setListener = setListener;

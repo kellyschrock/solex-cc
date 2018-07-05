@@ -221,9 +221,8 @@ function loadWorkerDir(basedir) {
                 worker.onLoad();
             }
 
-            if (worker.setListener) {
-                worker.setListener(mWorkerListener);
-            }
+            attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
+            attrs.setGCSMessage = mWorkerListener.onGCSMessage;
 
             attrs.sysid = mConfig.sysid;
             attrs.compid = mConfig.compid;
