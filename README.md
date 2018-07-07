@@ -2,7 +2,9 @@
 
 Solex CC is a high-level scripting interface for companion computers on Mavlink vehicles (planes, copters, rovers, etc). 
 
-The idea is that you write _workers_ as NodeJS modules, and they're loaded into memory and execute according to their settings. You can:
+To be more accurate about it, it's a dispatcher that forwards Mavlink and GCS messages between a vehicle and _workers_ that send or handle those messages.
+
+The idea is that you write workers as NodeJS modules, and they're loaded into memory and execute according to their settings. You can:
 
 *   Listen to and respond to Mavlink messages
 *   Respond to messages direct from a GCS (if it's sending messages to solex-cc workers)
@@ -13,9 +15,9 @@ Solex CC handles the loading and configuration of workers, along with a consiste
 
 ## Example usage
 
-Suppose you have a camera connected to a USB port the companion computer that you want to control via Mavlink messages like `DO_DIGICAM_CONFIGURE` and `DO_DIGICAM_CONTROL`, and report camera status. You can write a worker that communicates with the camera through the USB port, and subscribes to the above Mavlink messages. You can also make it send `CAMERA_STATUS` and `CAMERA_FEEDBACK` messages as appropriate to report status.
+Suppose you have a camera connected to a USB port the companion computer that you want to control via Mavlink messages like `DO_DIGICAM_CONFIGURE` and `DO_DIGICAM_CONTROL`, and report camera status. You can write a worker that communicates with the camera through the USB port, and subscribes to the above Mavlink messages. When a `DO_DIGICAM_CONTROL` message arrives, you can do whatever's needed on the USB port to tell the camera to take a picture, start video recording, etc. You can also make it send `CAMERA_STATUS` and `CAMERA_FEEDBACK` messages as appropriate to report status.
 
-Suppose you have some kind of sensor on the vehicle that isn't something ArduPilot typically knows about, but a typical Linux machine _does_ know how to make use of. Suppose also that you want to start reading and logging data from this sensor as soon as a running mission reaches the first waypoint in a survey area, and stop logging after the _last_ waypoint. To do this, you could write whatever scripts and programs you need in order to interact with the sensor and call them from a worker. Or (even better), you could implement all of that as a worker. Install it on the companion computer on the vehicle, load it, and run your mission.
+Or suppose you have some kind of sensor on the vehicle that isn't something ArduPilot typically knows about, but a typical Linux machine _does_ know how to make use of. Suppose also that you want to start reading and logging data from this sensor as soon as a running mission reaches the first waypoint in a survey area, and stop logging after the _last_ waypoint. To do this, you could write whatever scripts and programs you need in order to interact with the sensor and call them from a worker. Or (even better), you could implement all of that as a worker. Install it on the companion computer on the vehicle, load it, and run your mission.
 
 Suppose you want to control the vehicle directly in a specific way in response to a command sent from a GCS (similar to the way Smart Shots work on a 3DR Solo), and report status back to the GCS.
 
@@ -90,7 +92,8 @@ To get a list of workers currently loaded on the system, call the `/workers` end
         looper: false,
         mavlinkMessages: [ "ATTITUDE" ],
         sysid: 221,
-        compid: 101
+        compid: 101,
+        path: "/whatever/dir/the/worker/is/in"
     },
     {
         id: "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
@@ -99,14 +102,17 @@ To get a list of workers currently loaded on the system, call the `/workers` end
         looper: true,
         mavlinkMessages: [ "HEARTBEAT", "GLOBAL_POSITION_INT" ],
         sysid: 221,
-        compid: 101
+        compid: 101,
+        path: "/whatever/dir/the/worker/is/in"
     }
 ]
 ```
 
 ### Getting Worker Messages
 
-To get messages from a worker, a GCS establishes a WebSockets connection with the companion computer while Solex CC is running, and sends a message like this over the WebSockets connection:
+To get messages from a worker, a GCS establishes a WebSockets connection with the companion computer while Solex CC is running. WebSockets are used since they're usable from anything from Android/iOS/desktop apps to web apps. 
+
+A GCS sends a message like this over the WebSockets connection:
 
 ```json
 {
@@ -294,3 +300,24 @@ function loop() {
 
 exports.loop = loop;
 ```
+
+## Building a Worker
+
+A worker is just like any node app, except it's loaded on the fly by the dispatcher. So if you need specific Node JS modules in your worker, just load them via `require` like you would anywhere else. Here are the basic steps to starting a worker project:
+
+1.  Create a directory for your worker project, and `cd` to that directory.
+2.  Run `npm init` in that directory.
+3.  Run `npm install --save (whatever modules you need)` for each module you require (`serialport`, `jspack`, etc).
+4.  Load up the project in whatever IDE you prefer to use.
+5.  Implement the worker methods as shown above.
+6.  ???
+7.  Profit!
+
+### Testing a Worker
+
+To fully test a worker implementation, it needs to have access to incoming Mavlink messages and be connected to a GCS. There is no super-quick and simple way to do this, but it's not _too_ difficult.
+
+One reliable way to do it is to run the `solex-cc` web app on your development machine by `cd`ing to the `app` directory of this project and running it via `node app.js`. Everything starts up normally, and the worker directories listed under `worker_roots` in the configuration are loaded and run. At that point, the app is also listening for UDP broadcasts from apsync or some other UDP broadcaster for Mavlink messages. You can use that to receive UDP messages from a vehicle connected on UDP, or SITL. Your worker can register for the messages it's interested in seeing, and they'll appear in its `onMavlinkMessage(msg)` function. 
+
+For sending GCS messages, you can just send them from your worker, and it's up to a connected GCS to register for and listen to them. You have to write all that yourself. The essential point of this project is that you _can_ write a GCS that receives messages from a worker, so that's not really an issue. :smile:
+

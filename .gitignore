@@ -8,4 +8,5 @@ app/build/Release/
 app/settings.json
 app/net.settings.json
 build
+workers/**/node_modules/
 

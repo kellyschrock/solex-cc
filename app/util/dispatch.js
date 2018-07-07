@@ -187,13 +187,13 @@ function reload() {
 
     const roots = mConfig.workerRoots;
     for(var i = 0, size = roots.length; i < size; ++i) {
-        loadWorkerDir(roots[i]);
+        loadWorkerRoot(roots[i]);
     }
 
     log(mWorkers);
 }
 
-function loadWorkerDir(basedir) {
+function loadWorkerRoot(basedir) {
     if(!basedir) {
         log("No basedir, not reloading");
         return;
@@ -222,10 +222,11 @@ function loadWorkerDir(basedir) {
             }
 
             attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
-            attrs.setGCSMessage = mWorkerListener.onGCSMessage;
+            attrs.sendGCSMessage = mWorkerListener.onGCSMessage;
 
             attrs.sysid = mConfig.sysid;
             attrs.compid = mConfig.compid;
+            attrs.path = path.dirname(files[i]);
 
             const shell = {
                 worker: worker,
