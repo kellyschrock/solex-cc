@@ -9,6 +9,20 @@ function log(str) {
     logger.v("files", str);
 }
 
+function rmdir(path) {
+    if (fs.existsSync(path)) {
+        fs.readdirSync(path).forEach(function (file, index) {
+            var curPath = path + "/" + file;
+            if (fs.lstatSync(curPath).isDirectory()) { // recurse
+                rmdir(curPath);
+            } else { // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+}
+
 function friendlySize(size) {
     var out = size + " bytes";
 
@@ -92,3 +106,4 @@ function downloadFile(req, res) {
 
 exports.listFiles = listFiles;
 exports.downloadFile = downloadFile;
+exports.rmdir = rmdir;

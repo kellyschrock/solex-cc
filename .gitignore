@@ -9,4 +9,5 @@ app/settings.json
 app/net.settings.json
 build
 workers/**/node_modules/
+test/**/test.zip
 

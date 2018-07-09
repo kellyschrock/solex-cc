@@ -6,7 +6,6 @@ global.appRoot = process.cwd();
 global.workerRoot = path.join(global.appRoot, "/workers");
 console.log("global.appRoot=" + global.appRoot);
 
-// global.BIN_DIR = global.appRoot + "/bin";
 global.BIN_DIR = path.join(global.appRoot, "/bin");
 // global.PACKAGE_DOWNLOAD_DIR = global.appRoot + "/download";
 global.PACKAGE_DOWNLOAD_DIR = path.join(global.appRoot, "/download");
@@ -110,6 +109,8 @@ function setupRoutes() {
 
     // Worker list
     app.get("/workers", dispatcher.getWorkers);
+    app.post("/worker/install", dispatcher.installWorker);
+    app.delete("/worker/:worker_id", dispatcher.removeWorker);
     // POST a message to a worker
     app.post("/worker/msg/:worker_id", dispatcher.workerMessage);
 

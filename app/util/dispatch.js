@@ -5,6 +5,8 @@ const fs = require("fs");
 const mavlink = require("./mavlink");
 const udpclient = require("../server/udpclient");
 const logger = require("../util/logger");
+const files = require("../routes/files");
+const child_process = require("child_process");
 
 // Config
 const mConfig = {
@@ -331,6 +333,76 @@ function setConfig(config) {
     mConfig.workerRoots = config.worker_roots || [];
 }
 
+function installWorker(srcPath, target, callback) {
+    if(fs.existsSync(srcPath)) {
+        if(!fs.existsSync(target)) {
+            fs.mkdir(target); // Returns undefined, so check if it worked
+        }
+
+        if(!global.BIN_DIR) {
+            return callback.onError("global.BIN_DIR is not defined");
+        }
+
+        // Run $APP/bin/install_worker.sh to install the worker.
+        const child = child_process.spawn(path.join(global.BIN_DIR, "/install_worker.sh"), [srcPath, target]);
+        const output = function(data) {
+            log(data.toString());
+        }
+
+        child.stdout.on("data", output);
+        child.stderr.on("data", output);
+
+        child.on("close", function(rc) {
+            log("script exited with return code " + rc);
+            if(rc != 0) {
+                callback.onError("Failed to install worker with exit code " + rc);
+            } else {
+                callback.onComplete();
+            }
+        });
+    } else {
+        callback.onError(srcPath + " not found");
+    }
+}
+
+function removeWorker(workerId, callback) {
+    const worker = mWorkers[workerId];
+    if(worker) {
+        if(worker.worker && worker.worker.unUnload) {
+            worker.worker.onUnload();
+        }
+
+        delete mWorkers[workerId];
+
+        const filePath = worker.getAttributes().path;
+        if(filePath && fs.existsSync(filePath)) {
+            if (!global.BIN_DIR) {
+                return callback.onError("global.BIN_DIR is not defined");
+            }
+
+            // Run $APP/bin/install_worker.sh to install the worker.
+            const child = child_process.spawn(path.join(global.BIN_DIR, "/remove_worker.sh"), [filePath]);
+            const output = function (data) {
+                log(data);
+            }
+
+            child.stdout.on("data", output);
+            child.stderr.on("data", output);
+
+            child.on("close", function (rc) {
+                log("script exited with return code " + rc);
+                if (rc != 0) {
+                    callback.onError("Failed to remove worker with exit code " + rc);
+                } else {
+                    callback.onComplete();
+                }
+            });
+        }
+    } else {
+        callback.onError("Worker " + workerId + " not found");
+    }
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.reload = reload;
@@ -339,13 +411,65 @@ exports.removeGCSMessageListener = removeGCSMessageListener;
 exports.handleGCSMessage = handleGCSMessage;
 exports.getWorkers = getWorkers;
 exports.setConfig = setConfig;
+exports.installWorker = installWorker;
+exports.removeWorker = removeWorker;
 
-function test() {
-    reload("/home/kellys/work/drone/projects/solex-cc/workers");
+function testReload() {
+    mConfig.workerRoots = [
+        "/home/kellys/work/drone/projects/solex-cc/workers"
+    ];
+
+    reload();
     start();
 }
 
+function testInstallWorker() {
+    global.BIN_DIR = require("path").join(__dirname, "../bin");
+    log(global.BIN_DIR);
+
+    const path = "/home/kellys/work/drone/projects/solex-cc/test/install-worker/test.zip";
+    const target = "/home/kellys/work/drone/projects/solex-cc/workers/install_test";
+
+    installWorker(path, target, {
+        onError: function(msg) {
+            log("ERR: " + msg);
+        },
+
+        onComplete: function() {
+            log("onComplete()");
+
+            setTimeout(function () {
+                reload();
+            }, 2000);
+        }
+    });
+}
+
+function testRemoveWorker() {
+    const workerId = "16c62ff2-3187-4a6d-8b64-ee6038ca3931";
+
+    removeWorker(workerId, {
+        onError: function(msg) {
+            log("ERR: " + msg);
+        },
+
+        onComplete: function() {
+            log("onComplete()");
+
+            setTimeout(function() {
+                reload();
+            }, 2000);
+        }
+    });
+}
+
+function test() {
+    // testRemoveWorker();
+    testInstallWorker();
+    // testReload();
+}
+
 if(process.mainModule == module) {
-    log("Executing test()");
+    log("Running self test");
     test();
 }

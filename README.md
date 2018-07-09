@@ -30,7 +30,7 @@ These are the sorts of things of thing workers, and this interface in general, a
 ## Installation
 
 Solex CC is a Node JS app, so you need Node JS installed on your companion computer. Then you need to ensure it gets launched when the 
-companion computer boots. Following is an example of setting things up on a machine running `apsync`.
+companion computer boots. Below is an example of setting things up on a machine running `apsync` to launch Solex CC at boot time.
 
 ## Dispatcher
 
@@ -65,7 +65,7 @@ looks like this:
 
 ### Dispatcher Messages
 
-The main job of the dispatcher is to pass Mavlink and GCS back and forth between their source and workers. 
+The main job of the dispatcher is to pass Mavlink and GCS messages back and forth between their source and workers. 
 
 #### Mavlink Messages
 
