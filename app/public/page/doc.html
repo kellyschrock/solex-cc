@@ -1,0 +1,43 @@
+<script>
+    $(document).ready(function() {
+        var ToC =
+            "<nav role='navigation' class='table-of-contents'>" +
+            "<ul>";
+
+        $("div.chapter h1").each(function() {
+            var el = $(this);
+            var title = el.text();
+            var id = el.parent().attr("id");
+            if(id) {
+                var link = "#" + el.parent().attr("id");
+                var line = "<li>" + "<a href='" + link + "'>" + title + "</a>" + "</li>";
+                ToC += line;
+            }
+        });
+
+        ToC += "</ul></nav>";
+        $("#toc").html(ToC);
+    });
+</script>
+
+<h2>Solex CC</h2>
+
+This is a web service and worker dispatcher that runs on a companion computer. To use it, you write <i>workers</i> that run in memory
+on the back end and listen for Mavlink messages and GCS messages.
+
+<div align="left" id="toc" style="margin-top: 30px">
+
+</div>
+
+<div class="chapter" id="thing1">
+    <h1>Thing 1</h1>
+
+    Here's some stuff that will go into a little "chapter" section in this page, when there's something to say.
+</div>
+
+<div class="chapter" id="thing2">
+    <h1>Thing 2</h1>
+
+    Here's some stuff that will go into a little "chapter" section in this page, when there's something to say.
+</div>
+

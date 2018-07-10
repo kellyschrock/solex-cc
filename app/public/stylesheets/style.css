@@ -1,0 +1,204 @@
+body {
+  font: 20px "Lucida Grande", Helvetica, Arial, sans-serif;
+  min-height: 100%;
+  height: 100%;
+  line-height: 1.0;
+}
+
+a {
+  color: #00B7FF;
+}
+
+.hidden {
+    display: none;
+}
+
+.v_fill {
+    height: 100%;
+}
+
+.left_menu {
+    width: 180px;
+}
+
+.tab-1 {
+    background-color: #ccff33;
+}
+
+.tab-2 {
+    background-color: #ffcc33;
+}
+
+.tab-3 {
+    background-color: #4cff00;
+}
+
+.accent {
+    background-color: #353535;
+    color: #dfdfdf;
+}
+
+td.selected {
+    background-color: #ccff33;
+}
+
+.main_header {
+    margin-left: 100px;
+    padding: 10px;
+    color: white;
+}
+
+.white_text {
+    color: white;
+}
+
+.main_icon {
+    background-image: url('../images/solex_saucer.png');
+    background-repeat: no-repeat;
+    min-height: 120px;
+}
+
+.content_view {
+    padding: 10px;
+    height: 100%;
+    min-height: 100%;
+}
+
+.bordered_group {
+    border: 1px solid #DDDDDD;
+    margin: 10px;
+    padding: 12px;
+    background-color: #efefef;
+}
+
+.padded {
+    padding: 12px;
+}
+
+td.fat {
+    padding: 8px;
+}
+
+.trans {
+    background-color: transparent;
+    padding: 0px;
+}
+
+.light-text {
+    color: #efefef;
+}
+
+.bordered {
+    border: 1px solid #efefef;
+}
+
+.margin_left {
+    margin-left: 10px;
+}
+
+.group_title {
+    font-weight: bold;
+}
+
+.group_desc {
+    color: #797979;
+}
+
+.pad_left {
+    padding-left: 10px;
+}
+
+.bold {
+    font-weight: bold;
+}
+
+.narrow {
+    width: 40px;
+}
+
+.text_value {
+    font-size: 16px;
+}
+
+.text_error {
+    color: #FFFFFF;
+    background-color: #AA0000;
+}
+
+.text_ok {
+    color: #FFFFFF;
+    background-color: #00AA00;
+}
+
+.small {
+    font-size: 12px;
+}
+
+.center {
+    text-align: center;
+}
+
+.light {
+    color: #adadad;
+}
+
+.svin_status {
+    display: block;
+    width: 100%;
+    padding: 2px;
+}
+
+.content_tab {
+    min-height: 10px;
+}
+
+.top_status {
+    display: block; 
+    float: right; 
+    height: 100%; 
+    text-align: right;    
+}
+
+.prompt {
+    width: 120px;
+}
+
+div.chapter {
+    margin-top: 10px;
+    padding: 20px;
+    border: 1px solid #eeeeee;
+    background-color: #fefefe;
+    border-radius: 4px;
+    line-height: 1.15;
+}
+
+div.chapter h1 {
+    font-size: 26px;
+    font-weight: bold;
+}
+
+div.chapter h2 {
+    margin-top: 10px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #565656;
+}
+
+div.chapter code {
+    color: #009900;
+}
+
+div.chapter pre {
+    color: #009900;
+}
+
+div.bordered_group h1 {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+div.bordered_group h2 {
+    font-size: 22px;
+    font-weight: bold;
+    color: #565656;
+}
