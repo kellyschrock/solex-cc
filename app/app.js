@@ -235,6 +235,10 @@ config.readConfig(global.appRoot, function(configData) {
     log("Read config info");
 
     if(configData) {
+        app.get("/config", function(req, res) {
+            res.json(configData);
+        });
+        
         log(JSON.stringify(configData));
 
         dispatcher.setConfig(configData.dispatcher);

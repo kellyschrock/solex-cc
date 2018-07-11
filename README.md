@@ -13,7 +13,7 @@ The idea is that you write workers as NodeJS modules, and they're loaded into me
 
 Solex CC handles the loading and configuration of workers, along with a consistent interface to implement for creating your own workers.
 
-## Example usage
+## What's it for?
 
 Suppose you have a camera connected to a USB port the companion computer that you want to control via Mavlink messages like `DO_DIGICAM_CONFIGURE` and `DO_DIGICAM_CONTROL`, and report camera status. You can write a worker that communicates with the camera through the USB port, and subscribes to the above Mavlink messages. When a `DO_DIGICAM_CONTROL` message arrives, you can do whatever's needed on the USB port to tell the camera to take a picture, start video recording, etc. You can also make it send `CAMERA_STATUS` and `CAMERA_FEEDBACK` messages as appropriate to report status.
 
@@ -26,11 +26,6 @@ You can define a common interface via workers on Solex CC and have it expose tha
 between the various payloads onboard the vehicle (or the case of there being no installed payload at all).
 
 These are the sorts of things of thing workers, and this interface in general, are intended to address. 
-
-## Installation
-
-Solex CC is a Node JS app, so you need Node JS installed on your companion computer. Then you need to ensure it gets launched when the 
-companion computer boots. Below is an example of setting things up on a machine running `apsync` to launch Solex CC at boot time.
 
 ## Dispatcher
 
@@ -63,6 +58,8 @@ looks like this:
 *   `loop_time_ms` is how long the interval is between runs of the `loop()` function in the dispatcher. Any workers reporting that they wish to loop will have their `loop()` functions executed at this time.
 *   `udp_port` specifies the port the dispatcher listens on for incoming Mavlink messages. On an `apsync` implementation, `cmavnode` is used to forward Mavlink messages from `/dev/ttyS0` to UDP. So the dispatcher can use the normal value of `14550` here to listen to the UDP broadcasts that go out, or use an alternate port and configure `cmavnode` to send UDP packets to it directly.
 
+You can see the current configuration at runtime by hitting the `/config` endpoint once Solex CC is up and running.
+
 ### Dispatcher Messages
 
 The main job of the dispatcher is to pass Mavlink and GCS messages back and forth between their source and workers. 
@@ -77,7 +74,7 @@ The point of this feature is to allow the passing of messages between the GCS an
 
 ## Workers
 
-Workers, unsurprisingly, are where the real work gets done in Solex CC. They're the scripts you write yourself to do whatever thing you're interested in doing on the companion computer. They're loaded into memory by the **dispatcher**, which interacts with them in various ways.
+Workers, unsurprisingly, are where the work gets done in Solex CC. They're the scripts you write yourself to do whatever thing you're interested in doing on the companion computer. They're loaded into memory by the **dispatcher**, which interacts with them in various ways.
 
 ### Retrieving a list of workers
 
@@ -98,7 +95,7 @@ To get a list of workers currently loaded on the system, call the `/workers` end
     {
         id: "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
         name: "Test worker",
-        description: "Doesnt do much",
+        description: "Does not do much",
         looper: true,
         mavlinkMessages: [ "HEARTBEAT", "GLOBAL_POSITION_INT" ],
         sysid: 221,
@@ -320,4 +317,38 @@ To fully test a worker implementation, it needs to have access to incoming Mavli
 One reliable way to do it is to run the `solex-cc` web app on your development machine by `cd`ing to the `app` directory of this project and running it via `node app.js`. Everything starts up normally, and the worker directories listed under `worker_roots` in the configuration are loaded and run. At that point, the app is also listening for UDP broadcasts from apsync or some other UDP broadcaster for Mavlink messages. You can use that to receive UDP messages from a vehicle connected on UDP, or SITL. Your worker can register for the messages it's interested in seeing, and they'll appear in its `onMavlinkMessage(msg)` function. 
 
 For sending GCS messages, you can just send them from your worker, and it's up to a connected GCS to register for and listen to them. You have to write all that yourself. The essential point of this project is that you _can_ write a GCS that receives messages from a worker, so that's not really an issue. :smile:
+
+## Installation
+
+Solex CC is a Node JS app, so you need Node JS installed on your companion computer. Then you need to ensure it gets launched when the 
+companion computer boots. Here is an example of setting things up on a Raspberry Pi running `apsync` to launch Solex CC at boot time.
+
+### Install NodeJS
+
+Use the package manager to install the latest version of Node JS, or install a copy of NodeJS in the `/home/apsync/start_solexcc` directory. The included `*start_solexcc.sh` scripts assume you've done the latter, but it's not required.
+
+### Install the app
+
+This is mainly a matter of copying the relevant files to the right directories. 
+
+The best thing to do is to start with the `deploy` directory. Copy that to the `/home/apsync` directory on the Pi so you end up with `/home/apsync/start_solexcc`. Edit the `start_solex.cc` and `autostart_solexcc.sh` files so they point to the appropriate `node` executable and directories. In the example scripts, Node is installed under `/home/apsync/start_solexcc` and symlinked to `node`.
+
+Test the installation by `cd`ing to `/home/apsync/start_solexcc` and running `./start_solexcc.sh`. If you see output showing a successful startup, then it works.
+
+### Make it start on boot
+
+Edit `/etc/rc.local` and add this line at the bottom of the file:
+
+`/bin/bash -c '~apsync/start_solexcc/autostart_solexcc.sh'`
+
+### Solex CC and apweb
+
+APSync already has a web server that runs on port 80. If you don't need that, you can comment out the line that starts it in `/etc/rc.local` and set the `PORT` directive in `start_solexcc.sh` to 80. Otherwise, you can pick a different port for Solex CC (e.g. 8080), and run both web servers at the same time.
+
+
+### Make worker root(s)
+
+You'll need a place to put workers, so create a worker directory at `/home/apsync/cc-workers`. (You can add more of these, depending on how you prefer to organize things.) Each worker will appear in its own directory under this one.
+
+Edit the `$APP_HOME/config.json` file to include your worker directory.
 
