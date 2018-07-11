@@ -44,7 +44,7 @@ const mWorkerListener = {
     },
 
     onGCSMessage: function (workerId, msg) {
-        log("GCS message from " + workerId + ": " + msg);
+        trace("GCS message from " + workerId + ": " + msg);
         
         // TODO: Should be async
         for(var i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
@@ -83,6 +83,10 @@ const mConnectionCallback = {
 
 function log(s) {
     logger.v("dispatch", s);
+}
+
+function trace(s) {
+    logger.v("dispatch trace", s);
 }
 
 function findFiles(dir, filter) {
@@ -130,6 +134,8 @@ function onReceivedMavlinkMessage(msg) {
             for(var i = 0, size = workers.length; i < size; ++i) {
                 const worker = workers[i];
                 try {
+                    trace("Send " + msg.name + " to " + worker.attributes.name);
+
                     worker.worker.onMavlinkMessage(msg);
                 } catch (ex) {
                     log("Exception hitting onMavlinkMessage() in " + worker.attributes.name + ": " + ex.message);
@@ -301,11 +307,13 @@ function removeGCSMessageListener(listener) {
 }
 
 function handleGCSMessage(workerId, msg) {
+    trace("handleGCSMessage(): workerId=" + workerId);
+
     if(mWorkers) {
         const worker = mWorkers[workerId];
 
         if (worker && worker.worker && worker.worker.onGCSMessage) {
-            worker.worker.onGCSMessage();
+            worker.worker.onGCSMessage(msg);
         }
     }
 }

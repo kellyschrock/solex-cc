@@ -71,12 +71,12 @@ function onMavlinkMessage(msg) {
     switch(msg.name) {
         case "GLOBAL_POSITION_INT": {
             // Send a redundant message to the GCS.
-            const msg = {
+            const outMsg = {
                 id: "global_position",
                 time: msg.time_boot_ms, lat: msg.lat, lng: msg.lng, alt_msl: msg.alt, alt_agl: msg.relative_alt
             };
 
-            ATTRS.sendGCSMessage(msg);
+            ATTRS.sendGCSMessage(ATTRS.id, outMsg);
             break;
         }
     }
@@ -91,8 +91,8 @@ function onGCSMessage(msg) {
         case "arm": {
             // Arm the vehicle
             const msg = new mavlink.messages.command_long(
-                ATTRS.sysid, // sysid
-                ATTRS.compid, // compid
+                1, // sysid
+                1, // compid
                 mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                 0, // confirmation
                 1, // arm
@@ -109,8 +109,8 @@ function onGCSMessage(msg) {
             // Disarm the vehicle
             // Arm the vehicle
             const msg = new mavlink.messages.command_long(
-                ATTRS.sysid, // sysid
-                ATTRS.compid, // compid
+                1, // sysid
+                1, // compid
                 mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                 0, // confirmation
                 0, // arm
