@@ -30,7 +30,7 @@ var mMavlink;
 
 const mWorkerListener = {
     onMavlinkMessage: function (workerId, msg) {
-        log("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
+        trace("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
 
         if(udpclient.isConnected()) {
             // Send the passed Mavlink message to the vehicle.
@@ -56,7 +56,7 @@ const mWorkerListener = {
 const mConnectionCallback = {
     onOpen: function (port) {
         // Connection opened
-        log("onOpen()");
+        trace("onOpen()");
         // Start listening for mavlink packets.
         mMavlink = new MAVLink(null, mConfig.sysid, mConfig.compid);
         mMavlink.on("message", onReceivedMavlinkMessage);
@@ -72,21 +72,23 @@ const mConnectionCallback = {
 
     onClose: function () {
         // Connection closed
-        log("onClose()");
+        trace("onClose()");
         mMavlink = null;
     },
 
     onError: function (err) {
-        log("onError(): " + err);
+        trace("onError(): " + err);
     }
 };
 
 function log(s) {
-    logger.v("dispatch", s);
+    logger.v(__filename, s);
 }
 
 function trace(s) {
-    logger.v("dispatch trace", s);
+    if(global.TRACE) {
+        logger.v(__filename + "(trace)", s);
+    }
 }
 
 function findFiles(dir, filter) {
@@ -125,7 +127,7 @@ function findFiles(dir, filter) {
 }
 
 function onReceivedMavlinkMessage(msg) {
-    // log("onReceivedMavlinkMessage(): msg=" + msg);
+    trace("onReceivedMavlinkMessage(): msg=" + msg);
 
     if(mMavlinkLookup && msg.name) {
         const lookup = mMavlinkLookup[msg.name];
@@ -176,7 +178,7 @@ function unloadWorkers() {
             const worker = mWorkers[prop];
 
             if (worker && worker.worker && worker.worker.onUnload) {
-                log("Unload " + worker.attributes.name);
+                trace("Unload " + worker.attributes.name);
                 worker.worker.onUnload();
             }
         }

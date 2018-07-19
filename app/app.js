@@ -114,6 +114,12 @@ function setupRoutes() {
     // POST a message to a worker
     app.post("/worker/msg/:worker_id", dispatcher.workerMessage);
 
+    // Trace
+    app.get("/trace/:on_or_off", function(req, res, next) {
+        global.TRACE = (req.params.on_or_off === "on");
+        res.json({message: "Trace is " + req.params.on_or_off});
+    });
+
     app.get('/', routes.index);
 
     // Return the caller's IP address
