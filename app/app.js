@@ -65,7 +65,9 @@ function log(str) {
 //
 const mGCSMessageListener = {
     onGCSMessage: function(workerId, msg) {
-        log("onGCSMessage(): msg=" + msg);
+        if(global.TRACE) {
+            log("onGCSMessage(): msg=" + JSON.stringify(msg));
+        }
 
         for(var i = 0, size = mGCSSubscribers.length; i < size; ++i) {
             const client = mGCSSubscribers[i];

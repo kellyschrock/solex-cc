@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEST="apsync@192.168.1.146:~/start_solexcc/app"
+DEST="apsync@10.0.0.10:~/solexcc/app"
 
 if [ $# -eq 1 ]; 
 then
