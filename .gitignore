@@ -1,13 +1,8 @@
 todo.txt
 app/node_modules/
-script/node_modules/
-external/
-doc/
-images/
-app/build/Release/
 app/settings.json
 app/net.settings.json
-build
+.vscode/
 workers/**/node_modules/
 test/**/test.zip
 
