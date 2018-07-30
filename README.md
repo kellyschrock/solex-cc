@@ -19,13 +19,18 @@ Suppose you have a camera connected to a USB port the companion computer that yo
 
 Or suppose you have some kind of sensor on the vehicle that isn't something ArduPilot typically knows about, but a typical Linux machine _does_ know how to make use of. Suppose also that you want to start reading and logging data from this sensor as soon as a running mission reaches the first waypoint in a survey area, and stop logging after the _last_ waypoint. To do this, you could write whatever scripts and programs you need in order to interact with the sensor and call them from a worker. Or (even better), you could implement all of that as a worker. Install it on the companion computer on the vehicle, load it, and run your mission.
 
-Suppose you want to control the vehicle directly in a specific way in response to a command sent from a GCS (similar to the way Smart Shots work on a 3DR Solo), and report status back to the GCS.
+Or, suppose you want to control the vehicle directly in a specific way in response to a command sent from a GCS (similar to the way Smart Shots work on a 3DR Solo), and report status back to the GCS.
 
-Suppose you've developed a vehicle that has pluggable payloads (cameras, sensors, etc) controlled by their own onboard computers. 
+Or, suppose you've developed a vehicle that has pluggable payloads (cameras, sensors, etc) controlled by their own onboard computers. 
 You can define a common interface via workers on Solex CC and have it expose that interface to a GCS, handling the differences
 between the various payloads onboard the vehicle (or the case of there being no installed payload at all).
 
 These are the sorts of things of thing workers, and this interface in general, are intended to address. 
+
+## Why Node JS?
+
+Basically, because it's easy and performs well. Part of what this does is allows workers to be installed and removed on the fly,
+and basing it on Node JS works well with that too.
 
 ## Dispatcher
 
@@ -54,7 +59,7 @@ looks like this:
 ```
 
 *   `worker_roots` is an array of paths where workers can be found.
-*   `sysid` and `compid` are the sysid/compid that will be used on Mavlink messages going to the vehicle.
+*   `sysid` and `compid` are the sysid/compid that will be used on Mavlink messages going to the vehicle (where applicable).
 *   `loop_time_ms` is how long the interval is between runs of the `loop()` function in the dispatcher. Any workers reporting that they wish to loop will have their `loop()` functions executed at this time.
 *   `udp_port` specifies the port the dispatcher listens on for incoming Mavlink messages. On an `apsync` implementation, `cmavnode` is used to forward Mavlink messages from `/dev/ttyS0` to UDP. So the dispatcher can use the normal value of `14550` here to listen to the UDP broadcasts that go out, or use an alternate port and configure `cmavnode` to send UDP packets to it directly.
 
@@ -184,9 +189,7 @@ const ATTRS = {
 exports.getAttributes = function() { return ATTRS; }
 ```
 
-It's necessary to define the attributes this way, because the dispatcher actually modifies them with a few things. Namely,
-its sysid/compid (so a worker knows what sysid/compid to use when sending Mavlink messages), and the addition of `sendMavlinkMessage()`
-and `sendGCSMessage()` functions.
+It's necessary to define the attributes this way (as opposed to just returning a JSON object from getAttributes()), because the dispatcher actually modifies them with a few things. Namely, its sysid/compid (so a worker knows what sysid/compid to use when sending Mavlink messages), and the addition of `sendMavlinkMessage()` and `sendGCSMessage()` functions.
 
 ### Worker startup
 
@@ -325,21 +328,21 @@ companion computer boots. Here is an example of setting things up on a Raspberry
 
 ### Install NodeJS
 
-Use the package manager to install the latest version of Node JS, or install a copy of NodeJS in the `/home/apsync/start_solexcc` directory. The included `*start_solexcc.sh` scripts assume you've done the latter, but it's not required.
+Use the package manager to install the latest version of Node JS, or install a copy of NodeJS in the `/home/apsync/solexcc` directory. The included `*start_solexcc.sh` scripts assume you've done the latter, but it's not required.
 
 ### Install the app
 
 This is mainly a matter of copying the relevant files to the right directories. 
 
-The best thing to do is to start with the `deploy` directory. Copy that to the `/home/apsync` directory on the Pi so you end up with `/home/apsync/start_solexcc`. Edit the `start_solex.cc` and `autostart_solexcc.sh` files so they point to the appropriate `node` executable and directories. In the example scripts, Node is installed under `/home/apsync/start_solexcc` and symlinked to `node`.
+The best thing to do is to start with the `deploy` directory. Copy that to the `/home/apsync` directory on the Pi so you end up with `/home/apsync/solexcc`. Edit the `start_solex.cc` and `autostart_solexcc.sh` files so they point to the appropriate `node` executable and directories. In the example scripts, Node is installed under `/home/apsync/solexcc` and symlinked to `node`.
 
-Test the installation by `cd`ing to `/home/apsync/start_solexcc` and running `./start_solexcc.sh`. If you see output showing a successful startup, then it works.
+Test the installation by `cd`ing to `/home/apsync/solexcc` and running `./start_solexcc.sh`. If you see output showing a successful startup, then it works.
 
 ### Make it start on boot
 
 Edit `/etc/rc.local` and add this line at the bottom of the file:
 
-`/bin/bash -c '~apsync/start_solexcc/autostart_solexcc.sh'`
+`/bin/bash -c '~apsync/solexcc/autostart_solexcc.sh'`
 
 ### Solex CC and apweb
 
