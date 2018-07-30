@@ -3,7 +3,7 @@
 set -e
 set -x
 
-SOLEXCC_HOME=/home/apsync/start_solexcc
+SOLEXCC_HOME=/home/apsync/solexcc
 NODE_EXE=$SOLEXCC_HOME/node/bin/node
 APP_HOME=$SOLEXCC_HOME/app
 
