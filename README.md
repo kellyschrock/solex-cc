@@ -88,24 +88,24 @@ To get a list of workers currently loaded on the system, call the `/workers` end
 ```json
 [
     {
-        id: "1130a982-d72e-420b-89f0-071a57509aeb",
-        name: "Another test",
-        description: "Messes with stuff",
-        looper: false,
-        mavlinkMessages: [ "ATTITUDE" ],
-        sysid: 221,
-        compid: 101,
-        path: "/whatever/dir/the/worker/is/in"
+        "id": "1130a982-d72e-420b-89f0-071a57509aeb",
+        "name": "Another test",
+        "description": "Messes with stuff",
+        "looper": false,
+        "mavlinkMessages": [ "ATTITUDE" ],
+        "sysid": 221,
+        "compid": 101,
+        "path": "/whatever/dir/the/worker/is/in"
     },
     {
-        id: "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
-        name: "Test worker",
-        description: "Does not do much",
-        looper: true,
-        mavlinkMessages: [ "HEARTBEAT", "GLOBAL_POSITION_INT" ],
-        sysid: 221,
-        compid: 101,
-        path: "/whatever/dir/the/worker/is/in"
+        "id": "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
+        "name": "Test worker",
+        "description": "Does not do much",
+        "looper": true,
+        "mavlinkMessages": [ "HEARTBEAT", "GLOBAL_POSITION_INT" ],
+        "sysid": 221,
+        "compid": 101,
+        "path": "/whatever/dir/the/worker/is/in"
     }
 ]
 ```
@@ -118,7 +118,7 @@ A GCS sends a message like this over the WebSockets connection:
 
 ```json
 {
-    type: "subscribe-gcs"
+    "type": "subscribe-gcs"
 }
 ```
 
@@ -126,10 +126,10 @@ Once subscribed, a message arriving at the GCS from a worker looks like this:
 
 ```json
 {
-    event: "worker-to-gcs",
-    data: {
-        worker_id: "worker-id-who-sent-the-message",
-        message: {
+    "event": "worker-to-gcs",
+    "data": {
+        "worker_id": "worker-id-who-sent-the-message",
+        "message": {
             // Message body
         }
     }
@@ -142,7 +142,7 @@ To stop listening for GCS messages, either break the WebSockets connection (duh!
 
 ```json
 {
-    type: "unsubscribe-gcs"
+    "type": "unsubscribe-gcs"
 }
 ```
 
@@ -156,10 +156,10 @@ Send a message like this:
 
 ```json
 {
-    type: "gcs-to-worker",
-    worker_id: "worker-id-getting-message",
-    msg: {
-        whatever_fields_you_want: "Content of the message"
+    "type": "gcs-to-worker",
+    "worker_id": "worker-id-getting-message",
+    "msg": {
+        "whatever_fields_you_want": "Content of the message"
     }
 }
 ```
@@ -188,6 +188,8 @@ const ATTRS = {
 
 exports.getAttributes = function() { return ATTRS; }
 ```
+
+(The `id` field doesn't need to be a UUID, but does need to be unique within the overall collection of workers.)
 
 It's necessary to define the attributes this way (as opposed to just returning a JSON object from getAttributes()), because the dispatcher actually modifies them with a few things. Namely, its sysid/compid (so a worker knows what sysid/compid to use when sending Mavlink messages), and the addition of `sendMavlinkMessage()` and `sendGCSMessage()` functions.
 
