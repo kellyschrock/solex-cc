@@ -101,7 +101,6 @@ function onGCSMessage(msg) {
             );
 
             ATTRS.sendMavlinkMessage(ATTRS.id, msg);
-
             break;
         }
 
@@ -138,6 +137,10 @@ function onGCSMessage(msg) {
             break;
         }
     }
+
+    return {
+        message: msg.id
+    };
 }
 
 exports.getAttributes = getAttributes;

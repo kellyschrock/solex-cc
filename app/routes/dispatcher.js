@@ -25,8 +25,8 @@ function getWorkers(req, res) {
 function workerMessage(req, res) {
     const body = req.body;
     if(body) {
-        dispatch.handleGCSMessage(req.params.worker_id, body);
-        res.status(200).json({message: "ok"});
+        const result = dispatch.handleGCSMessage(req.params.worker_id, body);
+        res.status(200).json(result || {message: "ok"});
     } else {
         res.status(422).json({message: "No message body"});
     }
