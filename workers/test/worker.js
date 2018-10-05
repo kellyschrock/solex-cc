@@ -46,6 +46,13 @@ function loop() {
 
         ATTRS.sendMavlinkMessage(ATTRS.id, msg);
 
+        ATTRS.broadcastMessage(ATTRS.id, {
+            id: "hey_stupid",
+            body: {
+                text: "This is a text message"
+            }
+        });
+
         loopIterations = 0;
     }
 }

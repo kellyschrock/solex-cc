@@ -147,16 +147,20 @@ const wss = new WebSocketServer({server: server});
 function send(ws, data, cb) {
     const str = JSON.stringify(data);
 
-    ws.send(str, function(error) {
-        // if no error, send worked.
-        // otherwise the error describes the problem.
-        if(error) {
-            log("send result: error=" + error);
-            if(cb && cb.onError) cb.onError(error);
-        } else {
-            if(cb && cb.onSuccess) cb.onSuccess();
-        }
-    });
+    if(ws) {
+        ws.send(str, function (error) {
+            // if no error, send worked.
+            // otherwise the error describes the problem.
+            if (error) {
+                log("send result: error=" + error);
+                if (cb && cb.onError) cb.onError(error);
+            } else {
+                if (cb && cb.onSuccess) cb.onSuccess();
+            }
+        });
+    } else {
+        log("ERROR: No web socket!");
+    }
 }
 
 // Send a message to all clients
@@ -168,6 +172,8 @@ wss.broadcast = function(data) {
 
 // websockets stuff
 wss.on('connection', function(client) {
+    log("Connected from " + client);
+
     // got a message from the client
     client.on('message', function(data) {
         log("received message " + data);

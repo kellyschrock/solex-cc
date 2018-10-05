@@ -32,23 +32,70 @@ const mWorkerListener = {
     onMavlinkMessage: function (workerId, msg) {
         trace("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
 
-        if(udpclient.isConnected()) {
-            // Send the passed Mavlink message to the vehicle.
-            try {
-                const packet = Buffer.from(msg.pack(mMavlink));
-                udpclient.sendMessage(packet);
-            } catch (ex) {
-                log("Error sending mavlink message from worker: " + ex.message);
+        if(msg) {
+            if (udpclient.isConnected()) {
+                function ex() {
+                    const m = msg;
+                    return function () {
+                        try {
+                            const packet = Buffer.from(m.pack(mMavlink));
+                            udpclient.sendMessage(packet);
+                        } catch (ex) {
+                            log("Error sending mavlink message from worker: " + ex.message);
+                        }
+                    }
+                }
+
+                process.nextTick(ex());
             }
+        } else {
+            log("WARNING: No message");
         }
     },
 
     onGCSMessage: function (workerId, msg) {
         trace("GCS message from " + workerId + ": " + msg);
-        
-        // TODO: Should be async
-        for(var i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
-            mGCSMessageListeners[i].onGCSMessage(workerId, msg);
+
+        // for (var i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
+        //     mGCSMessageListeners[i].onGCSMessage(workerId, msg);
+        // }
+
+        function ex() {
+            const m = msg;
+            return function() {
+                for (var i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
+                    mGCSMessageListeners[i].onGCSMessage(workerId, m);
+                }
+            };
+        }
+
+        process.nextTick(ex());
+    },
+
+    onBroadcastMessage: function(workerId, msg) {
+        trace("Broadcast message from " + workerId + ": " + msg);
+
+        if (mWorkers) {
+            function ex() {
+                const wid = workerId;
+                const m = msg;
+                return function() {
+                    for (var prop in mWorkers) {
+                        const worker = mWorkers[prop];
+
+                        if (!worker.worker) continue;
+                        if (worker.worker.getAttributes().id === wid) continue;
+
+                        if (worker &&
+                            worker.worker &&
+                            worker.worker.onGCSMessage) {
+                            worker.worker.onGCSMessage(m);
+                        }
+                    }
+                }
+            }
+
+            process.nextTick(ex());
         }
     }
 };
@@ -133,14 +180,18 @@ function onReceivedMavlinkMessage(msg) {
         const lookup = mMavlinkLookup[msg.name];
         if(lookup) {
             const workers = lookup.workers;
+
             for(var i = 0, size = workers.length; i < size; ++i) {
                 const worker = workers[i];
                 try {
                     trace("Send " + msg.name + " to " + worker.attributes.name);
 
-                    worker.worker.onMavlinkMessage(msg);
+                    if(worker.worker.onMavlinkMessage) {
+                        worker.worker.onMavlinkMessage(msg);
+                    }
                 } catch (ex) {
                     log("Exception hitting onMavlinkMessage() in " + worker.attributes.name + ": " + ex.message);
+                    console.trace();
                 }
             }
         }
@@ -238,6 +289,7 @@ function loadWorkerRoot(basedir) {
 
             attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
             attrs.sendGCSMessage = mWorkerListener.onGCSMessage;
+            attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
 
             attrs.sysid = mConfig.sysid;
             attrs.compid = mConfig.compid;
@@ -482,10 +534,10 @@ function testRemoveWorker() {
 function test() {
     // testRemoveWorker();
     // testInstallWorker();
-    // testReload();
+    testReload();
 }
 
-if(process.mainModule == module) {
+if(process.mainModule === module) {
     log("Running self test");
     test();
 }

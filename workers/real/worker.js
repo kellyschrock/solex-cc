@@ -121,6 +121,11 @@ function onGCSMessage(msg) {
             break;
         }
 
+        case "hey_stupid": {
+            console.log(JSON.stringify(msg));
+            break;
+        }
+
         case "start_mission": {
             // Send a MISSION_START command
             const msg = new mavlink.messages.command_long(
