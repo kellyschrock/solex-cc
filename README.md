@@ -38,7 +38,7 @@ The main driver of things is the **dispatcher**, which starts when the main proc
 
 *   `/dispatch/start` -- Start the dispatcher (which happens automatically anyway)
 *   `/dispatch/stop`  -- In case you want to stop it
-*   `/dispatch/reload` -- In case you want to reload workers while the dispatcher is already running
+*   `/dispatch/reload` -- In case you want to reload workers while the dispatcher is already running. (Note that you have to call `/dispatch/start` after reloading.)
 
 ### Dispatcher configuration
 

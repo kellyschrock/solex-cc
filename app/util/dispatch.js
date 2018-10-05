@@ -181,6 +181,11 @@ function unloadWorkers() {
                 trace("Unload " + worker.attributes.name);
                 worker.worker.onUnload();
             }
+
+            if (worker.cacheName) {
+                log("Deleting " + worker.cacheName + " from cache");
+                delete require.cache[require.resolve(worker.cacheName)];
+            }
         }
     }
 
@@ -259,6 +264,7 @@ function loadWorkerRoot(basedir) {
                 }
             }
 
+            shell.cacheName = files[i];
             mWorkers[workerId] = shell;
         } catch(ex) {
             log("Error loading worker at " + files[i] + ": " + ex.message);
@@ -475,7 +481,7 @@ function testRemoveWorker() {
 
 function test() {
     // testRemoveWorker();
-    testInstallWorker();
+    // testInstallWorker();
     // testReload();
 }
 
