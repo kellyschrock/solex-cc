@@ -1,7 +1,8 @@
 'use strict';
 
 const ATTRS = {
-    id: "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
+    id: "test_worker",
+    // id: "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
     // Name/description
     name: "Test worker",
     description: "Does basically nothing, just illustrates the idea",
@@ -59,6 +60,20 @@ function loop() {
             console.log("Are there no other workers on the system?");
         } else {
             console.log("There are " + others.length + " other workers");
+
+            for(var i = 0, size = others.length; i < size; ++i) {
+                const attrs = others[i].attributes;
+                const worker = others[i].worker;
+
+                if(worker) {
+                    if(worker.getMetadata) {
+                        const meta = worker.getMetadata(ATTRS.id);
+                        if(meta) {
+                            console.log("GOT METADATA FROM " + attrs.id + ": " + JSON.stringify(meta));
+                        }
+                    }
+                }
+            }
         }
 
         loopIterations = 0;

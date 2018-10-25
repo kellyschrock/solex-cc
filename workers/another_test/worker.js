@@ -33,7 +33,30 @@ function onMavlinkMessage(msg) {
     console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg.name);
 }
 
+function getMetadata(workerId) {
+    if("test_worker" === workerId) {
+        // This is a worker we know about, and want to return metadata to in a specific format it wants.
+        return {
+            actions: [
+                {
+                    id: "test_start",
+                    name: "Start Test",
+                    caller: workerId,
+                    params: {
+                        channel: 12,
+                        size: "small",
+                        temperature: 80
+                    }
+                }
+            ]
+        }
+    } 
+
+    return null;
+}
+
 exports.getAttributes = getAttributes;
 exports.onLoad = onLoad;
 exports.onUnload = onUnload;
 exports.onMavlinkMessage = onMavlinkMessage;
+exports.getMetadata = getMetadata;

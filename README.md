@@ -258,6 +258,58 @@ exports.onGCSMessage = function(msg) {
 };
 ```
 
+### Worker metadata
+
+Workers often need to interact with each other. To enable this, a worker can call `ATTRS.getWorkerRoster(workerId)` to get a list of 
+the other workers running on the system. The return value from `getWorkerRoster(workerId)` is a list of objects defined like this:
+
+```
+{
+    attributes: attrs,
+    worker: worker
+}
+```
+
+The `attributes` field is the same set of attributes that are returned in the `GET /workers` endpoint at the front end, 
+showing ID, name, etc. The `worker` field is the actual worker object. So a worker can check for the presence of a `getMetadata(workerId)`
+method on the object, and if it's there, call it (passing `ATTRS.id`). The target worker can be built such that it can return
+metadata for a specific worker's use.
+
+So, suppose you have a worker called `test_worker` that needs specific metadata from other workers on the system in order to do 
+something it's trying to do. It can do this:
+
+```javascript
+
+const others = ATTRS.getWorkerRoster(ATTRS.id);
+for(var i = 0, size = others.length; ++i) {
+    const worker = others[i].worker;
+    if(worker.getMetadata) {
+        const meta = worker.getMetadata(ATTRS.id);
+    }
+}
+
+```
+The target worker can do something like this:
+
+```javascript
+
+exports.getMetadata = function(workerId) {
+    if("test_worker" === workerId) {
+        return {
+            message: "Here's some metadata for test_worker",
+            temperature: 80,
+            size: "small"
+        };
+    }
+
+    return null;
+};
+
+```
+
+Given that workers can interact directly with each other, there's no real restriction on what methods they can call. This is just
+one way for them to exchange data about themselves.
+
 ### Sending Mavlink messages
 
 Sending a Mavlink message is fairly straightforward. Use the functions in `mavlink` to actually _create_ the messages, like this:

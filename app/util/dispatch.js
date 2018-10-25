@@ -110,7 +110,10 @@ const mWorkerListener = {
             if (!worker.worker) continue;
             if (worker.worker.getAttributes().id === workerId) continue;
 
-            others.push(worker);
+            others.push({
+                attributes: worker.attributes,
+                worker: worker.worker
+            });
         }
 
         return others;
