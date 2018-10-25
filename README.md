@@ -193,6 +193,8 @@ exports.getAttributes = function() { return ATTRS; }
 
 It's necessary to define the attributes this way (as opposed to just returning a JSON object from getAttributes()), because the dispatcher actually modifies them with a few things. Namely, its sysid/compid (so a worker knows what sysid/compid to use when sending Mavlink messages), and the addition of `sendMavlinkMessage()` and `sendGCSMessage()` functions.
 
+A worker can also get a list of other workers on the system by calling `ATTRS.getWorkerRoster()`.
+
 ### Worker startup
 
 If your worker needs to initialize when it's loaded, implement `onLoad()`:

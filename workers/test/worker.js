@@ -46,12 +46,20 @@ function loop() {
 
         ATTRS.sendMavlinkMessage(ATTRS.id, msg);
 
+        // This goes to other workers via their onGCSMessage() functions.
         ATTRS.broadcastMessage(ATTRS.id, {
             id: "hey_stupid",
             body: {
                 text: "This is a text message"
             }
         });
+
+        const others = ATTRS.getWorkerRoster();
+        if(!others) {
+            console.log("Are there no other workers on the system?");
+        } else {
+            console.log("There are " + others.length + " other workers");
+        }
 
         loopIterations = 0;
     }

@@ -29,6 +29,7 @@ var mLoopTimer = null;
 var mMavlink;
 
 const mWorkerListener = {
+    /** Gets a Mavlink message from the specified worker, sends it to the Mavlink output */
     onMavlinkMessage: function (workerId, msg) {
         trace("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
 
@@ -53,6 +54,7 @@ const mWorkerListener = {
         }
     },
 
+    /** Gets a GCS message from the specified worker, broadcasts to all GCSMessageListeners. */
     onGCSMessage: function (workerId, msg) {
         trace("GCS message from " + workerId + ": " + msg);
 
@@ -72,6 +74,7 @@ const mWorkerListener = {
         process.nextTick(ex());
     },
 
+    /** Gets a message from the specified worker, sends it to all other workers in the system */
     onBroadcastMessage: function(workerId, msg) {
         trace("Broadcast message from " + workerId + ": " + msg);
 
@@ -86,9 +89,7 @@ const mWorkerListener = {
                         if (!worker.worker) continue;
                         if (worker.worker.getAttributes().id === wid) continue;
 
-                        if (worker &&
-                            worker.worker &&
-                            worker.worker.onGCSMessage) {
+                        if (worker.worker.onGCSMessage) {
                             worker.worker.onGCSMessage(m);
                         }
                     }
@@ -97,6 +98,22 @@ const mWorkerListener = {
 
             process.nextTick(ex());
         }
+    },
+
+    /** Called by a worker to get a list of the other workers on the system */
+    getWorkerRoster: function(workerId) {
+        const others = [];
+
+        for (var prop in mWorkers) {
+            const worker = mWorkers[prop];
+
+            if (!worker.worker) continue;
+            if (worker.worker.getAttributes().id === workerId) continue;
+
+            others.push(worker);
+        }
+
+        return others;
     }
 };
 
@@ -290,6 +307,7 @@ function loadWorkerRoot(basedir) {
             attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
             attrs.sendGCSMessage = mWorkerListener.onGCSMessage;
             attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
+            attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
 
             attrs.sysid = mConfig.sysid;
             attrs.compid = mConfig.compid;
@@ -373,7 +391,7 @@ function handleGCSMessage(workerId, msg) {
         const worker = mWorkers[workerId];
 
         if (worker && worker.worker && worker.worker.onGCSMessage) {
-            worker.worker.onGCSMessage(msg);
+            return worker.worker.onGCSMessage(msg);
         }
     }
 }
