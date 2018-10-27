@@ -1,0 +1,47 @@
+<script type="text/javascript" src="/scripts/test_workerpage.js"></script>
+
+<div id="startup" class="container content_view">
+    <h2>Test a worker</h2>
+    <p>
+        Here's a place where you can do basic tests on a worker. Send it messages, and see how it responds.
+    </p>
+
+    <span>
+        Specify the worker id in the "id" field. Then in the "data" field, specify the JSON you want to send to it.
+        The "output" field will show the output once the worker is called.
+    </span>
+    <div class="row bordered_group padded">
+        <table>
+            <tr>
+                <th>Worker ID:</th>
+                <td><input type="text" id="edit_worker_id" size="32" placeholder="worker id" /></td>
+            </tr>
+            <tr>
+                <th>Input:</th>
+                <td>
+                    <textarea id="post_body" rows="10" cols="50" class="terminal">
+{
+    "id": "some_message",
+    "field": "some value to pass in the message"
+}
+                    </textarea>
+                </td>
+            </tr>
+            <tr>
+                <td></td>
+                <td class="padded">
+                    <input type="button" id="btn_send" value="Send"/>
+                </td>
+            </tr>
+            <tr>
+                <th>Output:</th>
+                <td>
+                    <textarea id="response_body" rows="10" cols="50" class="terminal">
+
+                    </textarea>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+

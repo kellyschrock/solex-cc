@@ -71,6 +71,11 @@ td.selected {
     background-color: #efefef;
 }
 
+.terminal {
+    font-family: 'Courier New', Courier, monospace;
+    
+}
+
 .padded {
     padding: 12px;
 }

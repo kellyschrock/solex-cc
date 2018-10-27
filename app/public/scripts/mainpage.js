@@ -386,9 +386,13 @@ $(document).ready(function() {
     //     loadView("doc.html");
     // });
 
-    // $("#btn_workers").click(function(evt) {
-    //     loadView("workers.html");
-    // });
+    $("#btn_workers").click(function(evt) {
+        loadView("workers.html");
+    });
+
+    $("#btn_test_worker").click(function(evt) {
+        loadView("test_worker.html");
+    });
 
     // $("div.content").each(function(div) {
     //     var file = $(this).attr("include-html");

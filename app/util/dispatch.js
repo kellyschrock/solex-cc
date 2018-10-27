@@ -393,8 +393,27 @@ function handleGCSMessage(workerId, msg) {
     if(mWorkers) {
         const worker = mWorkers[workerId];
 
-        if (worker && worker.worker && worker.worker.onGCSMessage) {
-            return worker.worker.onGCSMessage(msg);
+        if(worker) {
+            if(worker.worker) {
+                if(worker.worker.onGCSMessage) {
+                    return worker.worker.onGCSMessage(msg);
+                } else {
+                    return {
+                        ok: false,
+                        message: "Worker " + workerId + " has no onGCSMessage() function"
+                    };
+                }
+            } else {
+                return {
+                    ok: false,
+                    message: "Invalid worker at " + workerId
+                };
+            }
+        } else {
+            return {
+                ok: false,
+                message: "No worker with id of " + workerId
+            };
         }
     }
 }

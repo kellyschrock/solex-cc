@@ -24,7 +24,7 @@ var armed = false;
 
 // Called from dispatch.loop()
 function loop() {
-    console.log(ATTRS.name + " loop(): attrs.sysid=" + ATTRS.sysid);
+    // console.log(ATTRS.name + " loop(): attrs.sysid=" + ATTRS.sysid);
 
     // Example of sending a GCS message every once in a while
     if(++loopIterations > 4) {
@@ -99,6 +99,22 @@ function onMavlinkMessage(msg) {
 // entirely dependent on agreement between the FCS and worker implementation.
 function onGCSMessage(msg) {
     console.log(ATTRS.name + " onGCSMessage(): msg=" + msg);
+
+    switch(msg.id) {
+        case "test_message": {
+            return {
+                id: "test_result",
+                value: new Date().toLocaleTimeString("en-US")
+            };
+        }
+
+        default: {
+            return {
+                id: "no_result",
+                value: "Unknown msg.id '" + msg.id + "'"
+            };
+        }
+    }
 }
 
 exports.getAttributes = getAttributes;

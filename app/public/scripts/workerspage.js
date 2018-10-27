@@ -1,5 +1,5 @@
 
-function WorkersPage() {
+function TestWorkerPage() {
     var tableWorkers = $("#tbl_workers");
 
     function loadWorkersTable(workers) {
@@ -16,8 +16,8 @@ function WorkersPage() {
                         }
                     }
 
-                    var row = "<tr><td class=\"nr bold\" cid=\"" + item.id + "\">" + item.name + "</td>" +
-                        "<td>" + item.id + "</td>" +
+                    var row = "<tr><td class=\"nr bold\" cid=\"" + item.id + "\">" + item.id + "</td>" +
+                        "<td>" + item.name + "</td>" +
                         "<td>" + item.description + "</td>" +
                         "<td>" + item.looper + "</td>" +
                         "<td>" + mavlinkMessages + "</td>"
@@ -80,5 +80,5 @@ function WorkersPage() {
 }
 
 $(document).ready(function () {
-    WorkersPage();
+    TestWorkerPage();
 });

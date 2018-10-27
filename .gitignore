@@ -5,4 +5,5 @@ app/net.settings.json
 .vscode/
 workers/**/node_modules/
 test/**/test.zip
+solexcc-deploy.zip
 
