@@ -135,6 +135,10 @@ td.fat {
     background-color: #00AA00;
 }
 
+.smaller {
+    font-size: 14px;
+}
+
 .small {
     font-size: 12px;
 }

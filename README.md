@@ -404,10 +404,16 @@ Edit `/etc/rc.local` and add this line at the bottom of the file:
 
 APSync already has a web server that runs on port 80. If you don't need that, you can comment out the line that starts it in `/etc/rc.local` and set the `PORT` directive in `start_solexcc.sh` to 80. Otherwise, you can pick a different port for Solex CC (e.g. 8080), and run both web servers at the same time.
 
-
 ### Make worker root(s)
 
 You'll need a place to put workers, so create a worker directory at `/home/apsync/cc-workers`. (You can add more of these, depending on how you prefer to organize things.) Each worker will appear in its own directory under this one.
 
 Edit the `$APP_HOME/config.json` file to include your worker directory.
 
+## UI
+
+SolexCC has a basic UI for messing with workers (listing and testing them). Open your browser to the base address SolexCC is running on.
+The main page shows a list of currently installed. You can install new ones from a panel below that list, and remove workers by clicking
+on the red "Remove" button next to a worker in the list.
+
+You can also do basic testing of worker message handling from the "Test a worker" page.

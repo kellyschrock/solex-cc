@@ -488,19 +488,24 @@ function removeWorker(workerId, callback) {
             worker.worker.onUnload();
         }
 
+        if (worker.cacheName) {
+            log("Deleting " + worker.cacheName + " from cache");
+            delete require.cache[require.resolve(worker.cacheName)];
+        }
+
         delete mWorkers[workerId];
 
-        const filePath = worker.getAttributes().path;
+        const filePath = worker.attributes.path;
         if(filePath && fs.existsSync(filePath)) {
             if (!global.BIN_DIR) {
                 return callback.onError("global.BIN_DIR is not defined");
             }
 
-            // Run $APP/bin/install_worker.sh to install the worker.
+            // Run $APP/bin/remove_worker.sh to remove the worker.
             const child = child_process.spawn(path.join(global.BIN_DIR, "/remove_worker.sh"), [filePath]);
             const output = function (data) {
-                log(data);
-            }
+                log(data.toString());
+            };
 
             child.stdout.on("data", output);
             child.stderr.on("data", output);

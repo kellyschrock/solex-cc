@@ -1,6 +1,13 @@
 'use strict';
 
+const formidable = require("formidable");
+const fs = require("fs");
+
 const dispatch = require("../util/dispatch");
+
+function d(str) {
+    console.log("dispatcher: " + str);
+}
 
 function start(req, res) {
     dispatch.start();
@@ -32,6 +39,44 @@ function workerMessage(req, res) {
     }
 }
 
+function getFirstWorkerRoot() {
+    const cfg = (global.workerConfig)? global.workerConfig.dispatcher: null;
+
+    return(cfg && cfg.worker_roots && cfg.worker_roots.length > 0)? 
+        cfg.worker_roots[0]: null;
+}
+
+function uploadWorker(req, res) {
+    const form = new formidable.IncomingForm();
+    form.parse(req, function (err, fields, upload) {
+        const file = (upload)? upload.file: null;
+
+        if(file) {
+            const targetRoot = getFirstWorkerRoot();
+
+            const outputRoot = targetRoot + "/install_" + new Date().getTime();
+
+            if(targetRoot) {
+                res.status(200).json({
+                    name: file.name,
+                    path: file.path,
+                    type: file.type,
+                    size: file.size,
+                    target: outputRoot
+                });
+            } else {
+                res.status(200).json({
+                    message: "No configured worker roots"
+                });
+            }
+        } else {
+            res.status(200).json({
+                message: "No file"
+            });
+        }
+    });
+}
+
 function installWorker(req, res) {
     const path = req.body.path;
     const target = req.body.target;
@@ -43,11 +88,11 @@ function installWorker(req, res) {
             },
 
             onError: function(msg) {
-                res.status(422).json({message: msg});
+                res.status(200).json({message: msg});
             }
         })
     } else {
-        res.status(422).json({message: "Specify path to worker archive in 'path' and target directory in 'target'."});
+        res.status(200).json({message: "Specify path to worker archive in 'path' and target directory in 'target'."});
     }
 }
 
@@ -91,6 +136,7 @@ exports.start = start;
 exports.stop = stop;
 exports.reload = reload;
 exports.workerMessage = workerMessage;
+exports.uploadWorker = uploadWorker;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
 exports.reloadDirect = reloadDirect;

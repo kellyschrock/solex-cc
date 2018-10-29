@@ -111,6 +111,7 @@ function setupRoutes() {
 
     // Worker list
     app.get("/workers", dispatcher.getWorkers);
+    app.post("/worker/upload", dispatcher.uploadWorker);
     app.post("/worker/install", dispatcher.installWorker);
     app.delete("/worker/:worker_id", dispatcher.removeWorker);
     // POST a message to a worker
@@ -254,6 +255,8 @@ config.readConfig(global.appRoot, function(configData) {
         });
         
         log(JSON.stringify(configData));
+
+        global.workerConfig = configData;
 
         dispatcher.setConfig(configData.dispatcher);
         dispatcher.addGCSListener(mGCSMessageListener);
