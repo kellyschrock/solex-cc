@@ -117,6 +117,13 @@ const mWorkerListener = {
         }
 
         return others;
+    },
+
+    findWorkerById: function(workerId) {
+        const worker = mWorkers[workerId];
+
+        return (worker && worker.worker)?
+            worker.worker: null;
     }
 };
 
@@ -311,6 +318,7 @@ function loadWorkerRoot(basedir) {
             attrs.sendGCSMessage = mWorkerListener.onGCSMessage;
             attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
             attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
+            attrs.findWorkerById = mWorkerListener.findWorkerById;
 
             attrs.sysid = mConfig.sysid;
             attrs.compid = mConfig.compid;
