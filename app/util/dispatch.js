@@ -310,10 +310,6 @@ function loadWorkerRoot(basedir) {
 
             const workerId = attrs.id;
 
-            if (worker.onLoad) {
-                worker.onLoad();
-            }
-
             attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
             attrs.sendGCSMessage = mWorkerListener.onGCSMessage;
             attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
@@ -343,6 +339,10 @@ function loadWorkerRoot(basedir) {
                         };
                     }
                 }
+            }
+
+            if (worker.onLoad) {
+                worker.onLoad();
             }
 
             shell.cacheName = files[i];
