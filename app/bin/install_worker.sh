@@ -2,7 +2,12 @@
 
 HERE=`pwd`
 
-echo $0 Starting up in $HERE
+# echo $0 Starting up in $HERE
+
+die() {
+    echo $1
+    exit 127
+}
 
 usage() {
     echo 
@@ -20,6 +25,13 @@ path=$1
 target=$2
 
 unzip -o $path -d $target
+
+cd $target || die "Can't cd to $target"
+
+if [ -e package.json ]; 
+then
+    which npm && npm install
+fi
 
 echo Done
 

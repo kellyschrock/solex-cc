@@ -2,6 +2,7 @@
 
 const formidable = require("formidable");
 const fs = require("fs");
+const path = require("path");
 
 const dispatch = require("../util/dispatch");
 
@@ -52,9 +53,14 @@ function uploadWorker(req, res) {
         const file = (upload)? upload.file: null;
 
         if(file) {
+            function basename(name, ext) {
+                const pos = name.indexOf(ext);
+                return (pos > 0)? name.substring(0, pos): name;
+            }
+
             const targetRoot = getFirstWorkerRoot();
 
-            const outputRoot = targetRoot + "/install_" + new Date().getTime();
+            const outputRoot = path.join(targetRoot, basename(file.name, ".zip"));
 
             if(targetRoot) {
                 res.status(200).json({

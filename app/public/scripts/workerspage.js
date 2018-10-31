@@ -63,6 +63,7 @@ function WorkersPage() {
 
         if(confirm(str)) {
             var body = {
+                name: workerData.name,
                 path: workerData.path,
                 target: workerData.target
             };
