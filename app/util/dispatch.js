@@ -48,6 +48,8 @@ const mWorkerListener = {
                 }
 
                 process.nextTick(ex());
+            } else {
+                log("UDP client is not connected");
             }
         } else {
             log("WARNING: No message");
@@ -341,12 +343,14 @@ function loadWorkerRoot(basedir) {
                 }
             }
 
-            if (worker.onLoad) {
-                worker.onLoad();
-            }
-
             shell.cacheName = files[i];
             mWorkers[workerId] = shell;
+
+            if (worker.onLoad) {
+                setTimeout(function(werker) {
+                    werker.onLoad();
+                }, 1000 * (i + 1), worker);
+            }
         } catch(ex) {
             log("Error loading worker at " + files[i] + ": " + ex.message);
         }

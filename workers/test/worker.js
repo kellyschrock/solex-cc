@@ -83,6 +83,18 @@ function loop() {
 // Called when this worker is loaded.
 function onLoad() {
     console.log(ATTRS.name + " onLoad()");
+
+    const msg = new mavlink.messages.command_long(
+        ATTRS.sysid, // sysid
+        ATTRS.compid, // compid
+        mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+        0, // confirmation
+        1, // arm
+        0, // emergencyDisarm
+        0, 0, 0, 0
+    );
+
+    ATTRS.sendMavlinkMessage(ATTRS.id, msg);
 }
 
 // Called when unloading
