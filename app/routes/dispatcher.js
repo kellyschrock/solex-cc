@@ -20,6 +20,13 @@ function stop(req, res) {
     res.json({message: "stopped"});
 }
 
+function running(req, res) {
+    const isRunning = dispatch.running();
+    res.json({
+        running: isRunning
+    });
+}
+
 function reload(req, res) {
     dispatch.reload();
     res.json({message: "reloaded"});
@@ -140,6 +147,7 @@ function setConfig(config) {
 
 exports.start = start;
 exports.stop = stop;
+exports.running = running;
 exports.reload = reload;
 exports.workerMessage = workerMessage;
 exports.uploadWorker = uploadWorker;

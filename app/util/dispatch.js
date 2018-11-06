@@ -110,7 +110,7 @@ const mWorkerListener = {
             const worker = mWorkers[prop];
 
             if (!worker.worker) continue;
-            if (worker.worker.getAttributes().id === workerId) continue;
+            if (worker.attributes.id === workerId) continue;
 
             others.push({
                 attributes: worker.attributes,
@@ -243,6 +243,7 @@ function start() {
 function stop() {
     if(mLoopTimer) {
         clearTimeout(mLoopTimer);
+        mLoopTimer = null;
     }
 
     try {
@@ -250,6 +251,10 @@ function stop() {
     } catch(ex) {
         log("Error closing UDP: " + ex.message);
     }
+}
+
+function running() {
+    return (mLoopTimer != null);
 }
 
 function unloadWorkers() {
@@ -530,6 +535,7 @@ function removeWorker(workerId, callback) {
 
 exports.start = start;
 exports.stop = stop;
+exports.running = running;
 exports.reload = reload;
 exports.addGCSMessageListener = addGCSMessageListener;
 exports.removeGCSMessageListener = removeGCSMessageListener;

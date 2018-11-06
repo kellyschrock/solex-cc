@@ -3,6 +3,8 @@ function WorkersPage() {
     var tableWorkers = $("#tbl_workers");
     var fileUpload = $("#fileupload");
     var reloadButton = $("#btn_reload");
+    var startStopButton = $("#btn_start_stop");
+    var mRunning = false;
 
     function loadWorkersTable(workers) {
         tableWorkers.find("tr:gt(0)").remove();
@@ -59,7 +61,7 @@ function WorkersPage() {
     }
 
     function promptToInstall(workerData) {
-        var str = "Install this  " + workerData.name + ", " + workerData.size + " bytes?";
+        var str = "Install " + workerData.name + ", " + workerData.size + " bytes?";
 
         if(confirm(str)) {
             var body = {
@@ -114,6 +116,33 @@ function WorkersPage() {
     }
 
     function loadPage() {
+
+        function setStartButtonState() {
+            if(mRunning) {
+                startStopButton.removeClass("btn-success").addClass("btn-danger").text("Stop");
+            } else {
+                startStopButton.removeClass("btn-danger").addClass("btn-success").text("Start");
+            }
+        }
+
+        $.get("/dispatch/running", function(data) {
+            mRunning = data.running;
+            setStartButtonState();
+
+            startStopButton.click(function() {
+                if(mRunning) {
+                    $.get("/dispatch/stop", function(data) {
+                        mRunning = false;
+                        setStartButtonState();
+                    });
+                } else {
+                    $.get("/dispatch/start", function (data) {
+                        mRunning = true;
+                        setStartButtonState();
+                    });
+                }
+            });
+        });
 
         reloadButton.click(function() {
             $.get("/dispatch/reload", function() {

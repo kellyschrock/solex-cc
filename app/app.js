@@ -107,6 +107,7 @@ function setupRoutes() {
     // Dispatch
     app.get("/dispatch/start", dispatcher.start);
     app.get("/dispatch/stop", dispatcher.stop);
+    app.get("/dispatch/running", dispatcher.running);
     app.get("/dispatch/reload", dispatcher.reload);
 
     // Worker list
