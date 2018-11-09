@@ -129,6 +129,22 @@ function post(url, content, successCallback, failCallback) {
     });
 }
 
+function postJSON(url, content, successCallback, failCallback) {
+    $.post({
+        type: "POST",
+        url: url,
+        contentType: "application/json",
+        data: content,
+        success: successCallback
+    }).fail(function(response) {
+        if(failCallback) {
+            failCallback(response);
+        } else {
+            alert(JSON.stringify(response));
+        }
+    });
+}
+
 function sendDelete(url, successCallback) {
     $.ajax({
         url: url,

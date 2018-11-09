@@ -17,13 +17,17 @@ function TestWorkerPage() {
         // post(url, content, successCallback, failCallback)
         var workerId = mWorkerIdText.val();
         var postBody = mPostBodyText.val();
-        var postJSON = JSON.parse(postBody);
+        var postObject = JSON.parse(postBody);
 
-        post("/worker/msg/" + workerId, postJSON, function(output) {
+        // alert("JSON=" + JSON.stringify(postJSON));
+
+        // alert(typeof(postJSON.field));
+
+        postJSON("/worker/msg/" + workerId, postBody, function(output) {
             mResponseBodyText.val(JSON.stringify(output));
         }, function(err) {
             alert("Error sending message: " + JSON.stringify(err));
-        })
+        });
     }
 
     function loadPage() {
