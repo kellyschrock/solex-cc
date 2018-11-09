@@ -97,11 +97,18 @@ function installWorker(req, res) {
     if(path && target) {
         dispatch.installWorker(path, target, {
             onComplete: function() {
-                res.status(200).json({message: "Installed"});
+                res.status(200).json({
+                    success: true,
+                    message: "Installed"
+                });
             },
 
-            onError: function(msg) {
-                res.status(200).json({message: msg});
+            onError: function(msg, output) {
+                res.status(200).json({
+                    success: false,
+                    message: msg,
+                    command_output: output
+                });
             }
         })
     } else {

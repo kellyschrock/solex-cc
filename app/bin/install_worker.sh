@@ -15,7 +15,7 @@ usage() {
     echo 
 }
 
-if [ $# -lt 2]; 
+if [ $# -lt 2 ]; 
 then
     usage
     exit 127
@@ -30,9 +30,8 @@ cd $target || die "Can't cd to $target"
 
 if [ -e package.json ]; 
 then
-    which npm && npm install
+    which npm && npm install || die "Can't run npm, but need to for this worker"
 fi
 
-echo Done
-
+echo "Installed $path to $target"
 

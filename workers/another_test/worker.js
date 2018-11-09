@@ -38,10 +38,10 @@ var loopIterations = 0;
 function loop() {
     if(++loopIterations > 5) {
 
-        const other = ATTRS.findWorkerById("test_worker");
-        if(other) {
-            console.log("Found another worker");
-        }
+        // const other = ATTRS.findWorkerById("test_worker");
+        // if(other) {
+        //     console.log("Found another worker");
+        // }
 
         loopIterations = 0;
     }

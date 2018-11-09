@@ -26,6 +26,8 @@ var armed = false;
 function loop() {
     // console.log(ATTRS.name + " loop(): attrs.sysid=" + ATTRS.sysid);
 
+    return; // Keep quiet for now
+
     // Example of sending a GCS message every once in a while
     if(++loopIterations > 4) {
         // sendGCSMessage(ATTRS.id, {name: "Some message", value: "Some value"});

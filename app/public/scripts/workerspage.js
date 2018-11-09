@@ -1,10 +1,33 @@
 
 function WorkersPage() {
     var tableWorkers = $("#tbl_workers");
+    var tableLoadErrors = $("#tbl_load_errors");
+    var loadErrorsView = $("#div_load_errors");
     var fileUpload = $("#fileupload");
     var reloadButton = $("#btn_reload");
     var startStopButton = $("#btn_start_stop");
     var mRunning = false;
+
+    function loadLoadErrorsTable(errors) {
+        tableLoadErrors.find("tr:gt(0)").remove();
+
+        var show = errors && errors.length > 0;
+
+        if(show) {
+            loadErrorsView.show();
+            $.each(errors, function(idx, item) {
+                var row = "<tr>" +
+                    "<td class=\"smaller\">" + item.path + "</td>" + 
+                    "<td class=\"smaller\">" + item.error + "</td>" + 
+                    "<td class=\"smaller\">" + item.detail + "</td>"
+                    ;
+
+                $("#tbl_load_errors tr:last").after(row);
+            });
+        } else {
+            loadErrorsView.hide();
+        }
+    }
 
     function loadWorkersTable(workers) {
         tableWorkers.find("tr:gt(0)").remove();
@@ -28,9 +51,7 @@ function WorkersPage() {
                         "<td><button class=\"del btn btn-danger btn-sm\">Remove</button></td></tr>"
                         ;
 
-                    row += "</tr>";
-
-                    $("#tbl_workers tr:last").after(row);                        
+                    $("#tbl_workers tr:last").after(row);
                 }
             });
         }
@@ -71,9 +92,13 @@ function WorkersPage() {
             };
 
             post("/worker/install", body, function(data) {
-                setTimeout(function() {
-                    reloadButton.click();
-                }, 2000);
+                if(data.success) {
+                    setTimeout(function () {
+                        reloadButton.click();
+                    }, 2000);
+                } else {
+                    alert(data.message + "\nCommand output:\n" + data.command_output);
+                }
             }, function(err) {
                 alert("Unable to install the worker.");
             })
@@ -111,7 +136,8 @@ function WorkersPage() {
 
     function loadWorkers() {
         $.getJSON("/workers", function(data) {
-            loadWorkersTable(data);
+            loadWorkersTable(data.workers);
+            loadLoadErrorsTable(data.load_errors);
         });
     }
 

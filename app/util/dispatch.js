@@ -19,6 +19,8 @@ const mConfig = {
 
 // Worker list/map
 var mWorkers = {};
+// Worker load error list
+var mWorkerLoadErrors = [];
 // Lookup table (message id to list of workers interested in that message)
 var mMavlinkLookup = {};
 // Listeners for GCS messages from workers
@@ -285,6 +287,7 @@ function reload() {
         clearTimeout(mLoopTimer);
     }
 
+    mWorkerLoadErrors = [];
     const roots = mConfig.workerRoots;
     for(var i = 0, size = roots.length; i < size; ++i) {
         loadWorkerRoot(roots[i]);
@@ -351,6 +354,7 @@ function loadWorkerRoot(basedir) {
             shell.cacheName = files[i];
             mWorkers[workerId] = shell;
 
+            // Delay loading workers a bit
             if (worker.onLoad) {
                 setTimeout(function(werker) {
                     werker.onLoad();
@@ -358,6 +362,14 @@ function loadWorkerRoot(basedir) {
             }
         } catch(ex) {
             log("Error loading worker at " + files[i] + ": " + ex.message);
+
+            if(!mWorkerLoadErrors) {
+                mWorkerLoadErrors = [];
+            }
+
+            mWorkerLoadErrors.push({
+                path: files[i], error: ex.message, detail: ex.stack
+            });
         }
     }
 }
@@ -436,18 +448,24 @@ function handleGCSMessage(workerId, msg) {
 }
 
 function getWorkers() {
-    const workers = [];
+    const result = {
+        workers: []
+    };
 
     if(mWorkers) {
         for(var prop in mWorkers) {
             const worker = mWorkers[prop];
             if(worker.attributes) {
-                workers.push(worker.attributes);
+                result.workers.push(worker.attributes);
             }
         }
     }
 
-    return workers;
+    if(mWorkerLoadErrors) {
+        result.load_errors = mWorkerLoadErrors;
+    }
+
+    return result;
 }
 
 function setConfig(config) {
@@ -468,10 +486,12 @@ function installWorker(srcPath, target, callback) {
             return callback.onError("global.BIN_DIR is not defined");
         }
 
-        // Run $APP/bin/install_worker.sh to install the worker.
-        const child = child_process.spawn(path.join(global.BIN_DIR, "/install_worker.sh"), [srcPath, target]);
+        // Run $global.BIN_DIR/install_worker.sh to install the worker.
+        const child = child_process.spawn(path.join(global.BIN_DIR, "install_worker.sh"), [srcPath, target]);
+        var consoleOutput = "";
         const output = function(data) {
             log(data.toString());
+            consoleOutput += data.toString();
         }
 
         child.stdout.on("data", output);
@@ -480,7 +500,7 @@ function installWorker(srcPath, target, callback) {
         child.on("close", function(rc) {
             log("script exited with return code " + rc);
             if(rc != 0) {
-                callback.onError("Failed to install worker with exit code " + rc);
+                callback.onError("Failed to install worker with exit code " + rc, consoleOutput.trim());
             } else {
                 callback.onComplete();
             }
@@ -511,7 +531,7 @@ function removeWorker(workerId, callback) {
             }
 
             // Run $APP/bin/remove_worker.sh to remove the worker.
-            const child = child_process.spawn(path.join(global.BIN_DIR, "/remove_worker.sh"), [filePath]);
+            const child = child_process.spawn(path.join(global.BIN_DIR, "remove_worker.sh"), [filePath]);
             const output = function (data) {
                 log(data.toString());
             };
