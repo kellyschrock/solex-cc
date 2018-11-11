@@ -353,6 +353,8 @@ function processHeartbeat(msg) {
     if(mState.mode !== vehicleMode) {
         d("vehicleMode=" + JSON.stringify(vehicleMode));
         mState.mode = vehicleMode;
+
+        notifyEvent(VehicleEvents.MODE_UPDATED, { mode: mState.mode });
     }
 
     // Flying? Armed?

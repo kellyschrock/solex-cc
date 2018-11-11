@@ -2,10 +2,8 @@
 
 const path = require("path");
 const fs = require("fs");
-const mavlink = require("./mavlink");
 const udpclient = require("../server/udpclient");
 const logger = require("../util/logger");
-const files = require("../routes/files");
 const child_process = require("child_process");
 
 // Config

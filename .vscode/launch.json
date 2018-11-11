@@ -39,13 +39,6 @@
             "name": "MathUtils test",
             "program": "${workspaceFolder}/app/util/MathUtils.js",
             "cwd": "${workspaceFolder}/app"
-        },
-        {
-            "type": "node",
-            "request": "launch",
-            "name": "Extern Ref Test",
-            "program": "${workspaceFolder}/app/util/externreftest.js",
-            "cwd": "${workspaceFolder}/app"
         }
     ]
 }
