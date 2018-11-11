@@ -8,5 +8,5 @@ NODE_EXE=$SOLEXCC_HOME/node/bin/node
 APP_HOME=$SOLEXCC_HOME/app
 
 pushd $APP_HOME
-PORT=8080 $NODE_EXE app.js
+PORT=80 $NODE_EXE app.js
 
