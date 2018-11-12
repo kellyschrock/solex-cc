@@ -5,7 +5,6 @@ const path = require("path");
 const http = require("http");
 const child_process = require("child_process");
 const settings = require("./settings");
-const gcs = require("./gcs");
 const rtk = require("./rtk");
 const netconfig = require("../util/netconfig");
 const logger = require("../util/logger");
@@ -34,22 +33,6 @@ function bool(v) {
 
 function startOpsForSettings(startupSettings) {
     mStartupErrors = [];
-
-    if (bool(startupSettings.start_rtk)) {
-        rtk.startSurvey(settings.getSettingsDirect("rtk"), function (errMsg) {
-            if (errMsg != null) {
-                mStartupErrors.push("RTK: " + errMsg);
-            }
-        });
-    }
-
-    if (bool(startupSettings.connect_gcs)) {
-        gcs.startConnection(settings.getSettingsDirect("gcs"), function(errMsg) {
-            if(errMsg != null) {
-                mStartupErrors.push("GCS: " + errMsg);
-            }
-        });
-    }
 
     log("Startup errors:");
     for (var i = 0; i < mStartupErrors.length; ++i) {

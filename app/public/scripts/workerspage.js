@@ -6,6 +6,7 @@ function WorkersPage() {
     var fileUpload = $("#fileupload");
     var reloadButton = $("#btn_reload");
     var startStopButton = $("#btn_start_stop");
+    var restartButton = $("#btn_restart_service");
     var mRunning = false;
 
     function loadLoadErrorsTable(errors) {
@@ -145,9 +146,9 @@ function WorkersPage() {
 
         function setStartButtonState() {
             if(mRunning) {
-                startStopButton.removeClass("btn-success").addClass("btn-danger").text("Stop");
+                startStopButton.removeClass("btn-success").addClass("btn-danger").text("Stop Dispatcher");
             } else {
-                startStopButton.removeClass("btn-danger").addClass("btn-success").text("Start");
+                startStopButton.removeClass("btn-danger").addClass("btn-success").text("Start Dispatcher");
             }
         }
 
@@ -169,6 +170,18 @@ function WorkersPage() {
                 }
             });
         });
+
+        restartButton.click(function() {
+            console.log("restartButton.click()");
+            
+            if(confirm("Restart the service?")) {
+                $.get("/sys/restart", function(data) {
+                    setTimeout(function() {
+                        loadPage();
+                    }, 5000);
+                });
+            }
+        })
 
         reloadButton.click(function() {
             $.get("/dispatch/reload", function() {

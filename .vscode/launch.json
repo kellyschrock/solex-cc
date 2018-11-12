@@ -10,7 +10,8 @@
             "request": "launch",
             "name": "Launch Server",
             "program": "${workspaceFolder}/app/app.js",
-            "cwd": "${workspaceFolder}/app"
+            "cwd": "${workspaceFolder}/app",
+            "autoAttachChildProcesses": true
         },
         {
             "type": "node",

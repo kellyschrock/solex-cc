@@ -26,6 +26,12 @@ var armed = false;
 function loop() {
     // console.log(ATTRS.name + " loop(): attrs.sysid=" + ATTRS.sysid);
 
+    // Test a worker crash
+    // if(++loopIterations > 15) {
+    //     mHurp.durp = 24; // DIE
+    //     loopIterations = 0;
+    // }
+
     return; // Keep quiet for now
 
     // Example of sending a GCS message every once in a while

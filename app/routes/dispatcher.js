@@ -52,13 +52,6 @@ function workerMessage(req, res) {
     }
 }
 
-function getFirstWorkerRoot() {
-    const cfg = (global.workerConfig)? global.workerConfig.dispatcher: null;
-
-    return(cfg && cfg.worker_roots && cfg.worker_roots.length > 0)? 
-        cfg.worker_roots[0]: null;
-}
-
 function uploadWorker(req, res) {
     const form = new formidable.IncomingForm();
     form.parse(req, function (err, fields, upload) {
@@ -133,6 +126,14 @@ function removeWorker(req, res) {
     });
 }
 
+function restartSystem(req, res) {
+    res.json({message: "Restarting"});
+
+    setTimeout(function() {
+        process.send({id: "restart_system" });
+    }, 1000);
+}
+
 function reloadDirect() {
     dispatch.reload(global.workerRoot);
 }
@@ -172,3 +173,11 @@ exports.removeGCSListener = removeGCSListener;
 exports.handleGCSMessage = handleGCSMessage;
 exports.getWorkers = getWorkers;
 exports.setConfig = setConfig;
+exports.restartSystem = restartSystem;
+
+function getFirstWorkerRoot() {
+    const cfg = (global.workerConfig) ? global.workerConfig.dispatcher : null;
+
+    return (cfg && cfg.worker_roots && cfg.worker_roots.length > 0) ?
+        cfg.worker_roots[0] : null;
+}

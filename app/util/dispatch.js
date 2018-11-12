@@ -60,10 +60,6 @@ const mWorkerListener = {
     onGCSMessage: function (workerId, msg) {
         trace("GCS message from " + workerId + ": " + msg);
 
-        // for (var i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
-        //     mGCSMessageListeners[i].onGCSMessage(workerId, msg);
-        // }
-
         function ex() {
             const m = msg;
             return function() {
@@ -89,10 +85,14 @@ const mWorkerListener = {
                         const worker = mWorkers[prop];
 
                         if (!worker.worker) continue;
-                        if (worker.worker.getAttributes().id === wid) continue;
+                        if (worker.attributes.id === wid) continue;
 
                         if (worker.worker.onGCSMessage) {
-                            worker.worker.onGCSMessage(m);
+                            try {
+                                worker.worker.onGCSMessage(m);
+                            } catch(ex) {
+                                handleWorkerCallException(worker, ex);
+                            }
                         }
                     }
                 }
@@ -216,7 +216,11 @@ function onReceivedMavlinkMessage(msg) {
                     trace("Send " + msg.name + " to " + worker.attributes.name);
 
                     if(worker.worker.onMavlinkMessage) {
-                        worker.worker.onMavlinkMessage(msg);
+                        try {
+                            worker.worker.onMavlinkMessage(msg);
+                        } catch(ex) {
+                            handleWorkerCallException(worker, ex);
+                        }
                     }
                 } catch (ex) {
                     log("Exception hitting onMavlinkMessage() in " + worker.attributes.name + ": " + ex.message);
@@ -257,20 +261,27 @@ function running() {
     return (mLoopTimer != null);
 }
 
+function unloadWorker(worker) {
+    if (worker && worker.worker && worker.worker.onUnload) {
+        trace("Unload " + worker.attributes.name);
+        try {
+            worker.worker.onUnload();
+        } catch (ex) {
+            handleWorkerCallException(worker, ex);
+        }
+    }
+
+    if (worker.cacheName) {
+        log("Deleting " + worker.cacheName + " from cache");
+        delete require.cache[require.resolve(worker.cacheName)];
+    }
+}
+
 function unloadWorkers() {
     if(mWorkers) {
         for(var prop in mWorkers) {
             const worker = mWorkers[prop];
-
-            if (worker && worker.worker && worker.worker.onUnload) {
-                trace("Unload " + worker.attributes.name);
-                worker.worker.onUnload();
-            }
-
-            if (worker.cacheName) {
-                log("Deleting " + worker.cacheName + " from cache");
-                delete require.cache[require.resolve(worker.cacheName)];
-            }
+            unloadWorker(worker);
         }
     }
 
@@ -355,7 +366,11 @@ function loadWorkerRoot(basedir) {
             // Delay loading workers a bit
             if (worker.onLoad) {
                 setTimeout(function(werker) {
-                    werker.onLoad();
+                    try {
+                        werker.onLoad();
+                    } catch(ex) {
+                        handleWorkerCallException(werker, ex);
+                    }
                 }, 1000 * (i + 1), worker);
             }
         } catch(ex) {
@@ -372,6 +387,24 @@ function loadWorkerRoot(basedir) {
     }
 }
 
+function handleWorkerCallException(worker, ex) {
+    const workerId = worker.attributes.id;
+    const msg = {
+        id: "worker_exception",
+        worker_id: workerId,
+        stack: ex.stack
+    };
+
+    d("OOPS!");
+
+    log(`Exception for ${workerId}: ${ex.message}`);
+
+    // Report this worker and unload it.
+    mWorkerListener.onGCSMessage(workerId, msg);
+    unloadWorker(worker);
+    delete mWorkers[workerId];
+}
+
 // Called periodically to loop the workers.
 function loop() {
     if(mWorkers) {
@@ -381,7 +414,11 @@ function loop() {
             const worker = mWorkers[prop];
             if(worker && worker.attributes.looper && worker.worker && worker.worker.loop) {
                 hasLoopers = true;
-                worker.worker.loop();
+                try {
+                    worker.worker.loop();
+                } catch(ex) {
+                    handleWorkerCallException(worker, ex);
+                }
             }
         }
 
@@ -423,7 +460,12 @@ function handleGCSMessage(workerId, msg) {
         if(worker) {
             if(worker.worker) {
                 if(worker.worker.onGCSMessage) {
-                    return worker.worker.onGCSMessage(msg);
+                    try {
+                        return worker.worker.onGCSMessage(msg);
+                    } catch(ex) {
+                        handleWorkerCallException(worker, ex);
+                        return { ok: false, message: ex.message }
+                    }
                 } else {
                     return {
                         ok: false,
@@ -512,7 +554,11 @@ function removeWorker(workerId, callback) {
     const worker = mWorkers[workerId];
     if(worker) {
         if(worker.worker && worker.worker.unUnload) {
-            worker.worker.onUnload();
+            try {
+                worker.worker.onUnload();
+            } catch(ex) {
+                handleWorkerCallException(worker, ex);
+            }
         }
 
         if (worker.cacheName) {
