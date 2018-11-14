@@ -395,8 +395,6 @@ function handleWorkerCallException(worker, ex) {
         stack: ex.stack
     };
 
-    d("OOPS!");
-
     log(`Exception for ${workerId}: ${ex.message}`);
 
     // Report this worker and unload it.
