@@ -357,6 +357,17 @@ function loop() {
 exports.loop = loop;
 ```
 
+### Listening for roster changes
+
+The "roster" is the list of installed workers. A worker can listen for changes to the roster (workers being installed or removed)
+and respond to them by exporting an `onRosterChanged()` function, like this:
+
+```javascript
+exports.onRosterChanged = function() {
+    // Roster has changed
+}
+```
+
 ## Building a Worker
 
 A worker is just like any node app, except it's loaded on the fly by the dispatcher. So if you need specific Node JS modules in your worker, just load them via `require` like you would anywhere else. Here are the basic steps to starting a worker project:

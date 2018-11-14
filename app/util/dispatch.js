@@ -541,6 +541,7 @@ function installWorker(srcPath, target, callback) {
                 callback.onError("Failed to install worker with exit code " + rc, consoleOutput.trim());
             } else {
                 callback.onComplete();
+                notifyRosterChanged();
             }
         });
     } else {
@@ -587,11 +588,30 @@ function removeWorker(workerId, callback) {
                     callback.onError("Failed to remove worker with exit code " + rc);
                 } else {
                     callback.onComplete();
+                    notifyRosterChanged();
                 }
             });
         }
     } else {
         callback.onError("Worker " + workerId + " not found");
+    }
+}
+
+function notifyRosterChanged() {
+    if(!mWorkers) return;
+
+    for (let prop in mWorkers) {
+        const worker = mWorkers[prop];
+
+        if (!worker.worker) continue;
+
+        if (worker.worker.onRosterChanged) {
+            try {
+                worker.worker.onRosterChanged();
+            } catch (ex) {
+                handleWorkerCallException(worker, ex);
+            }
+        }
     }
 }
 

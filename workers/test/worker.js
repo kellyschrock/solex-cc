@@ -137,9 +137,19 @@ function onGCSMessage(msg) {
     }
 }
 
+/**
+ * Called when the worker roster (the list of installed workers) is changed.
+ * If a worker needs to communicate with other workers, this is an opportunity to
+ * check whether workers it needs to interact with are available.
+ */
+function onRosterChanged() {
+    console.log("Roster has been changed");
+}
+
 exports.getAttributes = getAttributes;
 exports.loop = loop;
 exports.onLoad = onLoad;
 exports.onUnload = onUnload;
 exports.onMavlinkMessage = onMavlinkMessage;
 exports.onGCSMessage = onGCSMessage;
+exports.onRosterChanged = onRosterChanged;
