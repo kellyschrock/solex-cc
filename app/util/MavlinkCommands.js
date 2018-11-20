@@ -11,6 +11,7 @@ const EMERGENCY_DISARM_MAGIC_NUMBER = 21196;
 const MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE = ((1 << 0) | (1 << 1) | (1 << 2));
 const MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE = ((1 << 3) | (1 << 4) | (1 << 5));
 const MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE = ((1 << 6) | (1 << 7) | (1 << 8));
+const MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE = (1 << 10);
 
 function changeMissionSpeed(sysid, compid, speed, callback) {
     const msg = new mavlink.messages.command_long(
@@ -96,13 +97,13 @@ function sendGuidedVelocity(sysid, compid, xVel, yVel, zVel, callback) {
     callback(msg);
 }
 
-function setVelocityInLocalFrame(sysid, compid, xVel, yVel, zVel, callback) {
+function sendVelocityInLocalFrame(sysid, compid, xVel, yVel, zVel, callback) {
     const msg = new mavlink.messages.set_position_target_local_ned(
         0, // time_boot_msg
         sysid, 
         compid,
-        0, // coordinate_frame
-        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE | MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE, // type_mask
+        mavlink.MAV_FRAME_LOCAL_NED, // coordinate_frame
+        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE | MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE | MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE, // type_mask
         0, // x
         0, // y
         0, // z
@@ -121,10 +122,13 @@ function setVelocityInLocalFrame(sysid, compid, xVel, yVel, zVel, callback) {
 
 function setSpeed(sysid, compid, speedMs, callback) {
     const msg = new mavlink.messages.command_long(
-        sysid, compid, mavlink.MAV_CMD_DO_CHANGE_SPEED,
+        sysid, 
+        compid, 
+        mavlink.MAV_CMD_DO_CHANGE_SPEED,
         0, // confirmation,
-        1, Math.abs(speedMs), -1, // params 1-3
-        0, 0, 0, 0 // 4-7 unused
+        1, // type: ground speed
+        speedMs, 
+        0, 0, 0, 0, 0 // unused params
         );
 
     callback(msg);
@@ -256,7 +260,7 @@ exports.setSpeed = setSpeed;
 exports.setGuidedMode = setGuidedMode;
 exports.sendGuidedPosition = sendGuidedPosition;
 exports.sendGuidedVelocity = sendGuidedVelocity;
-exports.setVelocityInLocalFrame = setVelocityInLocalFrame;
+exports.sendVelocityInLocalFrame = sendVelocityInLocalFrame;
 exports.sendGuidedPosAndVelocity = sendGuidedPosAndVelocity;
 exports.changeVehicleMode = changeVehicleMode;
 exports.setYaw = setYaw;

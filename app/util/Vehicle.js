@@ -585,6 +585,10 @@ function sendGuidedVelocity(xVel, yVel, zVel) {
     MavlinkCommands.sendGuidedVelocity(mSysId, mCompId, xVel, yVel, zVel, mavlinkCallback);
 }
 
+function sendVelocityLocalNed(xVel, yVel, zVel) {
+    MavlinkCommands.sendVelocityInLocalFrame(mSysId, mCompId, xVel, yVel, zVel, mavlinkCallback);
+}
+
 function setSpeed(speed) {
     d("setSpeed(): speed=" + speed);
     MavlinkCommands.setSpeed(mSysId, mCompId, speed, mavlinkCallback);
@@ -616,6 +620,7 @@ module.exports.setMavlinkSendCallback = setMavlinkSendCallback;
 module.exports.gotoPoint = gotoPoint;
 module.exports.setSpeed = setSpeed;
 module.exports.sendGuidedVelocity = sendGuidedVelocity;
+module.exports.sendVelocityLocalNed = sendVelocityLocalNed;
 
 // Tests
 function testTypeIterate() {
