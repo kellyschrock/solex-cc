@@ -30,7 +30,7 @@ cd $target || die "Can't cd to $target"
 
 if [ -e package.json ]; 
 then
-    which npm && npm install || die "Need to run npm for this worker, but can't find it"
+    which npm && npm install || die "Failed to run npm for worker at $target"
 fi
 
 echo "Installed $path to $target"

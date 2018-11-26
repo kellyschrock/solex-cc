@@ -95,7 +95,7 @@ function WorkersPage() {
             post("/worker/install", body, function(data) {
                 if(data.success) {
                     setTimeout(function () {
-                        reloadButton.click();
+                        loadWorkers();
                     }, 2000);
                 } else {
                     alert(data.message + "\nCommand output:\n" + data.command_output);

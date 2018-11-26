@@ -183,7 +183,7 @@ function findFiles(dir, filter) {
         if (stat.isDirectory()) {
             const children = findFiles(filename, filter);
             if(children) {
-                for(var j = 0, sz = children.length; j < sz; ++j) {
+                for(let j = 0, sz = children.length; j < sz; ++j) {
                     out.push(children[j]);
                 }
             }
@@ -210,7 +210,7 @@ function onReceivedMavlinkMessage(msg) {
         if(lookup) {
             const workers = lookup.workers;
 
-            for(var i = 0, size = workers.length; i < size; ++i) {
+            for(let i = 0, size = workers.length; i < size; ++i) {
                 const worker = workers[i];
                 try {
                     trace("Send " + msg.name + " to " + worker.attributes.name);
@@ -279,7 +279,7 @@ function unloadWorker(worker) {
 
 function unloadWorkers() {
     if(mWorkers) {
-        for(var prop in mWorkers) {
+        for(let prop in mWorkers) {
             const worker = mWorkers[prop];
             unloadWorker(worker);
         }
@@ -298,8 +298,11 @@ function reload() {
 
     mWorkerLoadErrors = [];
     const roots = mConfig.workerRoots;
-    for(var i = 0, size = roots.length; i < size; ++i) {
-        loadWorkerRoot(roots[i]);
+
+    if(roots) {
+        for (let i = 0, size = roots.length; i < size; ++i) {
+            loadWorkerRoot(roots[i]);
+        }
     }
 
     log(mWorkers);
@@ -315,7 +318,7 @@ function loadWorkerRoot(basedir) {
 
     const files = findFiles(basedir, "worker.js");
 
-    for(var i = 0, size = files.length; i < size; ++i) {
+    for(let i = 0, size = files.length; i < size; ++i) {
         try {
             // Load the module
             const worker = require(files[i]);
@@ -347,7 +350,7 @@ function loadWorkerRoot(basedir) {
             // If this guy is looking for mavlink messages, index the messages by name for fast
             // lookup in onReceivedMavlinkMessage().
             if (attrs.mavlinkMessages) {
-                for(var x = 0, sz = attrs.mavlinkMessages.length; x < sz; ++x) {
+                for(let x = 0, sz = attrs.mavlinkMessages.length; x < sz; ++x) {
                     const name = attrs.mavlinkMessages[x];
 
                     if (mMavlinkLookup[name]) {
@@ -361,6 +364,12 @@ function loadWorkerRoot(basedir) {
             }
 
             shell.cacheName = files[i];
+
+            if(mWorkers[workerId]) {
+                log(`Worker $workerId already loaded. Unload`);
+                unloadWorker(mWorkers[workerId]);
+            }
+
             mWorkers[workerId] = shell;
 
             // Delay loading workers a bit
@@ -408,7 +417,7 @@ function loop() {
     if(mWorkers) {
         var hasLoopers = false;
 
-        for(var prop in mWorkers) {
+        for(let prop in mWorkers) {
             const worker = mWorkers[prop];
             if(worker && worker.attributes.looper && worker.worker && worker.worker.loop) {
                 hasLoopers = true;
@@ -491,7 +500,7 @@ function getWorkers() {
     };
 
     if(mWorkers) {
-        for(var prop in mWorkers) {
+        for(let prop in mWorkers) {
             const worker = mWorkers[prop];
             if(worker.attributes) {
                 result.workers.push(worker.attributes);
@@ -540,6 +549,8 @@ function installWorker(srcPath, target, callback) {
             if(rc != 0) {
                 callback.onError("Failed to install worker with exit code " + rc, consoleOutput.trim());
             } else {
+                loadWorkerRoot(target);
+
                 callback.onComplete();
                 notifyRosterChanged();
             }
