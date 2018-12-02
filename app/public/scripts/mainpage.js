@@ -12,7 +12,7 @@ var mSettings = null;
 var validChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 ,-_;:";
 
 function log(str) {
-    console.log(str);
+    console.log(`mainpage: ${str}`);
 }
 
 function loadSystemState() {
@@ -153,128 +153,9 @@ function sendDelete(url, successCallback) {
     });
 }
 
-function settingsPage() {
-    // TODO: Remove this crap, it's for a different app.
-    var vehicleTypes = [
-        {value: 0, name: "Default"},
-        {value: 1, name: "Xray"},
-        {value: 2, name: "Endurance"},
-        {value: 3, name: "FX-61"},
-        {value: 4, name: "3DR Solo"},
-        {value: 5, name: "xCraft"}
-    ];
-
-    var vehicles = [];
-
-    function getTypeName(id) {
-        var i;
-        for(i = 0; i < vehicleTypes.length; ++i) {
-            if(vehicleTypes[i].value == id) {
-                return vehicleTypes[i].name;
-            }
-        }
-
-        return vehicleTypes[0].name;
-    }
-
-    function loadTableWith(data) {
-        $("#tbl_vehicles").find("tr:gt(0)").remove();
-
-        if(data) {
-            $.each(data, function(idx, item) {
-                var name = (item.name)? item.name: "";
-                var type = (item.type)? item.type: 0;
-
-                if(item.hwid) {
-                    $("#tbl_vehicles tr:last").after(
-                        "<tr><td class=\"nr\">" + item.hwid + 
-                        "</td><td>" + name + "</td>" + 
-                        "</td><td>" + getTypeName(type) + "</td>" + 
-                        "<td><button class=\"del btn btn-danger\">Delete</button></td></tr>");
-                }
-            });
-
-            $(".del").click(function() {
-                var hwid = $(this).closest("tr").find(".nr").text();
-                if(confirm("Delete vehicle " + hwid + "?")) {
-                    sendDelete("/vehicle/" + hwid, function() {
-                        loadData();
-                    });
-                }
-            });
-        }
-    }
-
-    function loadData() {
-    }
-
-    function filter(str) {
-        var output = [];
-        var i;
-
-        if(vehicles) {
-            for(i = 0; i < vehicles.length; ++i) {
-                if(!vehicles[i].hwid) continue;
-
-                if(vehicles[i].hwid.indexOf(str) >= 0) {
-                    output.push(vehicles[i]);
-                }
-            }
-        }
-
-        return output;
-    }
-
-    loadData();
-
-    $("#btn_show_add").click(function() {
-        $(this).hide();
-        $("#frm_add").show();
-        $("#txt_hwid").val("").focus();
-        $("#txt_name").val("");
-    });
-
-    $("#btn_add_vehicle").click(function(evt) {
-        var body = {
-            hwid: $("#txt_hwid").val(),
-            name: $("#txt_name").val(),
-            type: $("#sel_type").val()
-        };
-
-        $("#frm_add").hide();
-        $("#btn_show_add").show();
-
-        post("/vehicle", body, function() {
-            loadData();
-        });
-    });
-
-    $("#btn_cancel_add").click(function() {
-        $("#frm_add").hide();
-        $("#btn_show_add").show();
-    });
-
-    $("#txt_hwid_filter").keyup(function() {
-        var str = $(this).val();
-        var items = filter(str);
-        loadTableWith(items);
-    });
-
-    $.each(vehicleTypes, function (i, item) {
-        $('#sel_type').append($('<option>', { 
-            value: item.value,
-            text : item.name 
-        }));
-    });    
-
-    $("#frm_add").hide();
-}
-
 //
 // Page functions
 //
-function RTKPage() {}
-
 function setupWebSocket() {
     if(!"WebSocket" in window) {
         alert("Your browser doesn't support web sockets!");
@@ -289,12 +170,6 @@ function loadSettings(cb) {
         mSettings = data;
 
         if(cb) cb(data);
-    });
-}
-
-function loadRegState(cb) {
-    $.getJSON("/sys/regstate", function(result) {
-        if(cb) cb(result);
     });
 }
 
@@ -317,6 +192,8 @@ function putSettings(cat, value) {
 }
 
 function connectWebSocket() {
+    log("connectWebSocket()");
+
     var socket;
     var url = $(location).attr("href");
     var host = url.replace("http:", "ws:");
@@ -335,7 +212,7 @@ function connectWebSocket() {
 
         mSocket.onmessage = function(msg) {
             // log("onmessage(): " + msg.data);
-            for(var evl of mEventListeners) {
+            for(let evl of mEventListeners) {
                 evl.onMessage(msg.data);
             }
         };
@@ -395,12 +272,9 @@ function showStatusIcon(name, show) {
 }
 
 $(document).ready(function() {
-    loadView("workers.html");
+    setupWebSocket();
 
-    // TODO: For when there's something to document.
-    // $("#btn_home").click(function(evt) {
-    //     loadView("doc.html");
-    // });
+    loadView("workers.html");
 
     $("#btn_workers").click(function(evt) {
         loadView("workers.html");
@@ -410,11 +284,8 @@ $(document).ready(function() {
         loadView("test_worker.html");
     });
 
-    // $("div.content").each(function(div) {
-    //     var file = $(this).attr("include-html");
-    //     if(file) {
-    //         $(this).load(file);
-    //     }
-    // });
+    $("#btn_logging").click(function(evt) {
+        loadView("logging.html");
+    });
 });
 

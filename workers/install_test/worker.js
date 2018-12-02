@@ -3,7 +3,7 @@
 const marklar = require("./marklar");
 
 const ATTRS = {
-    id: "16c62ff2-3187-4a6d-8b64-ee6038ca3931",
+    id: "installable_worker",
     // Name/description
     name: "Installable worker",
     description: "Test worker installation",
@@ -12,6 +12,10 @@ const ATTRS = {
     // Mavlink messages we're interested in
     mavlinkMessages: ["HEARTBEAT"]
 };
+
+function d(str) {
+    ATTRS.log(ATTRS.id, str);
+}
 
 /*
 Return an object describing this worker. If looper is true, this module must expose a loop() export.
@@ -22,17 +26,17 @@ function getAttributes() {
 
 // Called when this worker is loaded.
 function onLoad() {
-    console.log(ATTRS.name + " onLoad()");
+    d("onLoad()");
 }
 
 // Called when unloading
 function onUnload() {
-    console.log(ATTRS.name + " onUnload()");
+    d("onUnload()");
 }
 
 // Called when a Mavlink message arrives
 function onMavlinkMessage(msg) {
-    console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg.name);
+    d("onMavlinkMessage(): msg=" + msg.name);
 
     switch(msg.name) {
         case "HEARTBEAT": {
@@ -46,7 +50,7 @@ function onMavlinkMessage(msg) {
 // Called when the GCS sends a message to this worker. Message format is 
 // entirely dependent on agreement between the FCS and worker implementation.
 function onGCSMessage(msg) {
-    console.log(ATTRS.name + " onGCSMessage(): msg=" + msg);
+    d("onGCSMessage(): msg=" + msg);
 }
 
 exports.getAttributes = getAttributes;

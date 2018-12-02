@@ -8,7 +8,7 @@ const helper = require("./helper.js");
 const serialport = require("serialport");
 
 const ATTRS = {
-    id: "e22f3228-9532-4a8f-817d-7555d230c6c0",
+    id: "real_worker",
     // Name/description
     name: "Real worker",
     description: "Actually does stuff and has its own node_modules directory",
@@ -17,6 +17,10 @@ const ATTRS = {
     // Mavlink messages we're interested in
     mavlinkMessages: ["HEARTBEAT", "GLOBAL_POSITION_INT"]
 };
+
+function d(str) {
+    ATTRS.log(ATTRS.id, str);
+}
 
 /*
 Return an object describing this worker. If looper is true, this module must expose a loop() export.
@@ -27,7 +31,7 @@ function getAttributes() {
 
 // Called from dispatch.loop()
 function loop() {
-    console.log(ATTRS.name + " loop(): attrs.sysid=" + ATTRS.sysid);
+    d("loop(): attrs.sysid=" + ATTRS.sysid);
 
     helper.helperFunction("Hey");
 }
@@ -35,11 +39,11 @@ function loop() {
 function listPorts(cb) {
     serialport.list(function (err, ports) {
         if(err) {
-            return console.log("Error getting ports: " + err.message);
+            return d("Error getting ports: " + err.message);
         }
 
         for (var i = 0, size = ports.length; i < size; ++i) {
-            console.log("port=" + ports[i].comName);
+            d("port=" + ports[i].comName);
         }
 
         cb.onComplete(ports);
@@ -48,25 +52,25 @@ function listPorts(cb) {
 
 // Called when this worker is loaded.
 function onLoad() {
-    console.log(ATTRS.name + " onLoad()");
+    d("onLoad()");
 
-    console.log(module.paths);
+    d(module.paths);
 
     listPorts({
         onComplete: function() {
-            console.log("onComplete()");
+            d("onComplete()");
         }
     });
 }
 
 // Called when unloading
 function onUnload() {
-    console.log(ATTRS.name + " onUnload()");
+    d("onUnload()");
 }
 
 // Called when a Mavlink message arrives
 function onMavlinkMessage(msg) {
-    console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg.name);
+    d("onMavlinkMessage(): msg=" + msg.name);
 
     switch(msg.name) {
         case "GLOBAL_POSITION_INT": {
@@ -85,7 +89,7 @@ function onMavlinkMessage(msg) {
 // Called when the GCS sends a message to this worker. Message format is 
 // entirely dependent on agreement between the FCS and worker implementation.
 function onGCSMessage(msg) {
-    console.log(ATTRS.name + " onGCSMessage(): msg=" + msg);
+    d("onGCSMessage(): msg=" + msg);
 
     switch(msg.id) {
         case "arm": {
@@ -122,7 +126,7 @@ function onGCSMessage(msg) {
         }
 
         case "hey_stupid": {
-            console.log(JSON.stringify(msg));
+            d(JSON.stringify(msg));
             break;
         }
 

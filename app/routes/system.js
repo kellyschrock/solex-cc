@@ -5,8 +5,6 @@ const path = require("path");
 const http = require("http");
 const child_process = require("child_process");
 const settings = require("./settings");
-const rtk = require("./rtk");
-const netconfig = require("../util/netconfig");
 const logger = require("../util/logger");
 
 const mSystemState = {};

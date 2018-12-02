@@ -17,7 +17,7 @@ Solex CC handles the loading and configuration of workers, along with a consiste
 
 Suppose you have a camera connected to a USB port the companion computer that you want to control via Mavlink messages like `DO_DIGICAM_CONFIGURE` and `DO_DIGICAM_CONTROL`, and report camera status. You can write a worker that communicates with the camera through the USB port, and subscribes to the above Mavlink messages. When a `DO_DIGICAM_CONTROL` message arrives, you can do whatever's needed on the USB port to tell the camera to take a picture, start video recording, etc. You can also make it send `CAMERA_STATUS` and `CAMERA_FEEDBACK` messages as appropriate to report status.
 
-Or suppose you have some kind of sensor on the vehicle that isn't something ArduPilot typically knows about, but a typical Linux machine _does_ know how to make use of. Suppose also that you want to start reading and logging data from this sensor as soon as a running mission reaches the first waypoint in a survey area, and stop logging after the _last_ waypoint. To do this, you could write whatever scripts and programs you need in order to interact with the sensor and call them from a worker. Or (even better), you could implement all of that as a worker. Install it on the companion computer on the vehicle, load it, and run your mission.
+Or suppose you have some kind of sensor on the vehicle that isn't something ArduPilot typically knows about, but a typical Linux machine _can_ make use of. Suppose also that you want to start reading and logging data from this sensor as soon as a running mission reaches the first waypoint in a survey area, and stop logging after the _last_ waypoint. To do this, you could write whatever scripts and programs you need in order to interact with the sensor and call them from a worker. Or (even better), you could implement all of that as a worker. Install it on the companion computer on the vehicle, load it, and run your mission.
 
 Or, suppose you want to control the vehicle directly in a specific way in response to a command sent from a GCS (similar to the way Smart Shots work on a 3DR Solo), and report status back to the GCS.
 
@@ -83,12 +83,12 @@ Workers, unsurprisingly, are where the work gets done in Solex CC. They're the s
 
 ### Retrieving a list of workers
 
-To get a list of workers currently loaded on the system, call the `/workers` endpoint, which will return all of their attributes:
+To get a list of workers currently loaded on the system, call the `/workers` endpoint, which returns a list of the loaded workers.
 
 ```json
 [
     {
-        "id": "1130a982-d72e-420b-89f0-071a57509aeb",
+        "id": "another_test",
         "name": "Another test",
         "description": "Messes with stuff",
         "looper": false,
@@ -98,7 +98,7 @@ To get a list of workers currently loaded on the system, call the `/workers` end
         "path": "/whatever/dir/the/worker/is/in"
     },
     {
-        "id": "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
+        "id": "test_worker",
         "name": "Test worker",
         "description": "Does not do much",
         "looper": true,
@@ -168,7 +168,7 @@ The `msg` portion of the message will be sent to the worker.
 
 ### Endpoint
 
-You can also send the same message via `POST /worker/msg/:worker_id`, where `worker_id` is the ID of the worker the message is for. The body of the POST is the same as the `msg` portion of the WebSocket message above.
+You can also send the same message via `POST /worker/msg/:worker_id`, where `worker_id` is the ID of the worker the message is for. The body of the POST is the same as the `msg` portion of the WebSocket message above. This is preferable to the web-sockets approach most of the time.
 
 ### Worker configuration
 
@@ -254,7 +254,28 @@ To respond to a GCS message (described above), just implement `onGCSMessage()` l
 
 ```javascript
 exports.onGCSMessage = function(msg) {
+    const result = {
+        ok: true
+    };
+
     // Passed-in message will be a Javascript object with a structure matching the JSON that was passed from the GCS.
+    switch(msg.id) {
+        case "my-worker-message": {
+            // Properties on msg are specified by the GCS in the POST body or WS message coming to this worker.
+            break;
+        }
+
+        case "some-other-message": {
+            break;
+        }
+
+        default: {
+            result.ok = false;
+            break;
+        }
+    }
+
+    return result;
 };
 ```
 
@@ -370,23 +391,21 @@ exports.onRosterChanged = function() {
 
 ## Building a Worker
 
-A worker is just like any node app, except it's loaded on the fly by the dispatcher. So if you need specific Node JS modules in your worker, just load them via `require` like you would anywhere else. Here are the basic steps to starting a worker project:
+A worker is just like any Node app, except it's loaded on the fly by the dispatcher. So if you need specific Node JS modules in your worker, just load them via `require` like you would anywhere else. Here are the basic steps to starting a worker project:
 
 1.  Create a directory for your worker project, and `cd` to that directory.
 2.  Run `npm init` in that directory.
 3.  Run `npm install --save (whatever modules you need)` for each module you require (`serialport`, `jspack`, etc).
 4.  Load up the project in whatever IDE you prefer to use.
 5.  Implement the worker methods as shown above.
-6.  ???
-7.  Profit!
 
 ### Testing a Worker
 
-To fully test a worker implementation, it needs to have access to incoming Mavlink messages and be connected to a GCS. There is no super-quick and simple way to do this, but it's not _too_ difficult.
+To fully test a worker implementation, it needs to have access to incoming Mavlink messages and be connected to a GCS. There is no super-quick and simple way to do this, but it's not difficult.
 
 One reliable way to do it is to run the `solex-cc` web app on your development machine by `cd`ing to the `app` directory of this project and running it via `node app.js`. Everything starts up normally, and the worker directories listed under `worker_roots` in the configuration are loaded and run. At that point, the app is also listening for UDP broadcasts from apsync or some other UDP broadcaster for Mavlink messages. You can use that to receive UDP messages from a vehicle connected on UDP, or SITL. Your worker can register for the messages it's interested in seeing, and they'll appear in its `onMavlinkMessage(msg)` function. 
 
-For sending GCS messages, you can just send them from your worker, and it's up to a connected GCS to register for and listen to them. You have to write all that yourself. The essential point of this project is that you _can_ write a GCS that receives messages from a worker, so that's not really an issue. :smile:
+For sending GCS messages, you can just send them from your worker, and it's up to a connected GCS to register for and listen to them. You have to write all that yourself. The essential point of this project is that you _can_ write a GCS that receives messages from a worker, so that's not really an issue.
 
 ## Installation
 
@@ -428,3 +447,18 @@ The main page shows a list of currently installed. You can install new ones from
 on the red "Remove" button next to a worker in the list.
 
 You can also do basic testing of worker message handling from the "Test a worker" page.
+
+## Worker Logging
+
+Since it's kind of hard to run your worker in a debugger while it's installed on the vehicle, it's helpful to log output to the console
+so you can see what's going on. To do this, don't use `console.log()`. It will work, but it will just spew output to the console, which is probably being captured in a file on the CC's filesystem, which you'd have to SSH into the CC in order to see. It's not as cool as `ATTRS.log(ATTRS.id, msg)`.
+
+If you use that, then the dispatcher logs it to the console. You can also filter which output is actually sent by calling this:
+
+`GET /dispatch/log_filter/:worker_ids`
+
+Where `:worker_ids` is a comma-delimited list of the worker ids you want to see output for.
+
+You can also specify these filters in the "Logging" page on the UI in case you want to view log output there.
+
+

@@ -5,6 +5,8 @@ const fs = require("fs");
 const udpclient = require("../server/udpclient");
 const logger = require("../util/logger");
 const child_process = require("child_process");
+// Need this for "new MAVLink()"
+require("./mavlink.js");
 
 // Config
 const mConfig = {
@@ -12,6 +14,7 @@ const mConfig = {
     sysid: 221,
     compid: 101,
     udpPort: 14550,
+    logWorkers: [],
     workerRoots: []
 };
 
@@ -63,7 +66,7 @@ const mWorkerListener = {
         function ex() {
             const m = msg;
             return function() {
-                for (var i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
+                for (let i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
                     mGCSMessageListeners[i].onGCSMessage(workerId, m);
                 }
             };
@@ -126,6 +129,18 @@ const mWorkerListener = {
 
         return (worker && worker.worker)?
             worker.worker: null;
+    },
+
+    workerLog: function(workerId, msg) {
+        const filter = mConfig.logWorkers || [];
+
+        if(filter.length === 0 || filter.indexOf(workerId) >= 0) {
+            console.log(`${workerId}: ${msg}`);
+
+            for (let i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
+                mGCSMessageListeners[i].onLogMessage(workerId, msg);
+            }
+        }
     }
 };
 
@@ -176,7 +191,7 @@ function findFiles(dir, filter) {
     }
 
     const files = fs.readdirSync(dir);
-    for (var i = 0, size = files.length; i < size; i++) {
+    for (let i = 0, size = files.length; i < size; i++) {
         const filename = path.join(dir, files[i]);
         const stat = fs.lstatSync(filename);
 
@@ -337,6 +352,7 @@ function loadWorkerRoot(basedir) {
             attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
             attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
             attrs.findWorkerById = mWorkerListener.findWorkerById;
+            attrs.log = mWorkerListener.workerLog;
 
             attrs.sysid = mConfig.sysid;
             attrs.compid = mConfig.compid;
@@ -366,7 +382,7 @@ function loadWorkerRoot(basedir) {
             shell.cacheName = files[i];
 
             if(mWorkers[workerId]) {
-                log(`Worker $workerId already loaded. Unload`);
+                log(`Worker ${workerId} already loaded. Unload`);
                 unloadWorker(mWorkers[workerId]);
             }
 
@@ -608,6 +624,28 @@ function removeWorker(workerId, callback) {
     }
 }
 
+function getLogWorkers() {
+    return mConfig.logWorkers;
+}
+
+/** Set log_workers, passed as a comma-delimited string. Use "*" to clear the filter */
+function setLogWorkers(workerIds) {
+    if(!workerIds) return false;
+
+    if(workerIds === "*") {
+        delete mConfig.logWorkers;
+        return true;
+    }
+
+    const ids = workerIds.split(",");
+    if(ids) {
+        mConfig.logWorkers = ids;
+        return true;
+    }
+
+    return false;
+}
+
 function notifyRosterChanged() {
     if(!mWorkers) return;
 
@@ -637,6 +675,8 @@ exports.getWorkers = getWorkers;
 exports.setConfig = setConfig;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
+exports.getLogWorkers = getLogWorkers;
+exports.setLogWorkers = setLogWorkers;
 
 function testReload() {
     mConfig.workerRoots = [

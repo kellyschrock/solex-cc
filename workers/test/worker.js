@@ -2,7 +2,6 @@
 
 const ATTRS = {
     id: "test_worker",
-    // id: "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
     // Name/description
     name: "Test worker",
     description: "Does basically nothing, just illustrates the idea",
@@ -11,6 +10,10 @@ const ATTRS = {
     // Mavlink messages we're interested in
     mavlinkMessages: ["HEARTBEAT", "GLOBAL_POSITION_INT"]
 };
+
+function d(str) {
+    ATTRS.log(ATTRS.id, str);
+}
 
 /*
 Return an object describing this worker. If looper is true, this module must expose a loop() export.
@@ -31,6 +34,10 @@ function loop() {
     //     mHurp.durp = 24; // DIE
     //     loopIterations = 0;
     // }
+
+    const now = new Date().getTime();
+
+    d(`loop(): ${now}`);
 
     return; // Keep quiet for now
 
@@ -107,18 +114,18 @@ function onLoad() {
 
 // Called when unloading
 function onUnload() {
-    console.log(ATTRS.name + " onUnload()");
+    d("onUnload()");
 }
 
 // Called when a Mavlink message arrives
 function onMavlinkMessage(msg) {
-    console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg.name);
+    d(`onMavlinkMessage(): msg.name=$msg.name`);
 }
 
 // Called when the GCS sends a message to this worker. Message format is 
 // entirely dependent on agreement between the FCS and worker implementation.
 function onGCSMessage(msg) {
-    console.log(ATTRS.name + " onGCSMessage(): msg=" + msg);
+    d(`onGCSMessage(): msg.id=$msg.id`);
 
     switch(msg.id) {
         case "test_message": {
@@ -143,7 +150,7 @@ function onGCSMessage(msg) {
  * check whether workers it needs to interact with are available.
  */
 function onRosterChanged() {
-    console.log("Roster has been changed");
+    d("Roster has been changed");
 }
 
 exports.getAttributes = getAttributes;

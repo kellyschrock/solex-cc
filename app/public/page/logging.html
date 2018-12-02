@@ -1,0 +1,27 @@
+<script type="text/javascript" src="/scripts/loggingpage.js"></script>
+
+<div id="startup" class="container content_view">
+    <h2>Logging</h2>
+    <p>
+        You can view logs for workers on the console if you have access to it, or from this page. Use the <b>filter</b> field below to 
+        filter log output for specific worker IDs.
+    </p>
+    <p>
+        Specify multiple worker ids separated by commas to filter for multiple workers, e.g. <code>my_worker,my_other_worker</code>.
+        Specify "*" to clear the filter.
+    </p>
+
+    <div class="row bordered_group padded">
+        <div class="col-sm-12">
+            <b>Workers:</b>
+            <input type="text" id="edit_log_workers" size="32" placeholder="Comma-delimited worker ids" />
+            <button id="btn_log_filter" class="btn btn-sm btn-success">Set Filter</button>
+            <button id="btn_log_start_stop" class="btn btn-sm btn-success">Start</button>
+        </div>
+    </div>
+
+    <div class="row bordered_group">
+<textarea id="txt_log_output" rows="20" cols="60" class="terminal"></textarea>
+    </div>
+</div>
+
