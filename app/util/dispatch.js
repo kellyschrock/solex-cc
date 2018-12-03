@@ -687,46 +687,6 @@ function testReload() {
     start();
 }
 
-function testInstallWorker() {
-    global.BIN_DIR = require("path").join(__dirname, "../bin");
-    log(global.BIN_DIR);
-
-    const path = "/home/kellys/work/drone/projects/solex-cc/test/install-worker/test.zip";
-    const target = "/home/kellys/work/drone/projects/solex-cc/workers/install_test";
-
-    installWorker(path, target, {
-        onError: function(msg) {
-            log("ERR: " + msg);
-        },
-
-        onComplete: function() {
-            log("onComplete()");
-
-            setTimeout(function () {
-                reload();
-            }, 2000);
-        }
-    });
-}
-
-function testRemoveWorker() {
-    const workerId = "16c62ff2-3187-4a6d-8b64-ee6038ca3931";
-
-    removeWorker(workerId, {
-        onError: function(msg) {
-            log("ERR: " + msg);
-        },
-
-        onComplete: function() {
-            log("onComplete()");
-
-            setTimeout(function() {
-                reload();
-            }, 2000);
-        }
-    });
-}
-
 function test() {
     // testRemoveWorker();
     // testInstallWorker();

@@ -1,7 +1,5 @@
 todo.txt
 app/node_modules/
-app/settings.json
-app/net.settings.json
 .vscode/
 workers/**/node_modules/
 test/**/test.zip
