@@ -126,6 +126,16 @@ function removeWorker(req, res) {
     });
 }
 
+function getLogWorkers(req, res) {
+    const workerIds = dispatch.getLogWorkers() || [];
+    res.status(200).json({worker_ids: workerIds.join(",")});
+}
+
+function setLogWorkers(req, res) {
+    const ok = dispatch.setLogWorkers(req.params.worker_ids);
+    res.status(200).json({message: "Set log filter to " + req.params.worker_ids});
+}
+
 function restartSystem(req, res) {
     res.json({message: "Restarting"});
 
@@ -166,6 +176,8 @@ exports.workerMessage = workerMessage;
 exports.uploadWorker = uploadWorker;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
+exports.getLogWorkers = getLogWorkers;
+exports.setLogWorkers = setLogWorkers;
 exports.reloadDirect = reloadDirect;
 exports.startDirect = startDirect;
 exports.addGCSListener = addGCSListener;

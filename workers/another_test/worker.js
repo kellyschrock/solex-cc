@@ -11,6 +11,10 @@ const ATTRS = {
     mavlinkMessages: ["ATTITUDE"]
 };
 
+function d(str) {
+    ATTRS.log(ATTRS.id, str);
+}
+
 /*
 Return an object describing this worker. If looper is true, this module must expose a loop() export.
 */
@@ -20,17 +24,17 @@ function getAttributes() {
 
 // Called when this worker is loaded.
 function onLoad() {
-    console.log(ATTRS.name + " onLoad()");
+    d("onLoad()");
 }
 
 // Called when unloading
 function onUnload() {
-    console.log(ATTRS.name + " onUnload()");
+    d("onUnload()");
 }
 
 // Called when a Mavlink message arrives
 function onMavlinkMessage(msg) {
-    console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg.name);
+    d(`onMavlinkMessage(): msg.name=${msg.name}`);
 }
 
 var loopIterations = 0;
@@ -38,10 +42,10 @@ var loopIterations = 0;
 function loop() {
     if(++loopIterations > 5) {
 
-        // const other = ATTRS.findWorkerById("test_worker");
-        // if(other) {
-        //     console.log("Found another worker");
-        // }
+        const other = ATTRS.findWorkerById("test_worker");
+        if(other) {
+            d(`Found another worker: ${other.getAttributes().id}`);
+        }
 
         loopIterations = 0;
     }

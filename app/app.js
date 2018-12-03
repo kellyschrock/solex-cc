@@ -156,6 +156,7 @@ function setupWorker() {
     const WebSocketServer = ws.Server;
 
     const mGCSSubscribers = [];
+    const mLogSubscribers = [];
     const mQueuedWorkerMessages = [];
 
     // console.log("db=" + db);
@@ -224,12 +225,33 @@ function setupWorker() {
     // LISTENERS
     //
     const mGCSMessageListener = {
+        onLogMessage: function(workerId, msg) {
+            for (let i = 0, size = mLogSubscribers.length; i < size; ++i) {
+                const client = mLogSubscribers[i];
+
+                send(client, { event: "worker-log-gcs", data: { worker_id: workerId, message: msg } }, {
+                    onError: function (err) {
+                        log("Error sending message to " + client);
+
+                        const idx = mLogSubscribers.indexOf(client);
+                        if (idx >= 0) {
+                            mLogSubscribers.splice(idx, 1);
+                        }
+                    },
+
+                    onSuccess() {
+                        // log("Sent " + msg + " to " + client);
+                    }
+                });
+            }
+        },
+
         onGCSMessage: function (workerId, msg) {
             if (global.TRACE) {
                 log("onGCSMessage(): msg=" + JSON.stringify(msg));
             }
 
-            for (var i = 0, size = mGCSSubscribers.length; i < size; ++i) {
+            for (let i = 0, size = mGCSSubscribers.length; i < size; ++i) {
                 const client = mGCSSubscribers[i];
 
                 send(client, { event: "worker-to-gcs", data: { worker_id: workerId, message: msg } }, {
@@ -269,6 +291,8 @@ function setupWorker() {
         app.get("/dispatch/stop", dispatcher.stop);
         app.get("/dispatch/running", dispatcher.running);
         app.get("/dispatch/reload", dispatcher.reload);
+        app.get("/dispatch/log_filter", dispatcher.getLogWorkers);
+        app.get("/dispatch/log_filter/:worker_ids", dispatcher.setLogWorkers);
         app.get("/sys/restart", dispatcher.restartSystem);
 
         // Worker list
@@ -385,6 +409,21 @@ function setupWorker() {
                             var idx = mGCSSubscribers.indexOf(client);
                             if (idx >= 0) {
                                 mGCSSubscribers.splice(idx, 1);
+                            }
+                            break;
+                        }
+
+                        case "subscribe-log": {
+                            if (mLogSubscribers.indexOf(client) == -1) {
+                                mLogSubscribers.push(client);
+                            }
+                            break;
+                        }
+
+                        case "unsubscribe-log": {
+                            const idx = mLogSubscribers.indexOf(client);
+                            if(idx >= 0) {
+                                mLogSubscribers.splice(idx, 1);
                             }
                             break;
                         }

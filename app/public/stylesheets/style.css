@@ -73,7 +73,7 @@ td.selected {
 
 .terminal {
     font-family: 'Courier New', Courier, monospace;
-    
+    font-size: 12pt;
 }
 
 .padded {

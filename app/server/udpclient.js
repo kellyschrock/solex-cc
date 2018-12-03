@@ -73,6 +73,8 @@ function connect(options, callback) {
         }
     } catch(ex) {
         log("Error opening port on " + portNum + ": " + ex.message);
+        console.trace();
+
         if(callback.onError) {
             callback.onError("Error opening port on " + portNum + ": " + ex.message);
         }

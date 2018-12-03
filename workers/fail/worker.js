@@ -14,6 +14,10 @@ const ATTRS = {
     mavlinkMessages: ["HEARTBEAT", "GLOBAL_POSITION_INT"]
 };
 
+function d(str) {
+    ATTRS.log(ATTRS.id, str);
+}
+
 /*
 Return an object describing this worker. If looper is true, this module must expose a loop() export.
 */
@@ -23,13 +27,13 @@ function getAttributes() {
 
 // Called from dispatch.loop()
 function loop() {
-    // console.log(ATTRS.name + " loop(): attrs.sysid=" + ATTRS.sysid);
+    // d(" loop(): attrs.sysid=" + ATTRS.sysid);
 
 }
 
 // Called when this worker is loaded.
 function onLoad() {
-    console.log(ATTRS.name + " onLoad()");
+    d("onLoad()");
 
     const msg = new mavlink.messages.command_long(
         ATTRS.sysid, // sysid
@@ -46,37 +50,40 @@ function onLoad() {
 
 // Called when unloading
 function onUnload() {
-    console.log(ATTRS.name + " onUnload()");
+    d("onUnload()");
 }
 
 // Called when a Mavlink message arrives
 function onMavlinkMessage(msg) {
-    console.log(ATTRS.name + " onMavlinkMessage(): msg=" + msg.name);
+    d(`onMavlinkMessage(): msg.name=${msg.name}`);
 }
 
 // Called when the GCS sends a message to this worker. Message format is 
 // entirely dependent on agreement between the FCS and worker implementation.
 function onGCSMessage(msg) {
-    console.log(ATTRS.name + " onGCSMessage(): msg=" + msg);
+    d(`onGCSMessage(${msg.id})`);
 
     switch(msg.id) {
         case "test_message": {
             return {
-                id: "test_result",
+                ok: true,
+                id: msg.id,
                 value: new Date().toLocaleTimeString("en-US")
             };
         }
 
         default: {
             return {
-                id: "no_result",
-                value: "Unknown msg.id '" + msg.id + "'"
+                ok: false,
+                id: msg.id,
+                message: "Unknown msg.id '" + msg.id + "'"
             };
         }
     }
 }
 
 function myMessedUpThing() {
+    // Cause a crash
     const marklar = new marklar();
     marklar.marklar();
 }
@@ -88,7 +95,3 @@ exports.onUnload = onUnload;
 exports.onMavlinkMessage = onMavlinkMessage;
 exports.onGCSMessage = onGCSMessage;
 exports.myMessedUpThing = myMessedUpThing;
-
-// (function() {
-//     myMessedUpThing();
-// })();
