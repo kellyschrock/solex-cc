@@ -15,29 +15,6 @@ function log(str) {
     console.log(`mainpage: ${str}`);
 }
 
-function loadSystemState() {
-    $.getJSON("/sys/state", function(state) {
-        mSystemState = state;
-        mGlobalState = mSystemState;
-    });
-}
-
-function putSystemState(name, value) {
-    post("/sys/state", {
-        name: name, value: value
-    }, function(data) {
-        mGlobalState[name] = value;
-    }, function(errResponse) {
-        console.log(errResponse);
-    });
-}
-
-function clearSystemState(name) {
-    sendDelete("/sys/state/" + name, function(response) {
-        delete mGlobalState[name];
-    });
-}
-
 function enable(ctl, enabled) {
     console.log("enable(): ctl=", ctl + ", enabled=", enabled);
     
@@ -165,32 +142,6 @@ function setupWebSocket() {
     } // end else
 }
 
-function loadSettings(cb) {
-    $.getJSON("/settings", function (data) {
-        mSettings = data;
-
-        if(cb) cb(data);
-    });
-}
-
-function getSetting(cat, name, defValue) {
-    return (mSettings[cat])?
-        mSettings[cat][name] || defValue: defValue;
-}
-
-function putSetting(cat, name, value) {
-    post("/settings/" + cat, { name: name, value: value }, function(data) {
-        log("Saved " + name + "=" + value);
-    });
-}
-
-function putSettings(cat, value) {
-    post("/settings/" + cat, value, function(data) {
-        log("Saved " + value);
-        mSettings[cat] = value;
-    });
-}
-
 function connectWebSocket() {
     log("connectWebSocket()");
 
@@ -242,31 +193,6 @@ function sendWS(msg) {
             mSocket.send(JSON.stringify(msg));
         } catch(ex) {
             alert("send error: " + ex);
-        }
-    }
-}
-
-function showStatusIcon(name, show) {
-
-    switch(name) {
-        case "gps_search": {
-            showControl("ic_gps_search", show);
-            break;
-        }
-
-        case "gps_fix": {
-            showControl("ic_gps_fix", show);
-            break;
-        }
-
-        case "connected": {
-            showControl("ic_connected", show);
-            break;
-        }
-
-        case "rtk_send": {
-            showControl("ic_rtcm_send", show);
-            break;
         }
     }
 }
