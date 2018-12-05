@@ -484,29 +484,54 @@ function handleGCSMessage(workerId, msg) {
             if(worker.worker) {
                 if(worker.worker.onGCSMessage) {
                     try {
-                        return worker.worker.onGCSMessage(msg);
+                        const output = worker.worker.onGCSMessage(msg) || {
+                            ok: true
+                        };
+
+                        output.worker_id = workerId;
+                        output.source_id = msg.id;
+                        
+                        return output;
                     } catch(ex) {
                         handleWorkerCallException(worker, ex);
-                        return { ok: false, message: ex.message }
+                        return { 
+                            ok: false, 
+                            worker_id: workerId,
+                            source_id: msg.id,
+                            message: ex.message 
+                        };
                     }
                 } else {
                     return {
                         ok: false,
-                        message: "Worker " + workerId + " has no onGCSMessage() function"
+                        message: "Worker " + workerId + " has no onGCSMessage() function",
+                        worker_id: workerId,
+                        source_id: msg.id
                     };
                 }
             } else {
                 return {
                     ok: false,
-                    message: "Invalid worker at " + workerId
+                    message: "Invalid worker at " + workerId,
+                    worker_id: workerId,
+                    source_id: msg.id
                 };
             }
         } else {
             return {
                 ok: false,
-                message: "No worker with id of " + workerId
+                message: "No worker with id of " + workerId,
+                worker_id: workerId,
+                source_id: msg.id
             };
         }
+    } else {
+        return {
+            ok: false,
+            message: "FATAL: No workers",
+            worker_id: workerId,
+            source_id: msg.id
+        };
     }
 }
 

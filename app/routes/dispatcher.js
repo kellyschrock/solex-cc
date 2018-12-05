@@ -46,7 +46,12 @@ function workerMessage(req, res) {
             if(!result.hasOwnProperty("ok")) result.ok = true;
         }
 
-        res.status(200).json(result || { ok: true, message: "no response" });
+        res.status(200).json(result || { 
+            ok: true, 
+            message: "no response",
+            worker_id: req.params.worker_id,
+            source_id: body.id
+         });
     } else {
         res.status(422).json({message: "No message body"});
     }
