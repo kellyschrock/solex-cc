@@ -302,6 +302,8 @@ function setupWorker() {
         app.delete("/worker/:worker_id", dispatcher.removeWorker);
         // POST a message to a worker
         app.post("/worker/msg/:worker_id", dispatcher.workerMessage);
+        // Content download
+        app.post("/worker-download", dispatcher.workerDownload);
 
         // Trace
         app.get("/trace/:on_or_off", function (req, res, next) {

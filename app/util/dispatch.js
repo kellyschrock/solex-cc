@@ -413,7 +413,9 @@ function loadWorkerRoot(basedir) {
 }
 
 function handleWorkerCallException(worker, ex) {
-    const workerId = worker.attributes.id;
+    const workerId = (worker && worker.attributes)?
+        worker.attributes.id : "(no worker id)";
+
     const msg = {
         id: "worker_exception",
         worker_id: workerId,
@@ -472,6 +474,28 @@ function removeGCSMessageListener(listener) {
     }
 
     return (idx >= 0);
+}
+
+function handleWorkerDownload(body) {
+    const workerId = body.worker_id; // Worker
+    const msgId = body.msg_id; // Action message
+    const contentId = body.content_id; // Content to download
+
+    var output = null;
+
+    if(mWorkers) {
+        const worker = mWorkers[workerId];
+
+        if(worker) {
+            if(worker.worker) {
+                if(worker.worker.onContentDownload) {
+                    output = worker.worker.onContentDownload(msgId, contentId);
+                }
+            }
+        }
+    }
+
+    return output;
 }
 
 function handleGCSMessage(workerId, msg) {
@@ -696,6 +720,7 @@ exports.reload = reload;
 exports.addGCSMessageListener = addGCSMessageListener;
 exports.removeGCSMessageListener = removeGCSMessageListener;
 exports.handleGCSMessage = handleGCSMessage;
+exports.handleWorkerDownload = handleWorkerDownload;
 exports.getWorkers = getWorkers;
 exports.setConfig = setConfig;
 exports.installWorker = installWorker;
