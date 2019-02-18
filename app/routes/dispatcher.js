@@ -63,6 +63,28 @@ function workerDownload(req, res) {
     }
 }
 
+function screenEnter(req, res) {
+    const name = req.params.screen;
+    const output = dispatch.handleScreenEnter(name);
+    const result = output || {};
+
+    result.screen_id = name;
+    res.status(200).json(result);
+}
+
+function screenExit(req, res) {
+    const name = req.params.screen;
+    const output = dispatch.handleScreenExit(name);
+    const result = output || {};
+
+    result.screen_id = name;
+    res.status(200).json(result);
+}
+
+function imageDownload(req, res) {
+    dispatch.imageDownload(req, res);
+}
+
 function workerMessage(req, res) {
     const body = req.body;
     if(body) {
@@ -145,6 +167,19 @@ function installWorker(req, res) {
     }
 }
 
+function enableWorker(req, res) {
+    const workerId = req.params.worker_id;
+    const enable = req.params.flag;
+
+    dispatch.enableWorker(workerId, enable, function(err, enabled) {
+        if(err) {
+            res.status(404).json({message: err.message});
+        } else {
+            res.status(200).json({enabled: enable});
+        }
+    });
+}
+
 function removeWorker(req, res) {
     dispatch.removeWorker(req.params.worker_id, {
         onComplete: function() {
@@ -208,6 +243,10 @@ exports.workerDownload = workerDownload;
 exports.uploadWorker = uploadWorker;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
+exports.enableWorker = enableWorker;
+exports.screenEnter = screenEnter;
+exports.screenExit = screenExit;
+exports.imageDownload = imageDownload;
 exports.getLogWorkers = getLogWorkers;
 exports.setLogWorkers = setLogWorkers;
 exports.reloadDirect = reloadDirect;

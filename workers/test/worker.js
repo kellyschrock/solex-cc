@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require("fs");
+const path = require("path");
+
 const ATTRS = {
     id: "test_worker",
     // Name/description
@@ -35,9 +38,9 @@ function loop() {
     //     loopIterations = 0;
     // }
 
-    const now = new Date().getTime();
+    // const now = new Date().getTime();
 
-    d(`loop(): ${now}`);
+    // d(`loop(): ${now}`);
 
     return; // Keep quiet for now
 
@@ -144,6 +147,28 @@ function onGCSMessage(msg) {
     }
 }
 
+//
+// UI TESTS
+//
+function onScreenEnter(screen) {
+    return {
+        panel: "worker_buttons",
+        layout: {
+            message: "Hey, dipshit!"
+        }
+    };
+}
+
+function onScreenExit(screen) {
+
+}
+
+function onImageDownload(name) {
+    const filename = path.join(__dirname, path.join("img", name));
+    return (fs.existsSync(filename))? 
+        fs.readFileSync(filename): null;
+}
+
 /**
  * Called when the worker roster (the list of installed workers) is changed.
  * If a worker needs to communicate with other workers, this is an opportunity to
@@ -160,3 +185,6 @@ exports.onUnload = onUnload;
 exports.onMavlinkMessage = onMavlinkMessage;
 exports.onGCSMessage = onGCSMessage;
 exports.onRosterChanged = onRosterChanged;
+exports.onScreenEnter = onScreenEnter;
+exports.onScreenExit = onScreenExit;
+exports.onImageDownload = onImageDownload;

@@ -27,7 +27,8 @@ global.FILES_DIR = path.join(global.appRoot, "/files");
 global.appVersion = "1.0.1";
 
 function log(str) {
-    Log.v("app", str);
+    console.log(`app: ${str}`);
+    // Log.v("app", str);
 }
 
 // log(`Process start: PID=${process.pid}`);
@@ -89,7 +90,7 @@ function setupMaster() {
                 case "health": {
                     const workerPid = msg.worker_pid;
                     const time = (msg.answered - msg.asked);
-                    log(`worker responded to health check in ${time} ms`);
+                    // log(`worker responded to health check in ${time} ms`);
 
                     if (time > WORKER_HEALTH_DELAY && workerPid) {
                         log(`kill/restart ${workerPid}`);
@@ -184,7 +185,7 @@ function setupWorker() {
         process.on("message", function(msg) {
             if (!msg) { return; }
 
-            log(`Worker got msg: ${msg.id}`);
+            // log(`Worker got msg: ${msg.id}`);
 
             msg.worker_pid = process.pid;
 
@@ -247,13 +248,16 @@ function setupWorker() {
         },
 
         onGCSMessage: function (workerId, msg) {
-            if (global.TRACE) {
-                log("onGCSMessage(): msg=" + JSON.stringify(msg));
-            }
+            // if (global.TRACE) {
+                // log(`onGCSMessage(): workerId=${workerId} msg=` + JSON.stringify(msg));
+            // }
+
+            log(`onGCSMessage(): workerId=${workerId} msg=` + JSON.stringify(msg));
 
             for (let i = 0, size = mGCSSubscribers.length; i < size; ++i) {
                 const client = mGCSSubscribers[i];
 
+                log(`send to ${client}`);
                 send(client, { event: "worker-to-gcs", data: { worker_id: workerId, message: msg } }, {
                     onError: function (err) {
                         log("Error sending message to " + client);
@@ -293,6 +297,12 @@ function setupWorker() {
         app.get("/dispatch/reload", dispatcher.reload);
         app.get("/dispatch/log_filter", dispatcher.getLogWorkers);
         app.get("/dispatch/log_filter/:worker_ids", dispatcher.setLogWorkers);
+        app.get("/dispatch/enable/:worker_id/:flag", dispatcher.enableWorker);
+        
+        app.get("/ui/:screen/enter", dispatcher.screenEnter);
+        app.get("/ui/:screen/exit", dispatcher.screenExit);
+        app.get("/ui/image/:worker_id/:name", dispatcher.imageDownload);
+
         app.get("/sys/restart", dispatcher.restartSystem);
 
         // Worker list
@@ -330,14 +340,14 @@ function setupWorker() {
     //
     // WebSockets 
     //
-    const wss = new WebSocketServer({ server: server });
+    const webSocketServer = new WebSocketServer({ server: server });
 
     // Send a WS message, and get an ack or an error.
-    function send(ws, data, cb) {
+    function send(wsConnection, data, cb) {
         const str = JSON.stringify(data);
 
-        if (ws) {
-            ws.send(str, function (error) {
+        if (wsConnection) {
+            wsConnection.send(str, function (error) {
                 // if no error, send worked.
                 // otherwise the error describes the problem.
                 if (error) {
@@ -348,24 +358,24 @@ function setupWorker() {
                 }
             });
         } else {
-            log("ERROR: No web socket!");
+            log("ERROR: No web socket connection to send on!");
         }
     }
 
     // Send a message to all clients
-    wss.broadcast = function (data) {
-        wss.clients.foreach(function (client) {
+    webSocketServer.broadcast = function (data) {
+        webSocketServer.clients.foreach(function (client) {
             client.send(data);
         });
     };
 
     // websockets stuff
-    wss.on('connection', function (client) {
+    webSocketServer.on('connection', function (client) {
         log("Connected from " + client);
 
         if(mQueuedWorkerMessages && mQueuedWorkerMessages.length > 0) {
             for(let i = 0, size = mQueuedWorkerMessages.length; i < size; ++i) {
-                wss.broadcast(mQueuedWorkerMessages[i]);
+                webSocketServer.broadcast(mQueuedWorkerMessages[i]);
             }
 
             mQueuedWorkerMessages.splice(0, mQueuedWorkerMessages.length);
@@ -445,6 +455,11 @@ function setupWorker() {
 
         client.on('close', function () {
             log("connection to " + client + " closed");
+
+            var idx = mGCSSubscribers.indexOf(client);
+            if (idx >= 0) {
+                mGCSSubscribers.splice(idx, 1);
+            }
         });
 
         // Send a connected message back to the client

@@ -44,16 +44,31 @@ function WorkersPage() {
                         }
                     }
 
+                    var ed = (item.enabled)?
+                        "<button class=\"disable btn btn-warning btn-sm\">Disable</button>":
+                        "<button class=\"enable btn btn-success btn-sm\">Enable</button>"
+                        ;
+
                     var row = "<tr>" + 
                         "<td class=\"nr bold smaller\" cid=\"" + item.id + "\">" + item.id + "</td>" +
                         "<td class=\"smaller\">" + item.name + "</td>" +
                         "<td class=\"smaller\">" + item.description + "</td>" +
                         "<td class=\"smaller\">" + mavlinkMessages + "</td>" +
-                        "<td><button class=\"del btn btn-danger btn-sm\">Remove</button></td></tr>"
+                        "<td>" + 
+                        "<button class=\"del btn btn-danger btn-sm\">Remove</button>&nbsp;" + 
+                        ed + 
+                        "</td>" +
+                        "</tr>"
                         ;
 
                     $("#tbl_workers tr:last").after(row);
                 }
+            });
+        }
+
+        function enableWorker(workerId, enable) {
+            $.getJSON(`/dispatch/enable/${workerId}/${enable}`, function (data) {
+                loadWorkers();
             });
         }
 
@@ -67,6 +82,18 @@ function WorkersPage() {
                     deleteWorker(name);
                 }
             }
+        });
+
+        $("#tbl_workers .enable").click(function () {
+            var td = $(this).closest("tr").find(".nr");
+            var name = td.text();
+            enableWorker(name, true);
+        });
+
+        $("#tbl_workers .disable").click(function () {
+            var td = $(this).closest("tr").find(".nr");
+            var name = td.text();
+            enableWorker(name, false);
         });
     }
 
