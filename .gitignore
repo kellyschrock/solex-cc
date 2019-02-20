@@ -1,5 +1,6 @@
 todo.txt
 app/node_modules/
+app/util/workers_enabled.json
 .vscode/
 workers/**/node_modules/
 test/**/test.zip
