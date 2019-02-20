@@ -321,6 +321,8 @@ function reload() {
     }
 
     log(mWorkers);
+
+    loadWorkerEnabledStates();
 }
 
 function loadWorkerRoot(basedir) {
@@ -725,6 +727,8 @@ function enableWorker(workerId, enable, callback) {
     if(worker) {
         worker.enabled = ("true" === enable);
         callback(null, enable);
+
+        saveWorkerEnabledStates();
     } else {
         callback(new Error(`No worker named ${workerId}`), false);
     }
@@ -816,6 +820,58 @@ function notifyRosterChanged() {
             }
         }
     }
+}
+
+function getWorkerEnabledConfigFile() {
+    return path.join(__dirname, "workers_enabled.json");
+}
+
+function saveWorkerEnabledStates() {
+    const enablements = {};
+
+    if (mWorkers) {
+        for (let workerId in mWorkers) {
+            const worker = mWorkers[workerId];
+            if (worker) {
+                enablements[workerId] = worker.enabled;
+            }
+        }
+
+        try {
+            fs.writeFileSync(getWorkerEnabledConfigFile(), JSON.stringify(enablements));
+        } catch (ex) {
+            log(`Error saving enabled states: ${ex.message}`);
+        }
+    }
+}
+
+function loadWorkerEnabledStates() {
+    log(`loadWorkerEnabledStates()`);
+
+    const file = getWorkerEnabledConfigFile();
+    fs.exists(file, function (exists) {
+        if (exists) {
+            fs.readFile(file, function (err, data) {
+                try {
+                    const enabledStates = JSON.parse(data.toString());
+
+                    if(mWorkers && enabledStates) {
+                        for(let workerId in mWorkers) {
+                            const worker = mWorkers[workerId];
+                            if(worker) {
+                                if(enabledStates.hasOwnProperty(workerId)) {
+                                    worker.enabled = enabledStates[workerId];
+                                }
+                            }
+                        }
+                    }
+
+                } catch(ex) {
+                    log(`Error loading enabled state: ${ex.message}`);
+                }
+            });
+        }
+    });
 }
 
 exports.start = start;
