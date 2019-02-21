@@ -10,6 +10,7 @@ const ws = require("ws");
 const Log = require("./util/logger");
 const config = require('./util/config');
 const compression = require("compression");
+const zlib = require("zlib");
 
 const routes = require('./routes');
 const dispatcher = require("./routes/dispatcher");
@@ -30,6 +31,12 @@ global.appVersion = "1.0.1";
 function log(str) {
     console.log(`app: ${str}`);
     // Log.v("app", str);
+}
+
+function trace(str) {
+    if(global.TRACE) {
+        console.log(`app: ${str}`);
+    }
 }
 
 // log(`Process start: PID=${process.pid}`);
@@ -242,7 +249,7 @@ function setupWorker() {
             for (let i = 0, size = mLogSubscribers.length; i < size; ++i) {
                 const client = mLogSubscribers[i];
 
-                send(client, { event: "worker-log-gcs", data: { worker_id: workerId, message: msg } }, {
+                sendWSMessage(client, { event: "worker-log-gcs", data: { worker_id: workerId, message: msg } }, {
                     onError: function (err) {
                         log("Error sending message to " + client);
 
@@ -264,13 +271,13 @@ function setupWorker() {
                 // log(`onGCSMessage(): workerId=${workerId} msg=` + JSON.stringify(msg));
             // }
 
-            log(`onGCSMessage(): workerId=${workerId} msg=` + JSON.stringify(msg));
+            trace(`onGCSMessage(): workerId=${workerId} msg=` + JSON.stringify(msg));
 
             for (let i = 0, size = mGCSSubscribers.length; i < size; ++i) {
                 const client = mGCSSubscribers[i];
 
-                log(`send to ${client}`);
-                send(client, { event: "worker-to-gcs", data: { worker_id: workerId, message: msg } }, {
+                trace(`send to ${client}`);
+                sendWSMessage(client, { event: "worker-to-gcs", data: { worker_id: workerId, message: msg } }, {
                     onError: function (err) {
                         log("Error sending message to " + client);
 
@@ -283,7 +290,7 @@ function setupWorker() {
                     onSuccess() {
                         // log("Sent " + msg + " to " + client);
                     }
-                });
+                }, client.compressData);
             }
         }
     };
@@ -354,21 +361,43 @@ function setupWorker() {
     //
     const webSocketServer = new WebSocketServer({ server: server });
 
+    const WS_COMPRESS_THRESHOLD = 512;
+
+    function doSendWSData(wsConnection, buffer, cb) {
+        wsConnection.send(buffer, function (error) {
+            // if no error, send worked.
+            // otherwise the error describes the problem.
+            if (error) {
+                log("send result: error=" + error);
+                if (cb && cb.onError) cb.onError(error);
+            } else {
+                if (cb && cb.onSuccess) cb.onSuccess();
+            }
+        });
+    }
+
     // Send a WS message, and get an ack or an error.
-    function send(wsConnection, data, cb) {
-        const str = JSON.stringify(data);
+    function sendWSMessage(wsConnection, data, cb, compressData) {
+        const compress = (compressData !== undefined)? compressData: false;
 
         if (wsConnection) {
-            wsConnection.send(str, function (error) {
-                // if no error, send worked.
-                // otherwise the error describes the problem.
-                if (error) {
-                    log("send result: error=" + error);
-                    if (cb && cb.onError) cb.onError(error);
-                } else {
-                    if (cb && cb.onSuccess) cb.onSuccess();
-                }
-            });
+            const str = JSON.stringify(data);
+
+            if(compress && str.length > WS_COMPRESS_THRESHOLD) {
+                zlib.gzip(str, function(err, buffer) {
+                    if(err) {
+                        log(`error compressing data: ${err.message}`);
+                        doSendWSData(wsConnection, str, cb);
+                    } else {
+                        log(`Compress ${str.length} to ${buffer.length}`);
+
+                        const sendMe = (str.length > buffer.length)? buffer: str;
+                        doSendWSData(wsConnection, sendMe, cb);
+                    }
+                })
+            } else {
+                doSendWSData(wsConnection, str, cb);
+            }
         } else {
             log("ERROR: No web socket connection to send on!");
         }
@@ -424,6 +453,7 @@ function setupWorker() {
 
                         case "subscribe-gcs": {
                             if (mGCSSubscribers.indexOf(client) == -1) {
+                                client.compressData = jo.compress;
                                 mGCSSubscribers.push(client);
                             }
                             break;
@@ -453,7 +483,7 @@ function setupWorker() {
                         }
 
                         case "ping": {
-                            send(client, { message: "ok" });
+                            sendWSMessage(client, { message: "ok" });
                             break;
                         }
                     }
@@ -461,7 +491,7 @@ function setupWorker() {
             }
             catch (err) {
                 log(err);
-                send(client, "error in " + data);
+                sendWSMessage(client, "error in " + data);
             }
         });
 
@@ -475,7 +505,7 @@ function setupWorker() {
         });
 
         // Send a connected message back to the client
-        send(client, "connected");
+        sendWSMessage(client, "connected");
     });
 
     // End websockets
