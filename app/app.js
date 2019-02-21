@@ -9,6 +9,7 @@ const http = require('http');
 const ws = require("ws");
 const Log = require("./util/logger");
 const config = require('./util/config');
+const compression = require("compression");
 
 const routes = require('./routes');
 const dispatcher = require("./routes/dispatcher");
@@ -168,6 +169,17 @@ function setupWorker() {
     app.engine('html', require('ejs').renderFile);
     app.set('view engine', 'html');
 
+    function shouldCompress(req, res) {
+        if (req.headers['x-no-compression']) {
+            // don't compress responses with this request header
+            return false;
+        }
+
+        // fallback to standard filter function
+        return compression.filter(req, res);
+    }
+
+    app.use(compression({filter: shouldCompress}));
     app.use(express.favicon());
     app.use(express.logger('dev'));
     app.use(express.json());
@@ -371,7 +383,7 @@ function setupWorker() {
 
     // websockets stuff
     webSocketServer.on('connection', function (client) {
-        log("Connected from " + client);
+        log("Connected from client");
 
         if(mQueuedWorkerMessages && mQueuedWorkerMessages.length > 0) {
             for(let i = 0, size = mQueuedWorkerMessages.length; i < size; ++i) {
@@ -454,7 +466,7 @@ function setupWorker() {
         });
 
         client.on('close', function () {
-            log("connection to " + client + " closed");
+            log("connection to client closed");
 
             var idx = mGCSSubscribers.indexOf(client);
             if (idx >= 0) {
