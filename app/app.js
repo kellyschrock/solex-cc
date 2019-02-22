@@ -41,8 +41,8 @@ function trace(str) {
 
 // log(`Process start: PID=${process.pid}`);
 
-const HEALTHCHECK_INTERVAL = 5000;
-const WORKER_HEALTH_DELAY = 2000;
+const HEALTHCHECK_INTERVAL = 15000;
+const WORKER_HEALTH_DELAY = 5000;
 const RESTART_DELAY = 2000;
 var mSubProcess;
 
@@ -85,6 +85,7 @@ function setupMaster() {
                 log(`worker ${worker.process.pid} died unexpectedly, restart it`);
                 mSubProcess = cluster.fork();
                 initWorkerCallback(mSubProcess);
+                // process.exit(122);
             }
         });
 

@@ -1,7 +1,7 @@
 {
     "dispatcher": {
         "worker_roots": [
-            "/home/kellys/work/drone/projects/solex-cc/workers/ui-examples"
+            "/home/kellys/work/drone/projects/solex-cc/workers/examples"
         ],
         "sysid": 221,
         "compid": 101,
