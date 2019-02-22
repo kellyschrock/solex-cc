@@ -178,6 +178,14 @@ function onRosterChanged() {
     d("Roster has been changed");
 }
 
+function getFeatures() {
+    return {
+        video: {
+            supported: false
+        }
+    }
+}
+
 exports.getAttributes = getAttributes;
 exports.loop = loop;
 exports.onLoad = onLoad;
@@ -188,3 +196,4 @@ exports.onRosterChanged = onRosterChanged;
 exports.onScreenEnter = onScreenEnter;
 exports.onScreenExit = onScreenExit;
 exports.onImageDownload = onImageDownload;
+exports.getFeatures = getFeatures;

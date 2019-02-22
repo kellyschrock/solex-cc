@@ -202,6 +202,16 @@ function setLogWorkers(req, res) {
     res.status(200).json({message: "Set log filter to " + req.params.worker_ids});
 }
 
+function getFeatures(req, res) {
+    const output = dispatch.gatherFeatures();
+    
+    if(output) {
+        res.status(200).json(output);
+    } else {
+        res.status(404).json({message: "no features at all!"});
+    }
+}
+
 function restartSystem(req, res) {
     res.json({message: "Restarting"});
 
@@ -257,6 +267,7 @@ exports.handleGCSMessage = handleGCSMessage;
 exports.getWorkers = getWorkers;
 exports.setConfig = setConfig;
 exports.restartSystem = restartSystem;
+exports.getFeatures = getFeatures;
 
 function getFirstWorkerRoot() {
     const cfg = (global.workerConfig) ? global.workerConfig.dispatcher : null;

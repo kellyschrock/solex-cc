@@ -117,7 +117,8 @@ const mWorkerListener = {
 
             others.push({
                 attributes: worker.attributes,
-                worker: worker.worker
+                worker: worker.worker,
+                enabled: worker.enabled
             });
         }
 
@@ -563,6 +564,30 @@ function handleScreenExit(screenName) {
     return output;
 }
 
+/** Gather up features from workers for the /features endpoint */
+function gatherFeatures() {
+    const output = {};
+
+    if (mWorkers) {
+        for (let prop in mWorkers) {
+            const worker = mWorkers[prop];
+            if (!worker.worker) continue;
+            if (!worker.enabled) continue;
+            if(!worker.worker.getFeatures) continue;
+
+            const features = worker.worker.getFeatures();
+            if(features) {
+                for(let prop in features) {
+                    // A given feature from a worker overwrites any existing features in the output, so they must be unique!
+                    output[prop] = features[prop];
+                }
+            }
+        }
+    }
+
+    return output;
+}
+
 function imageDownload(req, res) {
     const worker_id = req.params.worker_id;
     const name = req.params.name;
@@ -890,6 +915,7 @@ exports.setConfig = setConfig;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
 exports.enableWorker = enableWorker;
+exports.gatherFeatures = gatherFeatures;
 exports.getLogWorkers = getLogWorkers;
 exports.setLogWorkers = setLogWorkers;
 

@@ -334,6 +334,8 @@ function setupWorker() {
         app.post("/worker/msg/:worker_id", dispatcher.workerMessage);
         // Content download
         app.post("/worker-download", dispatcher.workerDownload);
+        // Features endpoint
+        app.get("/features", dispatcher.getFeatures);
 
         // Trace
         app.get("/trace/:on_or_off", function (req, res, next) {
@@ -342,6 +344,10 @@ function setupWorker() {
         });
 
         app.get('/', routes.index);
+
+        app.get("/client/ping", function(req, res) {
+            res.status(200).json({message: "ok"});
+        });
 
         // Return the caller's IP address
         app.get('/client/myip', function (req, res) {
