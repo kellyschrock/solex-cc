@@ -30,7 +30,7 @@ These are the sorts of things of thing workers, and this interface in general, a
 ## Why Node JS?
 
 Basically, because it's easy and performs well. Part of what this does is allows workers to be installed and removed on the fly,
-and basing it on Node JS works well with that too.
+and basing it on Node JS works well with that too. Also, `npm`. Seriously, there's basically every possible thing in `npm`. 
 
 ## Dispatcher
 
