@@ -3,6 +3,7 @@
 global.appRoot = process.cwd();
 
 const path = require("path");
+const fs = require("fs");
 const cluster = require("cluster");
 const express = require('express');
 const http = require('http');
@@ -532,7 +533,15 @@ function setupWorker() {
             if(configData.dispatcher) {
                 if (configData.dispatcher.worker_lib_root) {
                     const root = configData.dispatcher.worker_lib_root;
-                    configData.dispatcher.worker_lib_root = path.join(__dirname, root);
+                    const filename = path.join(__dirname, root);
+                    if(fs.existsSync(filename)) {
+                        configData.dispatcher.worker_lib_root = path.join(__dirname, root);
+                    }
+                } else {
+                    const filename = path.join(__dirname, "worker_lib");
+                    if(fs.existsSync(filename)) {
+                        config.dispatcher.worker_lib_root = filename;
+                    }
                 }
             }
 
