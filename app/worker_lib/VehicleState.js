@@ -81,3 +81,4 @@ if (process.argv[1] === __filename) {
     test();
     process.exit(0);
 }
+

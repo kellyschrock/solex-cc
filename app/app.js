@@ -529,6 +529,13 @@ function setupWorker() {
 
             global.workerConfig = configData;
 
+            if(configData.dispatcher) {
+                if (configData.dispatcher.worker_lib_root) {
+                    const root = configData.dispatcher.worker_lib_root;
+                    configData.dispatcher.worker_lib_root = path.join(__dirname, root);
+                }
+            }
+
             dispatcher.setConfig(configData.dispatcher);
             dispatcher.addGCSListener(mGCSMessageListener);
             dispatcher.reloadDirect();

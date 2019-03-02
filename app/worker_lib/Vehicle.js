@@ -261,7 +261,7 @@ function onMavlinkMessage(msg) {
 function toVehicleMode(/* int */ mode, /* int */ type) {
     const values = Mode.valuesForType(type.type);
 
-    for(var i = 0, size = values.length; i < size; ++i) {
+    for(let i = 0, size = values.length; i < size; ++i) {
         if(mode === values[i].number) {
             return values[i];
         }
@@ -320,7 +320,7 @@ function toVehicleType(/* mavlink.MAV_TYPE */ type) {
 
     const baseType = toBaseType(type);
 
-    for(var i = 0, size = types.length; i < size; ++i) {
+    for(let i = 0, size = types.length; i < size; ++i) {
         if(types[i].type === baseType) {
             return types[i];
         }
@@ -528,7 +528,7 @@ function notifyEventAsync(event, extras) {
         const ext = extras;
 
         return function() {
-            for (var i = 0, size = mEventListeners.length; i < size; ++i) {
+            for (let i = 0, size = mEventListeners.length; i < size; ++i) {
                 const listener = mEventListeners[i];
                 if (listener.onDroneEvent) {
                     listener.onDroneEvent(evt, ext);
@@ -539,7 +539,7 @@ function notifyEventAsync(event, extras) {
 }
 
 function notifyEventSync(event, extras) {
-    for (var i = 0, size = mEventListeners.length; i < size; ++i) {
+    for (let i = 0, size = mEventListeners.length; i < size; ++i) {
         const listener = mEventListeners[i];
         if (listener.onDroneEvent) {
             listener.onDroneEvent(event, extras);
@@ -626,9 +626,9 @@ module.exports.sendVelocityLocalNed = sendVelocityLocalNed;
 function testTypeIterate() {
     const types = VehicleType.values();
 
-    for(var i = 0, size = types.length; i < size; ++i) {
-        d(types[i].name);
-    }
+    types.map(function(type) {
+        d(type.name);
+    });
 }
 
 function testModeIterate() {
@@ -636,13 +636,13 @@ function testModeIterate() {
         const modes = Mode.valuesForType(type.type);
 
         d("Modes for " + type.name);
-        for(var i = 0, size = modes.length; i < size; ++i) {
-            d(JSON.stringify(modes[i]));
-        }
+        modes.map(function(mode) {
+            d(JSON.stringify(mode));
+        });
     }
 
     const types = VehicleType.values();
-    for(var i = 0, size = types.length; i < size; ++i) {
+    for(let i = 0, size = types.length; i < size; ++i) {
         showModesFor(types[i]);
     }
 }
@@ -652,7 +652,7 @@ function testSetVehicleMode() {
 }
 
 function testMessages() {
-    for(var prop in mMessageMap) {
+    for(let prop in mMessageMap) {
         onMavlinkMessage({name: prop});
     }
 }

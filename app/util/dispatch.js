@@ -5,8 +5,9 @@ const fs = require("fs");
 const udpclient = require("../server/udpclient");
 const logger = require("../util/logger");
 const child_process = require("child_process");
+require("jspack");
 // Need this for "new MAVLink()"
-require("./mavlink.js");
+const mavlink = require("./mavlink.js");
 
 // Config
 const mConfig = {
@@ -20,6 +21,8 @@ const mConfig = {
 
 // Worker list/map
 var mWorkers = {};
+// Worker lib list
+var mWorkerLibraries = {};
 // Worker load error list
 var mWorkerLoadErrors = [];
 // Lookup table (message id to list of workers interested in that message)
@@ -174,7 +177,7 @@ const mConnectionCallback = {
 };
 
 function log(s) {
-    logger.v(__filename, s);
+    logger.v(path.basename(__filename, ".js"), s);
 }
 
 function trace(s) {
@@ -296,8 +299,7 @@ function unloadWorker(worker) {
 function unloadWorkers() {
     if(mWorkers) {
         for(let prop in mWorkers) {
-            const worker = mWorkers[prop];
-            unloadWorker(worker);
+            unloadWorker(mWorkers[prop]);
         }
     }
 
@@ -313,12 +315,20 @@ function reload() {
     }
 
     mWorkerLoadErrors = [];
+
+    // TODO: Unload these first.
+    mWorkerLibraries = {};
+
     const roots = mConfig.workerRoots;
 
+    if(mConfig.workerLibRoot) {
+        loadWorkerLibsIn(mConfig.workerLibRoot);
+    }
+
     if(roots) {
-        for (let i = 0, size = roots.length; i < size; ++i) {
-            loadWorkerRoot(roots[i]);
-        }
+        roots.map(function(root) {
+            loadWorkerRoot(root);
+        });
     }
 
     log(mWorkers);
@@ -356,6 +366,14 @@ function loadWorkerRoot(basedir) {
             attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
             attrs.findWorkerById = mWorkerListener.findWorkerById;
             attrs.log = mWorkerListener.workerLog;
+            attrs.api = { 
+                // unconditional loads here
+                mavlink: mavlink 
+            };
+
+            for(let prop in mWorkerLibraries) {
+                attrs.api[prop] = mWorkerLibraries[prop].module;
+            }
 
             attrs.sysid = mConfig.sysid;
             attrs.compid = mConfig.compid;
@@ -400,7 +418,7 @@ function loadWorkerRoot(basedir) {
                     } catch(ex) {
                         handleWorkerCallException(werker, ex);
                     }
-                }, 300 * (i + 1), worker);
+                }, 100 * (i + 1), worker);
             }
         } catch(ex) {
             log("Error loading worker at " + files[i] + ": " + ex.message);
@@ -414,6 +432,37 @@ function loadWorkerRoot(basedir) {
             });
         }
     }
+}
+
+function loadWorkerLibsIn(dir) {
+    log(`loadWorkerLibsIn(${dir})`);
+
+    if(!fs.existsSync(dir)) return;
+
+    const files = fs.readdirSync(dir);
+    files.map(function (file) {
+        const filename = path.join(dir, file);
+
+        try {
+            log(`load library module: ${filename}`);
+            const module = require(filename);
+
+            const lib = {
+                module: module,
+                cacheName: filename
+            };
+
+            const prop = path.basename(file, path.extname(file));
+
+            if (!mWorkerLibraries) {
+                mWorkerLibraries = {};
+            }
+
+            mWorkerLibraries[prop] = lib;
+        } catch(ex) {
+            log(`error loading module ${filename}: ${ex.message}`);
+        }
+    });
 }
 
 function handleWorkerCallException(worker, ex) {
@@ -708,6 +757,8 @@ function setConfig(config) {
     mConfig.loopTime = config.loop_time_ms || 1000;
     mConfig.udpPort = config.udp_port || 14550;
     mConfig.workerRoots = config.worker_roots || [];
+    mConfig.workerLibs = config.worker_lib_dirs || [];
+    mConfig.workerLibRoot = config.worker_lib_root;
 }
 
 function installWorker(srcPath, target, callback) {
