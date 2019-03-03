@@ -33,6 +33,11 @@ function WorkersPage() {
     function loadWorkersTable(workers) {
         tableWorkers.find("tr:gt(0)").remove();
 
+        function ellipsize(text, max) {
+            return (text.length > max)?
+                text.substring(0, max) + "...": text;
+        }
+
         if (workers) {
             $.each(workers, function (idx, item) {
                 if(item.id) {
@@ -52,8 +57,8 @@ function WorkersPage() {
                     var row = "<tr>" + 
                         "<td class=\"nr bold smaller\" cid=\"" + item.id + "\">" + item.id + "</td>" +
                         "<td class=\"smaller\">" + item.name + "</td>" +
-                        "<td class=\"smaller\">" + item.description + "</td>" +
-                        "<td class=\"smaller\">" + mavlinkMessages + "</td>" +
+                        "<td class=\"small\">" + ellipsize(item.description, 30) + "</td>" +
+                        "<td class=\"small\">" + ellipsize(mavlinkMessages, 25) + "</td>" +
                         "<td>" + 
                         "<button class=\"del btn btn-danger btn-sm\">Remove</button>&nbsp;" + 
                         ed + 

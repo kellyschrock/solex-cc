@@ -128,6 +128,23 @@ const mWorkerListener = {
         return others;
     },
 
+    subscribeMavlinkMessages: function(workerId, messages) {
+        const worker = mWorkers[workerId];
+        if(!worker) return;
+
+        worker.attributes.mavlinkMessages = messages;
+
+        messages.map(function(message) {
+            const name = message;
+
+            if(mMavlinkLookup[name]) {
+                mMavlinkLookup[name].workers.push(worker);
+            } else {
+                mMavlinkLookup[name] = { workers: [worker]};
+            }
+        });
+    },
+
     findWorkerById: function(workerId) {
         const worker = mWorkers[workerId];
 
@@ -365,10 +382,11 @@ function loadWorkerRoot(basedir) {
             attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
             attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
             attrs.findWorkerById = mWorkerListener.findWorkerById;
+            attrs.subscribeMavlinkMessages = mWorkerListener.subscribeMavlinkMessages;
             attrs.log = mWorkerListener.workerLog;
             attrs.api = { 
                 // unconditional loads here
-                mavlink: mavlink 
+                Mavlink: mavlink 
             };
 
             for(let prop in mWorkerLibraries) {
@@ -442,6 +460,7 @@ function loadWorkerLibsIn(dir) {
     const files = fs.readdirSync(dir);
     files.map(function (file) {
         const filename = path.join(dir, file);
+        const prop = path.basename(file, path.extname(file));
 
         try {
             log(`load library module: ${filename}`);
@@ -452,15 +471,16 @@ function loadWorkerLibsIn(dir) {
                 cacheName: filename
             };
 
-            const prop = path.basename(file, path.extname(file));
-
             if (!mWorkerLibraries) {
                 mWorkerLibraries = {};
             }
 
             mWorkerLibraries[prop] = lib;
         } catch(ex) {
-            log(`error loading module ${filename}: ${ex.message}`);
+            log(`load library module error - ${filename}: ${ex.message}`);
+            mWorkerLibraries[prop] = {
+                error: ex.message
+            };
         }
     });
 }
