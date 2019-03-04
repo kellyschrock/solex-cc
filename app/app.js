@@ -231,9 +231,9 @@ function setupWorker() {
                 case "queued_worker_messages": {
                     const messages = msg.queued_messages;
                     if(messages) {
-                        for(let i = 0, size = messages.length; i < size; ++i) {
-                            mQueuedWorkerMessages.push(messages[i]);
-                        }
+                        messages.map(function(message) {
+                            mQueuedWorkerMessages.push(message);
+                        });
                     }
                     break
                 }
@@ -269,15 +269,9 @@ function setupWorker() {
         },
 
         onGCSMessage: function (workerId, msg) {
-            // if (global.TRACE) {
-                // log(`onGCSMessage(): workerId=${workerId} msg=` + JSON.stringify(msg));
-            // }
-
             trace(`onGCSMessage(): workerId=${workerId} msg=` + JSON.stringify(msg));
 
-            for (let i = 0, size = mGCSSubscribers.length; i < size; ++i) {
-                const client = mGCSSubscribers[i];
-
+            mGCSSubscribers.map(function(client) {
                 trace(`send to ${client}`);
                 sendWSMessage(client, { event: "worker-to-gcs", data: { worker_id: workerId, message: msg } }, {
                     onError: function (err) {
@@ -293,7 +287,7 @@ function setupWorker() {
                         // log("Sent " + msg + " to " + client);
                     }
                 }, client.compressData);
-            }
+            });
         }
     };
 
@@ -419,13 +413,25 @@ function setupWorker() {
     };
 
     // websockets stuff
+    webSocketServer.on("headers", function(headers) {
+        log(`headers`);
+        headers.map(function(h) {
+            log(h);
+        });
+    });
+
+    webSocketServer.on("error", function(error) {
+        log(`WS error: ${error.message}`);
+    });
+
     webSocketServer.on('connection', function (client) {
         log("Connected from client");
 
+        // If we have queued messages waiting, send them now and clear them.
         if(mQueuedWorkerMessages && mQueuedWorkerMessages.length > 0) {
-            for(let i = 0, size = mQueuedWorkerMessages.length; i < size; ++i) {
-                webSocketServer.broadcast(mQueuedWorkerMessages[i]);
-            }
+            mQueuedWorkerMessages.map(function(msg) {
+                webSocketServer.broadcast(msg);
+            });
 
             mQueuedWorkerMessages.splice(0, mQueuedWorkerMessages.length);
         }
@@ -463,6 +469,7 @@ function setupWorker() {
                             if (mGCSSubscribers.indexOf(client) == -1) {
                                 client.compressData = jo.compress;
                                 mGCSSubscribers.push(client);
+                                client.send(JSON.stringify({event: "subscribe-status", status: "subscribed"}));
                             }
                             break;
                         }
@@ -471,6 +478,7 @@ function setupWorker() {
                             var idx = mGCSSubscribers.indexOf(client);
                             if (idx >= 0) {
                                 mGCSSubscribers.splice(idx, 1);
+                                client.send(JSON.stringify({ event: "subscribe-status", status: "unsubscribed" }));
                             }
                             break;
                         }

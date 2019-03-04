@@ -9,6 +9,8 @@ require("jspack");
 // Need this for "new MAVLink()"
 const mavlink = require("./mavlink.js");
 
+const VERBOSE = false;
+
 // Config
 const mConfig = {
     loopTime: 1000,
@@ -197,6 +199,10 @@ function log(s) {
     logger.v(path.basename(__filename, ".js"), s);
 }
 
+function v(str) {
+    if(VERBOSE) log(str);
+}
+
 function trace(s) {
     if(global.TRACE) {
         logger.v(__filename + "(trace)", s);
@@ -219,18 +225,18 @@ function findFiles(dir, filter) {
         if (stat.isDirectory()) {
             const children = findFiles(filename, filter);
             if(children) {
-                for(let j = 0, sz = children.length; j < sz; ++j) {
-                    out.push(children[j]);
-                }
+                children.map(function(child) {
+                    out.push(child);
+                });
             }
         } else {
             if (filter) {
                 if (filename.indexOf(filter) >= 0) {
                     out.push(filename);
-                    log(filename);
+                    log(`found ${filename}`);
                 }
             } else {
-                log(filename);
+                log(`found ${filename}`);
             }
         }
     }
@@ -246,15 +252,14 @@ function onReceivedMavlinkMessage(msg) {
         if(lookup) {
             const workers = lookup.workers;
 
-            for(let i = 0, size = workers.length; i < size; ++i) {
-                const worker = workers[i];
+            workers.map(function(worker) {
                 try {
                     trace("Send " + msg.name + " to " + worker.attributes.name);
 
-                    if(worker.worker.onMavlinkMessage) {
+                    if (worker.worker.onMavlinkMessage) {
                         try {
                             worker.worker.onMavlinkMessage(msg);
-                        } catch(ex) {
+                        } catch (ex) {
                             handleWorkerCallException(worker, ex);
                         }
                     }
@@ -262,7 +267,25 @@ function onReceivedMavlinkMessage(msg) {
                     log("Exception hitting onMavlinkMessage() in " + worker.attributes.name + ": " + ex.message);
                     console.trace();
                 }
-            }
+            });
+
+            // for(let i = 0, size = workers.length; i < size; ++i) {
+            //     const worker = workers[i];
+            //     try {
+            //         trace("Send " + msg.name + " to " + worker.attributes.name);
+
+            //         if(worker.worker.onMavlinkMessage) {
+            //             try {
+            //                 worker.worker.onMavlinkMessage(msg);
+            //             } catch(ex) {
+            //                 handleWorkerCallException(worker, ex);
+            //             }
+            //         }
+            //     } catch (ex) {
+            //         log("Exception hitting onMavlinkMessage() in " + worker.attributes.name + ": " + ex.message);
+            //         console.trace();
+            //     }
+            // }
         }
     }
 }
@@ -348,7 +371,7 @@ function reload() {
         });
     }
 
-    log(mWorkers);
+    v(mWorkers);
 
     loadWorkerEnabledStates();
 }
