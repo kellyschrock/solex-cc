@@ -1,6 +1,7 @@
 
 function WorkersPage() {
     var tableWorkers = $("#tbl_workers");
+    var tablePackages = $("#tbl_packages");
     var tableLoadErrors = $("#tbl_load_errors");
     var loadErrorsView = $("#div_load_errors");
     var fileUpload = $("#fileupload");
@@ -32,6 +33,7 @@ function WorkersPage() {
 
     function loadWorkersTable(workers) {
         tableWorkers.find("tr:gt(0)").remove();
+        tablePackages.find("tr:gt(0)").remove();
 
         function ellipsize(text, max) {
             return (text.length > max)?
@@ -39,6 +41,9 @@ function WorkersPage() {
         }
 
         if (workers) {
+            var packages = {};
+            var hasPackages = false;
+
             $.each(workers, function (idx, item) {
                 if(item.id) {
                     var mavlinkMessages = "";
@@ -54,11 +59,23 @@ function WorkersPage() {
                         "<button class=\"enable btn btn-success btn-sm\">Enable</button>"
                         ;
 
+                    function packageTip(p) {
+                        return `${p.name}: ${p.description}`;
+                    }
+
+                    var name = item.name;
+                    if(item.parent_package) {
+                        name += " <span class=\"smallest hilite\" title=\"" + packageTip(item.parent_package) + "\">(" + item.parent_package.id + ")</span>";
+
+                        packages[item.parent_package.id] = item.parent_package;
+                        hasPackages = true;
+                    }
+
                     var row = "<tr>" + 
                         "<td class=\"nr bold smaller\" cid=\"" + item.id + "\">" + item.id + "</td>" +
-                        "<td class=\"smaller\">" + item.name + "</td>" +
-                        "<td class=\"small\">" + ellipsize(item.description, 30) + "</td>" +
-                        "<td class=\"small\">" + ellipsize(mavlinkMessages, 25) + "</td>" +
+                        "<td class=\"smaller\">" + name + "</td>" +
+                        "<td class=\"small\" title=\"" + item.description + "\">" + ellipsize(item.description, 30) + "</td>" +
+                        "<td class=\"small\" title=\"" + mavlinkMessages + "\">" + ellipsize(mavlinkMessages, 25) + "</td>" +
                         "<td>" + 
                         "<button class=\"del btn btn-danger btn-sm\">Remove</button>&nbsp;" + 
                         ed + 
@@ -69,10 +86,54 @@ function WorkersPage() {
                     $("#tbl_workers tr:last").after(row);
                 }
             });
+
+            if(hasPackages) {
+                function hasEnabledWorkers(packageId) {
+                    for(var i = 0, size = workers.length; i < size; ++i) {
+                        if(workers[i].parent_package && workers[i].parent_package.id === packageId && workers[i].enabled) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+
+                $.each(packages, function (idx, item) {
+                    if (item.id) {
+                        var ed = (hasEnabledWorkers(item.id)) ?
+                            "<button class=\"disable btn btn-warning btn-sm\">Disable</button>" :
+                            "<button class=\"enable btn btn-success btn-sm\">Enable</button>"
+                            ;
+
+                        var row = "<tr>" +
+                            "<td class=\"nr bold smaller\" cid=\"" + item.id + "\">" + item.id + "</td>" +
+                            "<td class=\"smaller\">" + item.name + "</td>" +
+                            "<td class=\"small\" title=\"" + item.description + "\">" + ellipsize(item.description, 50) + "</td>" +
+                            "<td>" +
+                            "<button class=\"del btn btn-danger btn-sm\">Remove</button>&nbsp;" +
+                            ed +
+                            "</td>" +
+                            "</tr>"
+                            ;
+
+                        $("#tbl_packages tr:last").after(row);
+                    }
+                });
+
+                $("#div_packages").show();
+            } else {
+                $("#div_packages").hide();
+            }
         }
 
         function enableWorker(workerId, enable) {
-            $.getJSON(`/dispatch/enable/${workerId}/${enable}`, function (data) {
+            $.getJSON(`/dispatch/worker/enable/${workerId}/${enable}`, function (data) {
+                loadWorkers();
+            });
+        }
+
+        function enablePackage(packageId, enable) {
+            $.getJSON(`/dispatch/package/enable/${packageId}/${enable}`, function (data) {
                 loadWorkers();
             });
         }
@@ -100,12 +161,48 @@ function WorkersPage() {
             var name = td.text();
             enableWorker(name, false);
         });
+
+        $("#tbl_packages .del").click(function () {
+            var td = $(this).closest("tr").find(".nr");
+            var name = td.text();
+            if (confirm("Remove package " + name + "?? All workers in the selected package will be removed!")) {
+                var idx = td.parent().index() - 1;
+
+                if (idx >= 0) {
+                    deletePackage(name);
+                }
+            }
+        });
+
+        $("#tbl_packages .enable").click(function () {
+            var td = $(this).closest("tr").find(".nr");
+            var name = td.text();
+            enablePackage(name, true);
+        });
+
+        $("#tbl_packages .disable").click(function () {
+            var td = $(this).closest("tr").find(".nr");
+            var name = td.text();
+            enablePackage(name, false);
+        });
     }
 
     function deleteWorker(workerId) {
         if(workerId) {
             $.ajax({
                 url: '/worker/' + workerId,
+                type: 'DELETE',
+                success: function (result) {
+                    loadWorkers();
+                }
+            });
+        }
+    }
+
+    function deletePackage(packageId) {
+        if (packageId) {
+            $.ajax({
+                url: '/package/' + packageId,
                 type: 'DELETE',
                 success: function (result) {
                     loadWorkers();

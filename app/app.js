@@ -312,7 +312,8 @@ function setupWorker() {
         app.get("/dispatch/reload", dispatcher.reload);
         app.get("/dispatch/log_filter", dispatcher.getLogWorkers);
         app.get("/dispatch/log_filter/:worker_ids", dispatcher.setLogWorkers);
-        app.get("/dispatch/enable/:worker_id/:flag", dispatcher.enableWorker);
+        app.get("/dispatch/worker/enable/:worker_id/:flag", dispatcher.enableWorker);
+        app.get("/dispatch/package/enable/:package_id/:flag", dispatcher.enablePackage);
         
         app.get("/ui/:screen/enter", dispatcher.screenEnter);
         app.get("/ui/:screen/exit", dispatcher.screenExit);
@@ -325,6 +326,7 @@ function setupWorker() {
         app.post("/worker/upload", dispatcher.uploadWorker);
         app.post("/worker/install", dispatcher.installWorker);
         app.delete("/worker/:worker_id", dispatcher.removeWorker);
+        app.delete("/package/:package_id", dispatcher.removePackage);
         // POST a message to a worker
         app.post("/worker/msg/:worker_id", dispatcher.workerMessage);
         // Content download

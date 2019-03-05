@@ -154,6 +154,20 @@ const mWorkerListener = {
             worker.worker: null;
     },
 
+    findWorkersInPackage: function(packageId) {
+        const out = [];
+
+        for(let workerId in mWorkers) {
+            const worker = mWorkers[workerId];
+            const attrs = worker.attributes;
+            if(attrs && attrs.parent_package && attrs.parent_package.id === packageId) {
+                out.push(worker.worker);
+            }
+        }
+
+        return out;
+    },
+
     workerLog: function(workerId, msg) {
         const filter = mConfig.logWorkers || [];
 
@@ -209,6 +223,12 @@ function trace(s) {
     }
 }
 
+/**
+ * 
+ * @param {string} dir 
+ * @param {string} filter 
+ * @returns an array of filenames
+ */
 function findFiles(dir, filter) {
     var out = [];
 
@@ -218,6 +238,8 @@ function findFiles(dir, filter) {
     }
 
     const files = fs.readdirSync(dir);
+    var manifest = null;
+
     for (let i = 0, size = files.length; i < size; i++) {
         const filename = path.join(dir, files[i]);
         const stat = fs.lstatSync(filename);
@@ -386,6 +408,21 @@ function loadWorkerRoot(basedir) {
 
     const files = findFiles(basedir, "worker.js");
 
+    const manifests = findFiles(basedir, "manifest.json");
+    const packages = [];
+
+    manifests.map(function(manifest) {
+        try {
+            const jo = JSON.parse(fs.readFileSync(manifest));
+            jo.path = path.dirname(manifest);
+            packages.push({ file: manifest, parent_package: jo });
+        } catch(ex) {
+            log(`Error parsing manifest: ${ex.message}`);
+        }
+    });
+
+    log(`manifests=${manifests}`);
+
     for(let i = 0, size = files.length; i < size; ++i) {
         try {
             // Load the module
@@ -407,6 +444,14 @@ function loadWorkerRoot(basedir) {
             attrs.findWorkerById = mWorkerListener.findWorkerById;
             attrs.subscribeMavlinkMessages = mWorkerListener.subscribeMavlinkMessages;
             attrs.log = mWorkerListener.workerLog;
+
+            packages.map(function(pk) {
+                const dirname = path.dirname(pk.file);
+                if(files[i].indexOf(dirname) >= 0) {
+                    attrs.parent_package = pk.parent_package;
+                }
+            });
+
             attrs.api = { 
                 // unconditional loads here
                 Mavlink: mavlink 
@@ -804,20 +849,28 @@ function setConfig(config) {
     mConfig.workerLibRoot = config.worker_lib_root;
 }
 
+function checkForManifestIn(srcPath, callback) {
+    callback();
+}
+
 function installWorker(srcPath, target, callback) {
-    if(fs.existsSync(srcPath)) {
-        if(!fs.existsSync(target)) {
-            fs.mkdir(target); // Returns undefined, so check if it worked
-        }
+    if(!fs.existsSync(srcPath)) {
+        return callback.onError(srcPath + " not found");
+    }
 
-        if(!global.BIN_DIR) {
-            return callback.onError("global.BIN_DIR is not defined");
-        }
+    if(!global.BIN_DIR) {
+        return callback.onError("global.BIN_DIR is not defined");
+    }
 
+    if (!fs.existsSync(target)) {
+        fs.mkdir(target); // Returns undefined, so check if it worked
+    }
+
+    function installSingleWorkerTo(target) {
         // Run $global.BIN_DIR/install_worker.sh to install the worker.
         const child = child_process.spawn(path.join(global.BIN_DIR, "install_worker.sh"), [srcPath, target]);
         var consoleOutput = "";
-        const output = function(data) {
+        const output = function (data) {
             log(data.toString());
             consoleOutput += data.toString();
         }
@@ -825,9 +878,9 @@ function installWorker(srcPath, target, callback) {
         child.stdout.on("data", output);
         child.stderr.on("data", output);
 
-        child.on("close", function(rc) {
+        child.on("close", function (rc) {
             log("script exited with return code " + rc);
-            if(rc != 0) {
+            if (rc != 0) {
                 callback.onError("Failed to install worker with exit code " + rc, consoleOutput.trim());
             } else {
                 loadWorkerRoot(target);
@@ -836,9 +889,9 @@ function installWorker(srcPath, target, callback) {
                 notifyRosterChanged();
             }
         });
-    } else {
-        callback.onError(srcPath + " not found");
     }
+
+    installSingleWorkerTo(target);
 }
 
 function enableWorker(workerId, enable, callback) {
@@ -850,6 +903,75 @@ function enableWorker(workerId, enable, callback) {
         saveWorkerEnabledStates();
     } else {
         callback(new Error(`No worker named ${workerId}`), false);
+    }
+}
+
+function enablePackage(packageId, enable, callback) {
+    for(let workerId in mWorkers) {
+        const worker = mWorkers[workerId];
+        if (worker) {
+            const attrs = worker.attributes;
+            if (attrs && attrs.parent_package && attrs.parent_package.id === packageId) {
+                worker.enabled = ("true" === enable);
+            }
+        }
+    }
+
+    saveWorkerEnabledStates();
+    callback(null, enable);
+}
+
+function removePackage(packageId, callback) {
+    const workers = [];
+
+    var packagePath = null;
+
+    for(let workerId in mWorkers) {
+        const worker = mWorkers[workerId];
+        if(!worker) continue;
+
+        const attrs = worker.attributes;
+        if(attrs && attrs.parent_package && attrs.parent_package.id === packageId) {
+            workers.push(worker);
+
+            if(attrs.parent_package.path && !packagePath) {
+                packagePath = attrs.parent_package.path;
+            }
+        }
+    }
+
+    workers.map(function(worker) {
+        if(worker.worker) {
+            try {
+                removeWorker(worker.attributes.id, callback);
+            } catch(ex) {
+                log(`Error unloading worker ${worker.id}: ${ex.message}`);
+            }
+        }
+    });
+
+    if (packagePath && fs.existsSync(packagePath)) {
+        if (!global.BIN_DIR) {
+            return callback.onError("global.BIN_DIR is not defined");
+        }
+
+        // Run $APP/bin/remove_worker.sh to remove the worker.
+        const child = child_process.spawn(path.join(global.BIN_DIR, "remove_worker.sh"), [packagePath]);
+        const output = function (data) {
+            log(data.toString());
+        };
+
+        child.stdout.on("data", output);
+        child.stderr.on("data", output);
+
+        child.on("close", function (rc) {
+            log("script exited with return code " + rc);
+            if (rc != 0) {
+                callback.onError("Failed to remove worker with exit code " + rc);
+            } else {
+                callback.onComplete();
+            }
+        });
     }
 }
 
@@ -1008,7 +1130,9 @@ exports.getWorkers = getWorkers;
 exports.setConfig = setConfig;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
+exports.removePackage = removePackage;
 exports.enableWorker = enableWorker;
+exports.enablePackage = enablePackage;
 exports.gatherFeatures = gatherFeatures;
 exports.getLogWorkers = getLogWorkers;
 exports.setLogWorkers = setLogWorkers;

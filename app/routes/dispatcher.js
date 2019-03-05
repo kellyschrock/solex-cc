@@ -180,6 +180,31 @@ function enableWorker(req, res) {
     });
 }
 
+function enablePackage(req, res) {
+    const workerId = req.params.package_id;
+    const enable = req.params.flag;
+
+    dispatch.enablePackage(workerId, enable, function(err, enabled) {
+        if(err) {
+            res.status(404).json({message: err.message});
+        } else {
+            res.status(200).json({enabled: enable});
+        }
+    });
+}
+
+function removePackage(req, res) {
+    dispatch.removePackage(req.params.package_id, {
+        onComplete: function() {
+            res.status(200).json({message: "Removed " + req.params.package_id});
+        },
+
+        onError: function(msg) {
+            res.status(422).json({message: "Unable to remove " + req.params.package_id });
+        }
+    });
+}
+
 function removeWorker(req, res) {
     dispatch.removeWorker(req.params.worker_id, {
         onComplete: function() {
@@ -253,7 +278,9 @@ exports.workerDownload = workerDownload;
 exports.uploadWorker = uploadWorker;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
+exports.removePackage = removePackage;
 exports.enableWorker = enableWorker;
+exports.enablePackage = enablePackage;
 exports.screenEnter = screenEnter;
 exports.screenExit = screenExit;
 exports.imageDownload = imageDownload;

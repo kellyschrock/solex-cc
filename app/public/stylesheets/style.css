@@ -143,6 +143,10 @@ td.fat {
     font-size: 12px;
 }
 
+.smallest {
+    font-size: 10px;
+}
+
 .center {
     text-align: center;
 }
@@ -210,4 +214,8 @@ div.bordered_group h2 {
     font-size: 22px;
     font-weight: bold;
     color: #565656;
+}
+
+.hilite {
+    color: #22aa22;
 }
