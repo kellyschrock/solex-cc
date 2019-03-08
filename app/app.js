@@ -550,6 +550,7 @@ function setupWorker() {
                 } else {
                     const filename = path.join(__dirname, "worker_lib");
                     if(fs.existsSync(filename)) {
+                        global.worker_lib_root = filename;
                         configData.dispatcher.worker_lib_root = filename;
                     }
                 }

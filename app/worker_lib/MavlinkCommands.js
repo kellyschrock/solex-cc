@@ -13,6 +13,23 @@ const MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE = ((1 << 3) | (1 << 4) | (1 << 5));
 const MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE = ((1 << 6) | (1 << 7) | (1 << 8));
 const MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE = (1 << 10);
 
+function sendSetROI(sysid, compid, lat, lng, alt, callback) {
+    const msg = new mavlink.messages.command_long(
+        sysid, compid, 
+        mavlink.MAV_CMD_DO_SET_ROI,
+        0, // confirmation,
+        0, 
+        0, 
+        0, 
+        0, 
+        lat, 
+        lng, 
+        alt
+    );
+
+    callback(msg);
+}
+
 function changeMissionSpeed(sysid, compid, speed, callback) {
     const msg = new mavlink.messages.command_long(
         sysid, compid, 
@@ -255,6 +272,7 @@ function requestParamRead(sysid, compid, paramid, callback) {
 }
 
 // exports
+exports.sendSetROI = sendSetROI;
 exports.changeMissionSpeed = changeMissionSpeed;
 exports.setSpeed = setSpeed;
 exports.setGuidedMode = setGuidedMode;

@@ -581,6 +581,17 @@ function gotoPoint(point) {
     return valid;
 }
 
+function setROI(point) {
+    const valid = isValidLocation(point);
+    if(valid) {
+        MavlinkCommands.sendSetROI(mSysId, mCompId, point.lat, point.lng, point.alt, mavlinkCallback);
+    }
+}
+
+function clearROI() {
+    MavlinkCommands.sendSetROI(mSysId, mCompId, 0, 0, 0, mavlinkCallback);   
+}
+
 function sendGuidedVelocity(xVel, yVel, zVel) {
     MavlinkCommands.sendGuidedVelocity(mSysId, mCompId, xVel, yVel, zVel, mavlinkCallback);
 }
@@ -620,6 +631,8 @@ module.exports.setMavlinkSendCallback = setMavlinkSendCallback;
 module.exports.gotoPoint = gotoPoint;
 module.exports.setSpeed = setSpeed;
 module.exports.sendGuidedVelocity = sendGuidedVelocity;
+module.exports.setROI = setROI;
+module.exports.clearROI = clearROI;
 module.exports.sendVelocityLocalNed = sendVelocityLocalNed;
 
 // Tests

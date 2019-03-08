@@ -290,24 +290,6 @@ function onReceivedMavlinkMessage(msg) {
                     console.trace();
                 }
             });
-
-            // for(let i = 0, size = workers.length; i < size; ++i) {
-            //     const worker = workers[i];
-            //     try {
-            //         trace("Send " + msg.name + " to " + worker.attributes.name);
-
-            //         if(worker.worker.onMavlinkMessage) {
-            //             try {
-            //                 worker.worker.onMavlinkMessage(msg);
-            //             } catch(ex) {
-            //                 handleWorkerCallException(worker, ex);
-            //             }
-            //         }
-            //     } catch (ex) {
-            //         log("Exception hitting onMavlinkMessage() in " + worker.attributes.name + ": " + ex.message);
-            //         console.trace();
-            //     }
-            // }
         }
     }
 }
@@ -442,6 +424,7 @@ function loadWorkerRoot(basedir) {
             attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
             attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
             attrs.findWorkerById = mWorkerListener.findWorkerById;
+            attrs.findWorkersInPackage = mWorkerListener.findWorkersInPackage;
             attrs.subscribeMavlinkMessages = mWorkerListener.subscribeMavlinkMessages;
             attrs.log = mWorkerListener.workerLog;
 
@@ -901,6 +884,7 @@ function enableWorker(workerId, enable, callback) {
         callback(null, enable);
 
         saveWorkerEnabledStates();
+        notifyRosterChanged();
     } else {
         callback(new Error(`No worker named ${workerId}`), false);
     }
