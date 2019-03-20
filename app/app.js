@@ -325,6 +325,7 @@ function setupWorker() {
         app.get("/workers", dispatcher.getWorkers);
         app.post("/worker/upload", dispatcher.uploadWorker);
         app.post("/worker/install", dispatcher.installWorker);
+        app.get("/worker/reload/:worker_id", dispatcher.reloadWorker);
         app.delete("/worker/:worker_id", dispatcher.removeWorker);
         app.delete("/package/:package_id", dispatcher.removePackage);
         // POST a message to a worker

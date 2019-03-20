@@ -217,6 +217,14 @@ function removeWorker(req, res) {
     });
 }
 
+function reloadWorker(req, res) {
+    if(dispatch.reloadWorker(req.params.worker_id)) {
+        res.status(200).json({message: "Reloaded"});
+    } else {
+        res.status(404).json({message: `Worker ${req.params.worker_id} not found`});
+    }
+}
+
 function getLogWorkers(req, res) {
     const workerIds = dispatch.getLogWorkers() || [];
     res.status(200).json({worker_ids: workerIds.join(",")});
@@ -278,6 +286,7 @@ exports.workerDownload = workerDownload;
 exports.uploadWorker = uploadWorker;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
+exports.reloadWorker = reloadWorker;
 exports.removePackage = removePackage;
 exports.enableWorker = enableWorker;
 exports.enablePackage = enablePackage;

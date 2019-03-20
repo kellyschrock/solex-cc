@@ -324,6 +324,30 @@ function running() {
     return (mLoopTimer != null);
 }
 
+function reloadWorker(workerId) {
+    const worker = mWorkers[workerId];
+    if(worker) {
+        const cacheName = worker.cacheName;
+        log(`cacheName=${cacheName}`);
+        const dirName = path.dirname(cacheName);
+        log(`dirName=${dirName}`);
+
+        if(fs.existsSync(dirName)) {
+            delete mWorkers[workerId];
+
+            unloadWorker(worker);
+            loadWorkerRoot(dirName);
+            notifyRosterChanged();
+            return true;
+        } else {
+            log(`Directory ${dirName} not found`);
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+
 function unloadWorker(worker) {
     if (worker && worker.worker && worker.worker.onUnload) {
         trace("Unload " + worker.attributes.name);
@@ -410,7 +434,12 @@ function loadWorkerRoot(basedir) {
             // Load the module
             const worker = require(files[i]);
 
-            const attrs = worker.getAttributes() || { name: "No name", looper: false };
+            // const attrs = worker.getAttributes() || { name: "No name", looper: false };
+            const attrs = (worker.getAttributes)? worker.getAttributes() || { name: "No name", looper: false }: null;
+            if(!attrs) {
+                log(`Worker has no getAttributes() function, skip`);
+                continue;
+            }
 
             if(!attrs.id) {
                 log("Worker " + attrs.name + " in " + files[i] + " has no id, not loading");
@@ -1114,6 +1143,7 @@ exports.getWorkers = getWorkers;
 exports.setConfig = setConfig;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
+exports.reloadWorker = reloadWorker;
 exports.removePackage = removePackage;
 exports.enableWorker = enableWorker;
 exports.enablePackage = enablePackage;
