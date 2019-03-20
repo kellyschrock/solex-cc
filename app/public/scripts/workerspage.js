@@ -54,7 +54,7 @@ function WorkersPage() {
                         }
                     }
 
-                    var ed = (item.enabled)?
+                    var enableDisableButton = (item.enabled)?
                         "<button class=\"disable btn btn-warning btn-sm\">Disable</button>":
                         "<button class=\"enable btn btn-success btn-sm\">Enable</button>"
                         ;
@@ -78,7 +78,7 @@ function WorkersPage() {
                         "<td class=\"small\" title=\"" + mavlinkMessages + "\">" + ellipsize(mavlinkMessages, 25) + "</td>" +
                         "<td>" + 
                         "<button class=\"del btn btn-danger btn-sm\">Remove</button>&nbsp;" + 
-                        ed + 
+                        enableDisableButton + 
                         "</td>" +
                         "</tr>"
                         ;
