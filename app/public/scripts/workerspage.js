@@ -77,6 +77,7 @@ function WorkersPage() {
                         "<td class=\"small\" title=\"" + item.description + "\">" + ellipsize(item.description, 30) + "</td>" +
                         "<td class=\"small\" title=\"" + mavlinkMessages + "\">" + ellipsize(mavlinkMessages, 25) + "</td>" +
                         "<td>" + 
+                        "<button class=\"reload btn btn-info btn-sm\">Reload</button>&nbsp;" + 
                         "<button class=\"del btn btn-danger btn-sm\">Remove</button>&nbsp;" + 
                         enableDisableButton + 
                         "</td>" +
@@ -150,6 +151,12 @@ function WorkersPage() {
             }
         });
 
+        $("#tbl_workers .reload").click(function () {
+            var td = $(this).closest("tr").find(".nr");
+            var name = td.text();
+            reloadWorker(name);
+        });
+
         $("#tbl_workers .enable").click(function () {
             var td = $(this).closest("tr").find(".nr");
             var name = td.text();
@@ -194,6 +201,18 @@ function WorkersPage() {
                 type: 'DELETE',
                 success: function (result) {
                     loadWorkers();
+                }
+            });
+        }
+    }
+
+    function reloadWorker(workerId) {
+        if(workerId) {
+            $.ajax({
+                url: '/worker/reload/' + workerId,
+                type: 'GET',
+                success: function (result) {
+                    // loadWorkers();
                 }
             });
         }
