@@ -46,14 +46,6 @@ function WorkersPage() {
 
             $.each(workers, function (idx, item) {
                 if(item.id) {
-                    var mavlinkMessages = "";
-
-                    if(item.mavlinkMessages) {
-                        for(var i = 0, size = item.mavlinkMessages.length; i < size; ++i) {
-                            mavlinkMessages += item.mavlinkMessages[i] + " ";
-                        }
-                    }
-
                     var enableDisableButton = (item.enabled)?
                         "<button class=\"disable btn btn-warning btn-sm\">Disable</button>":
                         "<button class=\"enable btn btn-success btn-sm\">Enable</button>"
@@ -75,7 +67,6 @@ function WorkersPage() {
                         "<td class=\"nr bold smaller\" cid=\"" + item.id + "\">" + item.id + "</td>" +
                         "<td class=\"smaller\">" + name + "</td>" +
                         "<td class=\"small\" title=\"" + item.description + "\">" + ellipsize(item.description, 30) + "</td>" +
-                        "<td class=\"small\" title=\"" + mavlinkMessages + "\">" + ellipsize(mavlinkMessages, 25) + "</td>" +
                         "<td>" + 
                         "<button class=\"reload btn btn-info btn-sm\">Reload</button>&nbsp;" + 
                         "<button class=\"del btn btn-danger btn-sm\">Remove</button>&nbsp;" + 

@@ -327,6 +327,8 @@ function running() {
 function reloadWorker(workerId) {
     const worker = mWorkers[workerId];
     if(worker) {
+        const parentPackage = worker.attributes.parent_package;
+
         const cacheName = worker.cacheName;
         log(`cacheName=${cacheName}`);
         const dirName = path.dirname(cacheName);
@@ -337,6 +339,10 @@ function reloadWorker(workerId) {
 
             unloadWorker(worker);
             loadWorkerRoot(dirName);
+
+            // mWorkers is updated again
+            mWorkers[workerId].attributes.parent_package = parentPackage;
+
             notifyRosterChanged();
             return true;
         } else {
