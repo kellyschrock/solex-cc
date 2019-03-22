@@ -606,7 +606,7 @@ function setSpeed(speed) {
 }
 
 function isValidLocation(pt) {
-    return (pt.lat && pt.lng);
+    return (pt && pt.lat && pt.lng);
 }
 
 module.exports.Type = VehicleType;

@@ -1,0 +1,100 @@
+<script type="text/javascript" src="/scripts/worker_detail.js"></script>
+
+<div class="container content_view">
+    <h2><span id="worker_title"></span></h2>
+    <span id="worker_desc"></span>
+    <br />
+
+    <div id="post_area" class="bordered_group padded">
+        <b class="big">Messages</b>
+        &nbsp;&nbsp;<input type="checkbox" id="chk_monitor_post">Monitor</input>
+        <a id="btn_msg_panel" href="#btn_msg_panel" style="float:right">Collapse</a>
+        <br />
+        <br />
+
+        <table id="tbl_messages">
+            <tr>
+                <td>
+                    Specify a message body and click <b>Send</b> to send a message.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <textarea id="post_body" rows="10" cols="70" class="terminal">
+{
+    "id": "some_message",
+    "field": "some value to pass in the message"
+}
+                    </textarea>
+                </td>
+            </tr>
+            <tr>
+                <td class="small" id="post_body_bytes"></td>
+            </tr>
+            <tr>
+                <td class="padded">
+                    <input type="button" id="btn_send" value="Send" />
+                </td>
+            </tr>
+            <tr>
+                <td>Response</td>
+            </tr>
+            <tr>
+                <td>
+                    <textarea id="response_body" rows="10" cols="70" class="terminal"></textarea>
+                </td>
+            </tr>
+            <tr>
+                <td class="small" id="txt_response_bytes"></td>
+            </tr>
+        </table>
+    </div>
+
+    <div id="ws_area" class="bordered_group padded">
+        <b class="big">WS Output</b>
+        <a id="btn_ws_panel" href="#btn_ws_panel" style="float:right">Collapse</a>
+        <br />
+        <br />
+
+        <table id="tbl_ws_output">
+            <tr>
+                <td>
+                    View websocket output from this worker below.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <textarea id="ws_output" rows="10" cols="70" class="terminal"></textarea>
+                </td>
+            </tr>
+            <tr>
+                <td class="small" id="txt_ws_bytes"></td>
+            </tr>
+        </table>
+    </div>
+
+    <div id="log_area" class="bordered_group padded">
+        <b class="big">Log Output</b>
+        <a id="btn_log_panel" href="#btn_log_panel" style="float:right">Collapse</a>
+        <br />
+        <br />
+        <table id="tbl_log_output">
+            <tr>
+                <td> Log output from this worker. </td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <textarea id="log_output" rows="10" cols="70" class="terminal"></textarea>
+                </td>
+            </tr>
+            <tr>
+                <td align="right">
+                    <input type="button" id="btn_log_clear" value="Clear"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+

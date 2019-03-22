@@ -37,6 +37,20 @@ function getWorkers(req, res) {
     res.json(workers);
 }
 
+function getWorkerDetails(req, res) {
+    const worker = dispatch.getWorkerDetails(req.params.worker_id);
+    if(worker) {
+        res.json(worker);
+    } else {
+        res.status(404).json({message: `No worker with ${req.params.worker_id}`});
+    }
+}
+
+function monitorWorker(req, res) {
+    dispatch.monitorWorker(req.params.worker_id, req.params.monitor);
+    res.json({monitor: req.params.monitor});
+}
+
 function workerDownload(req, res) {
     const body = req.body;
 
@@ -301,6 +315,8 @@ exports.addGCSListener = addGCSListener;
 exports.removeGCSListener = removeGCSListener;
 exports.handleGCSMessage = handleGCSMessage;
 exports.getWorkers = getWorkers;
+exports.getWorkerDetails = getWorkerDetails;
+exports.monitorWorker = monitorWorker;
 exports.setConfig = setConfig;
 exports.restartSystem = restartSystem;
 exports.getFeatures = getFeatures;

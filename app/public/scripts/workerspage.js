@@ -130,6 +130,16 @@ function WorkersPage() {
             });
         }
 
+        $("#tbl_workers .nr").click(function () {
+            let td = $(this).closest("tr").find(".nr");
+            let name = td.text();
+
+            // Open a detail page for this worker.
+            loadView("worker_detail.html", function() {
+                WorkerDetailPage(name);
+            });
+        });
+
         $("#tbl_workers .del").click(function () {
             var td = $(this).closest("tr").find(".nr");
             var name = td.text();

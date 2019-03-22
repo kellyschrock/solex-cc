@@ -169,6 +169,7 @@ function setupWorker() {
     const mGCSSubscribers = [];
     const mLogSubscribers = [];
     const mQueuedWorkerMessages = [];
+    const mMonitors = [];
 
     // console.log("db=" + db);
     const app = express();
@@ -288,6 +289,27 @@ function setupWorker() {
                     }
                 }, client.compressData);
             });
+        },
+
+        onMonitorMessage: function(workerId, msg) {
+            if(mMonitors.length === 0) return;
+
+            mMonitors.map(function(client) {
+                sendWSMessage(client, { event: "monitor-to-gcs", data: { worker_id: workerId, message: msg } }, {
+                    onError: function(err) {
+                        log(`Error sending monitor message to ${client}`);
+
+                        const idx = mMonitors.indexOf(client);
+                        if(idx >= 0) {
+                            mMonitors.splice(idx, 1);
+                        }
+                    },
+
+                    onSuccess: function() {
+                        trace(`Sent monitor message`);
+                    }
+                });
+            });
         }
     };
 
@@ -326,6 +348,8 @@ function setupWorker() {
         app.post("/worker/upload", dispatcher.uploadWorker);
         app.post("/worker/install", dispatcher.installWorker);
         app.get("/worker/reload/:worker_id", dispatcher.reloadWorker);
+        app.get("/worker/details/:worker_id", dispatcher.getWorkerDetails);
+        app.get("/worker/monitor/:worker_id/:monitor", dispatcher.monitorWorker);
         app.delete("/worker/:worker_id", dispatcher.removeWorker);
         app.delete("/package/:package_id", dispatcher.removePackage);
         // POST a message to a worker
@@ -441,7 +465,7 @@ function setupWorker() {
 
         // got a message from the client
         client.on('message', function (data) {
-            log("received message " + data);
+            log(`received message ${JSON.stringify(data)}`);
 
             try {
                 const jo = JSON.parse(data);
@@ -478,10 +502,27 @@ function setupWorker() {
                         }
 
                         case "unsubscribe-gcs": {
-                            var idx = mGCSSubscribers.indexOf(client);
+                            const idx = mGCSSubscribers.indexOf(client);
                             if (idx >= 0) {
                                 mGCSSubscribers.splice(idx, 1);
                                 client.send(JSON.stringify({ event: "subscribe-status", status: "unsubscribed" }));
+                            }
+                            break;
+                        }
+
+                        case "subscribe-monitor": {
+                            if(mMonitors.indexOf(client) === -1) {
+                                mMonitors.push(client);
+                                client.send(JSON.stringify({event: "monitor-status", status: "subscribed"}));
+                            }
+                            break;
+                        }
+
+                        case "unsubscribe-monitor": {
+                            const idx = mMonitors.indexOf(client);
+                            if(idx >= 0) {
+                                mMonitors.splice(idx, 1);
+                                client.send(JSON.stringify({event: "monitor-status", status: "unsubscribed"}));
                             }
                             break;
                         }

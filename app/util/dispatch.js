@@ -31,6 +31,8 @@ var mWorkerLoadErrors = [];
 var mMavlinkLookup = {};
 // Listeners for GCS messages from workers
 const mGCSMessageListeners = [];
+// Monitors (for debug page)
+const mMonitors = {};
 // Driver for looping
 var mLoopTimer = null;
 // Mavlink message parser
@@ -763,6 +765,17 @@ function imageDownload(req, res) {
     }
 }
 
+// Monitor (or not) worker post and response data
+function monitorWorker(workerId, monitor) {
+    if(mWorkers && mWorkers[workerId]) {
+        if(monitor) {
+            mMonitors[workerId] = true;
+        } else {
+            delete mMonitors[workerId];
+        }
+    }
+}
+
 function handleGCSMessage(workerId, msg) {
     trace("handleGCSMessage(): workerId=" + workerId);
 
@@ -783,11 +796,18 @@ function handleGCSMessage(workerId, msg) {
                 if(worker.worker.onGCSMessage) {
                     try {
                         const output = worker.worker.onGCSMessage(msg) || {
-                            ok: true
+                            ok: true,
+                            source_id: msg.id
                         };
 
                         output.worker_id = workerId;
                         output.source_id = msg.id;
+
+                        if(mMonitors[workerId]) {
+                            for (let i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
+                                mGCSMessageListeners[i].onMonitorMessage(workerId, {input: msg, output: output});
+                            }
+                        }
                         
                         return output;
                     } catch(ex) {
@@ -810,7 +830,7 @@ function handleGCSMessage(workerId, msg) {
             } else {
                 return {
                     ok: false,
-                    message: "Invalid worker at " + workerId,
+                    message: `Invalid worker at ${workerId}`,
                     worker_id: workerId,
                     source_id: msg.id
                 };
@@ -818,7 +838,7 @@ function handleGCSMessage(workerId, msg) {
         } else {
             return {
                 ok: false,
-                message: "No worker with id of " + workerId,
+                message: `No worker called ${workerId}`,
                 worker_id: workerId,
                 source_id: msg.id
             };
@@ -855,6 +875,17 @@ function getWorkers() {
     }
 
     return result;
+}
+
+function getWorkerDetails(workerId) {
+    const worker = (mWorkers)? mWorkers[workerId]: null;
+    if(worker) {
+        const val = worker.attributes;
+        val.enabled = worker.enabled;
+        return val;
+    }
+
+    return null;
 }
 
 function setConfig(config) {
@@ -1140,12 +1171,14 @@ exports.running = running;
 exports.reload = reload;
 exports.addGCSMessageListener = addGCSMessageListener;
 exports.removeGCSMessageListener = removeGCSMessageListener;
+exports.monitorWorker = monitorWorker;
 exports.handleGCSMessage = handleGCSMessage;
 exports.handleScreenEnter = handleScreenEnter;
 exports.handleScreenExit = handleScreenExit;
 exports.imageDownload = imageDownload;
 exports.handleWorkerDownload = handleWorkerDownload;
 exports.getWorkers = getWorkers;
+exports.getWorkerDetails = getWorkerDetails;
 exports.setConfig = setConfig;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
