@@ -26,7 +26,7 @@ function WorkerDetailPage(workerId) {
     // WebSocket listener
     let webSocketListener = {
         onMessage: function onMessage(data) {
-            d(`onMessage(): ${data}`);
+            // d(`onMessage(): ${data}`);
             try {
                 let jo = JSON.parse(data);
                 switch(jo.event) {
