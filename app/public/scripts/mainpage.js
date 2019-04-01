@@ -5,6 +5,7 @@ var mEventListeners = [];
 // A place for arbitrary data 
 // TODO: This can go away eventually.
 var mGlobalState = {};
+var mOnPageUnloadCallback = null;
 
 var mSystemState = {};
 
@@ -44,12 +45,21 @@ function showControlClass(cls, show) {
     }
 }
 
+function setOnPageUnload(cb) {
+    mOnPageUnloadCallback = cb;
+}
+
 function loadView(page, callback) {
-    var cb = callback || function() {};
+    let cb = callback || function() {
+        console.log(`loadView() callback called.`);
+    };
 
-    var path = "page/" + page;
+    if(mOnPageUnloadCallback) {
+        mOnPageUnloadCallback();
+        mOnPageUnloadCallback = null;
+    }
 
-    $("#view_content").load(path, cb);
+    $("#view_content").load(`page/${page}`, cb);
 }
 
 function cleanText(text) {
@@ -142,6 +152,42 @@ function setupWebSocket() {
     } // end else
 }
 
+function subscribeWsGCSMessages() {
+    if(mSocket) {
+        mSocket.send(JSON.stringify({ type: "subscribe-gcs", compress: false }));
+    }
+}
+
+function unsubscribeWsGCSMessages() {
+    if(mSocket) {
+        mSocket.send(JSON.stringify({ type: "unsubscribe-gcs" }));
+    }
+}
+
+function subscribeWsLogMessages() {
+    if(mSocket) {
+        mSocket.send(JSON.stringify({ type: "subscribe-log" }));
+    }
+}
+
+function unsubscribeWsLogMessages() {
+    if(mSocket) {
+        mSocket.send(JSON.stringify({ type: "unsubscribe-log" }));
+    }
+}
+
+function subscribeMonitor() {
+    if(mSocket) {
+        mSocket.send(JSON.stringify({type: "subscribe-monitor"}));
+    }
+}
+
+function unsubscribeMonitor() {
+    if(mSocket) {
+        mSocket.send(JSON.stringify({type: "unsubscribe-monitor"}));
+    }
+}
+
 function connectWebSocket() {
     log("connectWebSocket()");
 
@@ -162,9 +208,12 @@ function connectWebSocket() {
         };
 
         mSocket.onmessage = function(msg) {
-            // log("onmessage(): " + msg.data);
-            for(let evl of mEventListeners) {
-                evl.onMessage(msg.data);
+            // log(`onmessage(): ${msg.data}`);
+
+            for(let listener of mEventListeners) {
+                if(listener.onMessage) {
+                    listener.onMessage(msg.data);
+                }
             }
         };
 
@@ -172,7 +221,7 @@ function connectWebSocket() {
             log("onclose()");
         };
     } catch(ex) {
-        alert("ex=" + ex);
+        log(`ex: ${ex.message}`)
     }
 }
 

@@ -1,8 +1,10 @@
 {
     "dispatcher": {
         "worker_roots": [
-            "/home/kellys/work/drone/projects/solex-cc/cc/workers"
+            "/home/kellys/work/drone/projects/solex-cc/workers/examples",
+            "/home/kellys/work/drone/projects/solex-cc/workers/smart-shots"
         ],
+        "worker_lib_root": "worker_lib",
         "sysid": 221,
         "compid": 101,
         "loop_time_ms": 1000,

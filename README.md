@@ -30,7 +30,7 @@ These are the sorts of things of thing workers, and this interface in general, a
 ## Why Node JS?
 
 Basically, because it's easy and performs well. Part of what this does is allows workers to be installed and removed on the fly,
-and basing it on Node JS works well with that too.
+and basing it on Node JS works well with that too. Also, `npm`. Seriously, there's basically every possible thing in `npm`. 
 
 ## Dispatcher
 
@@ -51,6 +51,7 @@ looks like this:
             "/home/solex-cc/workers",
             "/home/solex-cc/some-other-dir"
         ],
+        "worker_lib_root": "worker_lib",
         "sysid": 221,
         "compid": 101,
         "loop_time_ms": 1000,
@@ -59,6 +60,7 @@ looks like this:
 ```
 
 *   `worker_roots` is an array of paths where workers can be found.
+*   `worker_lib_root` is a path under SolexCC's `app` directory where optional worker libraries can be found.
 *   `sysid` and `compid` are the sysid/compid that will be used on Mavlink messages going to the vehicle (where applicable).
 *   `loop_time_ms` is how long the interval is between runs of the `loop()` function in the dispatcher. Any workers reporting that they wish to loop will have their `loop()` functions executed at this time.
 *   `udp_port` specifies the port the dispatcher listens on for incoming Mavlink messages. On an `apsync` implementation, `cmavnode` is used to forward Mavlink messages from `/dev/ttyS0` to UDP. So the dispatcher can use the normal value of `14550` here to listen to the UDP broadcasts that go out, or use an alternate port and configure `cmavnode` to send UDP packets to it directly.
@@ -176,8 +178,7 @@ A worker specifies how it wants to work by exposing a set of attributes to the d
 
 ```javascript
 const ATTRS = {
-    // Unique UUID (just use an online generator to get one of these)
-    id: "55c93de2-9e24-4937-b0d5-36ecf8ea6b90",
+    id: "my_worker",
     name: "My worker",
     description: "Something about what this worker is for",
     // If true, this workers loop() function will be called each time the dispatcher loops.
@@ -279,57 +280,34 @@ exports.onGCSMessage = function(msg) {
 };
 ```
 
-### Worker metadata
+## Worker Libraries
 
-Workers often need to interact with each other. To enable this, a worker can call `ATTRS.getWorkerRoster(workerId)` to get a list of 
-the other workers running on the system. The return value from `getWorkerRoster(workerId)` is a list of objects defined like this:
+Workers are intended to be stand-alone packaged things that can be deployed independently. Thus they often have their own libraries installed
+via `npm install`. However, if you have a bunch of workers that all make use of the same things, it's nice to be able to have those common features in libraries. 
+An example is `mavlink.js`. That really should be shared between SolexCC and any workers dealing with it, so the message definitions are the same.
 
-```
-{
-    attributes: attrs,
-    worker: worker
-}
-```
+### Example worker libraries
 
-The `attributes` field is the same set of attributes that are returned in the `GET /workers` endpoint at the front end, 
-showing ID, name, etc. The `worker` field is the actual worker object. So a worker can check for the presence of a `getMetadata(workerId)`
-method on the object, and if it's there, call it (passing `ATTRS.id`). The target worker can be built such that it can return
-metadata for a specific worker's use.
+The default installation includes a "worker_lib" directory under `app` that contains utility modules used by workers. They are:
 
-So, suppose you have a worker called `test_worker` that needs specific metadata from other workers on the system in order to do 
-something it's trying to do. It can do this:
+-   `MathUtils.js` A port of MathUtils.java from DroneKit-Android. Useful for dealing with locations.
+-   `MavlinkCommands.js` A bunch of utility functions intended to make dealing with common Mavlink messages easier.
+-   `Vehicle.js` More short-hand/convenience functions for dealing with vehicle events, etc
+-   `VehicleState.js` More convenience functions for vehicles.
+-   `WorkerUI.js` Functions for dealing with various worker-UI aspects of Solex.
 
-```javascript
+The examples in an associated project illustrate these libraries in use.
 
-const others = ATTRS.getWorkerRoster(ATTRS.id);
-for(var i = 0, size = others.length; ++i) {
-    const worker = others[i].worker;
-    if(worker.getMetadata) {
-        const meta = worker.getMetadata(ATTRS.id);
-    }
-}
-
-```
-The target worker can do something like this:
+To add a library, put it in the directory specified at "dispatcher.worker_lib_root" in `config.json`. At load time, the dispatcher
+will load all of the files found in that directory, and assign an `api` property to the `ATTRS` object for a worker, with the module name
+as an attribute of `api`. So if you have (for example) a `MySpecialAPI.js` file and put it there, you worker will be able to access the functions in it via:
 
 ```javascript
-
-exports.getMetadata = function(workerId) {
-    if("test_worker" === workerId) {
-        return {
-            message: "Here's some metadata for test_worker",
-            temperature: 80,
-            size: "small"
-        };
-    }
-
-    return null;
-};
-
+ATTRS.api.MySpecialAPI.someFunction()
 ```
 
-Given that workers can interact directly with each other, there's no real restriction on what methods they can call. This is just
-one way for them to exchange data about themselves.
+The same module will be shared across all workers. Do _not_ expect to put a `worker.js` file in this directory and have it work. You'll just end up with
+`ATTRS.api.worker`, which would be fairly useless.
 
 ### Sending Mavlink messages
 

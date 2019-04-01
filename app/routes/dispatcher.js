@@ -37,6 +37,20 @@ function getWorkers(req, res) {
     res.json(workers);
 }
 
+function getWorkerDetails(req, res) {
+    const worker = dispatch.getWorkerDetails(req.params.worker_id);
+    if(worker) {
+        res.json(worker);
+    } else {
+        res.status(404).json({message: `No worker with ${req.params.worker_id}`});
+    }
+}
+
+function monitorWorker(req, res) {
+    dispatch.monitorWorker(req.params.worker_id, req.params.monitor);
+    res.json({monitor: req.params.monitor});
+}
+
 function workerDownload(req, res) {
     const body = req.body;
 
@@ -61,6 +75,28 @@ function workerDownload(req, res) {
     } else {
         res.status(422).json({ message: "No message body" });
     }
+}
+
+function screenEnter(req, res) {
+    const name = req.params.screen;
+    const output = dispatch.handleScreenEnter(name);
+    const result = output || {};
+
+    result.screen_id = name;
+    res.status(200).json(result);
+}
+
+function screenExit(req, res) {
+    const name = req.params.screen;
+    const output = dispatch.handleScreenExit(name);
+    const result = output || {};
+
+    result.screen_id = name;
+    res.status(200).json(result);
+}
+
+function imageDownload(req, res) {
+    dispatch.imageDownload(req, res);
 }
 
 function workerMessage(req, res) {
@@ -145,6 +181,44 @@ function installWorker(req, res) {
     }
 }
 
+function enableWorker(req, res) {
+    const workerId = req.params.worker_id;
+    const enable = req.params.flag;
+
+    dispatch.enableWorker(workerId, enable, function(err, enabled) {
+        if(err) {
+            res.status(404).json({message: err.message});
+        } else {
+            res.status(200).json({enabled: enable});
+        }
+    });
+}
+
+function enablePackage(req, res) {
+    const workerId = req.params.package_id;
+    const enable = req.params.flag;
+
+    dispatch.enablePackage(workerId, enable, function(err, enabled) {
+        if(err) {
+            res.status(404).json({message: err.message});
+        } else {
+            res.status(200).json({enabled: enable});
+        }
+    });
+}
+
+function removePackage(req, res) {
+    dispatch.removePackage(req.params.package_id, {
+        onComplete: function() {
+            res.status(200).json({message: "Removed " + req.params.package_id});
+        },
+
+        onError: function(msg) {
+            res.status(422).json({message: "Unable to remove " + req.params.package_id });
+        }
+    });
+}
+
 function removeWorker(req, res) {
     dispatch.removeWorker(req.params.worker_id, {
         onComplete: function() {
@@ -157,6 +231,14 @@ function removeWorker(req, res) {
     });
 }
 
+function reloadWorker(req, res) {
+    if(dispatch.reloadWorker(req.params.worker_id)) {
+        res.status(200).json({message: "Reloaded"});
+    } else {
+        res.status(404).json({message: `Worker ${req.params.worker_id} not found`});
+    }
+}
+
 function getLogWorkers(req, res) {
     const workerIds = dispatch.getLogWorkers() || [];
     res.status(200).json({worker_ids: workerIds.join(",")});
@@ -165,6 +247,16 @@ function getLogWorkers(req, res) {
 function setLogWorkers(req, res) {
     const ok = dispatch.setLogWorkers(req.params.worker_ids);
     res.status(200).json({message: "Set log filter to " + req.params.worker_ids});
+}
+
+function getFeatures(req, res) {
+    const output = dispatch.gatherFeatures();
+    
+    if(output) {
+        res.status(200).json(output);
+    } else {
+        res.status(404).json({message: "no features at all!"});
+    }
 }
 
 function restartSystem(req, res) {
@@ -208,6 +300,13 @@ exports.workerDownload = workerDownload;
 exports.uploadWorker = uploadWorker;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
+exports.reloadWorker = reloadWorker;
+exports.removePackage = removePackage;
+exports.enableWorker = enableWorker;
+exports.enablePackage = enablePackage;
+exports.screenEnter = screenEnter;
+exports.screenExit = screenExit;
+exports.imageDownload = imageDownload;
 exports.getLogWorkers = getLogWorkers;
 exports.setLogWorkers = setLogWorkers;
 exports.reloadDirect = reloadDirect;
@@ -216,8 +315,11 @@ exports.addGCSListener = addGCSListener;
 exports.removeGCSListener = removeGCSListener;
 exports.handleGCSMessage = handleGCSMessage;
 exports.getWorkers = getWorkers;
+exports.getWorkerDetails = getWorkerDetails;
+exports.monitorWorker = monitorWorker;
 exports.setConfig = setConfig;
 exports.restartSystem = restartSystem;
+exports.getFeatures = getFeatures;
 
 function getFirstWorkerRoot() {
     const cfg = (global.workerConfig) ? global.workerConfig.dispatcher : null;

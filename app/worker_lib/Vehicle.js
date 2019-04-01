@@ -261,7 +261,7 @@ function onMavlinkMessage(msg) {
 function toVehicleMode(/* int */ mode, /* int */ type) {
     const values = Mode.valuesForType(type.type);
 
-    for(var i = 0, size = values.length; i < size; ++i) {
+    for(let i = 0, size = values.length; i < size; ++i) {
         if(mode === values[i].number) {
             return values[i];
         }
@@ -320,7 +320,7 @@ function toVehicleType(/* mavlink.MAV_TYPE */ type) {
 
     const baseType = toBaseType(type);
 
-    for(var i = 0, size = types.length; i < size; ++i) {
+    for(let i = 0, size = types.length; i < size; ++i) {
         if(types[i].type === baseType) {
             return types[i];
         }
@@ -528,7 +528,7 @@ function notifyEventAsync(event, extras) {
         const ext = extras;
 
         return function() {
-            for (var i = 0, size = mEventListeners.length; i < size; ++i) {
+            for (let i = 0, size = mEventListeners.length; i < size; ++i) {
                 const listener = mEventListeners[i];
                 if (listener.onDroneEvent) {
                     listener.onDroneEvent(evt, ext);
@@ -539,7 +539,7 @@ function notifyEventAsync(event, extras) {
 }
 
 function notifyEventSync(event, extras) {
-    for (var i = 0, size = mEventListeners.length; i < size; ++i) {
+    for (let i = 0, size = mEventListeners.length; i < size; ++i) {
         const listener = mEventListeners[i];
         if (listener.onDroneEvent) {
             listener.onDroneEvent(event, extras);
@@ -581,6 +581,17 @@ function gotoPoint(point) {
     return valid;
 }
 
+function setROI(point) {
+    const valid = isValidLocation(point);
+    if(valid) {
+        MavlinkCommands.sendSetROI(mSysId, mCompId, point.lat, point.lng, point.alt, mavlinkCallback);
+    }
+}
+
+function clearROI() {
+    MavlinkCommands.sendSetROI(mSysId, mCompId, 0, 0, 0, mavlinkCallback);   
+}
+
 function sendGuidedVelocity(xVel, yVel, zVel) {
     MavlinkCommands.sendGuidedVelocity(mSysId, mCompId, xVel, yVel, zVel, mavlinkCallback);
 }
@@ -595,7 +606,7 @@ function setSpeed(speed) {
 }
 
 function isValidLocation(pt) {
-    return (pt.lat && pt.lng);
+    return (pt && pt.lat && pt.lng);
 }
 
 module.exports.Type = VehicleType;
@@ -620,15 +631,17 @@ module.exports.setMavlinkSendCallback = setMavlinkSendCallback;
 module.exports.gotoPoint = gotoPoint;
 module.exports.setSpeed = setSpeed;
 module.exports.sendGuidedVelocity = sendGuidedVelocity;
+module.exports.setROI = setROI;
+module.exports.clearROI = clearROI;
 module.exports.sendVelocityLocalNed = sendVelocityLocalNed;
 
 // Tests
 function testTypeIterate() {
     const types = VehicleType.values();
 
-    for(var i = 0, size = types.length; i < size; ++i) {
-        d(types[i].name);
-    }
+    types.map(function(type) {
+        d(type.name);
+    });
 }
 
 function testModeIterate() {
@@ -636,13 +649,13 @@ function testModeIterate() {
         const modes = Mode.valuesForType(type.type);
 
         d("Modes for " + type.name);
-        for(var i = 0, size = modes.length; i < size; ++i) {
-            d(JSON.stringify(modes[i]));
-        }
+        modes.map(function(mode) {
+            d(JSON.stringify(mode));
+        });
     }
 
     const types = VehicleType.values();
-    for(var i = 0, size = types.length; i < size; ++i) {
+    for(let i = 0, size = types.length; i < size; ++i) {
         showModesFor(types[i]);
     }
 }
@@ -652,7 +665,7 @@ function testSetVehicleMode() {
 }
 
 function testMessages() {
-    for(var prop in mMessageMap) {
+    for(let prop in mMessageMap) {
         onMavlinkMessage({name: prop});
     }
 }

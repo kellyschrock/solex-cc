@@ -3,12 +3,15 @@
 global.appRoot = process.cwd();
 
 const path = require("path");
+const fs = require("fs");
 const cluster = require("cluster");
 const express = require('express');
 const http = require('http');
 const ws = require("ws");
 const Log = require("./util/logger");
 const config = require('./util/config');
+const compression = require("compression");
+const zlib = require("zlib");
 
 const routes = require('./routes');
 const dispatcher = require("./routes/dispatcher");
@@ -27,13 +30,20 @@ global.FILES_DIR = path.join(global.appRoot, "/files");
 global.appVersion = "1.0.1";
 
 function log(str) {
-    Log.v("app", str);
+    console.log(`app: ${str}`);
+    // Log.v("app", str);
+}
+
+function trace(str) {
+    if(global.TRACE) {
+        console.log(`app: ${str}`);
+    }
 }
 
 // log(`Process start: PID=${process.pid}`);
 
-const HEALTHCHECK_INTERVAL = 5000;
-const WORKER_HEALTH_DELAY = 2000;
+const HEALTHCHECK_INTERVAL = 15000;
+const WORKER_HEALTH_DELAY = 5000;
 const RESTART_DELAY = 2000;
 var mSubProcess;
 
@@ -76,6 +86,7 @@ function setupMaster() {
                 log(`worker ${worker.process.pid} died unexpectedly, restart it`);
                 mSubProcess = cluster.fork();
                 initWorkerCallback(mSubProcess);
+                // process.exit(122);
             }
         });
 
@@ -89,7 +100,7 @@ function setupMaster() {
                 case "health": {
                     const workerPid = msg.worker_pid;
                     const time = (msg.answered - msg.asked);
-                    log(`worker responded to health check in ${time} ms`);
+                    // log(`worker responded to health check in ${time} ms`);
 
                     if (time > WORKER_HEALTH_DELAY && workerPid) {
                         log(`kill/restart ${workerPid}`);
@@ -158,6 +169,7 @@ function setupWorker() {
     const mGCSSubscribers = [];
     const mLogSubscribers = [];
     const mQueuedWorkerMessages = [];
+    const mMonitors = [];
 
     // console.log("db=" + db);
     const app = express();
@@ -167,6 +179,17 @@ function setupWorker() {
     app.engine('html', require('ejs').renderFile);
     app.set('view engine', 'html');
 
+    function shouldCompress(req, res) {
+        if (req.headers['x-no-compression']) {
+            // don't compress responses with this request header
+            return false;
+        }
+
+        // fallback to standard filter function
+        return compression.filter(req, res);
+    }
+
+    app.use(compression({filter: shouldCompress}));
     app.use(express.favicon());
     app.use(express.logger('dev'));
     app.use(express.json());
@@ -184,7 +207,7 @@ function setupWorker() {
         process.on("message", function(msg) {
             if (!msg) { return; }
 
-            log(`Worker got msg: ${msg.id}`);
+            // log(`Worker got msg: ${msg.id}`);
 
             msg.worker_pid = process.pid;
 
@@ -209,9 +232,9 @@ function setupWorker() {
                 case "queued_worker_messages": {
                     const messages = msg.queued_messages;
                     if(messages) {
-                        for(let i = 0, size = messages.length; i < size; ++i) {
-                            mQueuedWorkerMessages.push(messages[i]);
-                        }
+                        messages.map(function(message) {
+                            mQueuedWorkerMessages.push(message);
+                        });
                     }
                     break
                 }
@@ -229,7 +252,7 @@ function setupWorker() {
             for (let i = 0, size = mLogSubscribers.length; i < size; ++i) {
                 const client = mLogSubscribers[i];
 
-                send(client, { event: "worker-log-gcs", data: { worker_id: workerId, message: msg } }, {
+                sendWSMessage(client, { event: "worker-log-gcs", data: { worker_id: workerId, message: msg } }, {
                     onError: function (err) {
                         log("Error sending message to " + client);
 
@@ -247,14 +270,11 @@ function setupWorker() {
         },
 
         onGCSMessage: function (workerId, msg) {
-            if (global.TRACE) {
-                log("onGCSMessage(): msg=" + JSON.stringify(msg));
-            }
+            trace(`onGCSMessage(): workerId=${workerId} msg=` + JSON.stringify(msg));
 
-            for (let i = 0, size = mGCSSubscribers.length; i < size; ++i) {
-                const client = mGCSSubscribers[i];
-
-                send(client, { event: "worker-to-gcs", data: { worker_id: workerId, message: msg } }, {
+            mGCSSubscribers.map(function(client) {
+                trace(`send to ${client}`);
+                sendWSMessage(client, { event: "worker-to-gcs", data: { worker_id: workerId, message: msg } }, {
                     onError: function (err) {
                         log("Error sending message to " + client);
 
@@ -267,8 +287,29 @@ function setupWorker() {
                     onSuccess() {
                         // log("Sent " + msg + " to " + client);
                     }
+                }, client.compressData);
+            });
+        },
+
+        onMonitorMessage: function(workerId, msg) {
+            if(mMonitors.length === 0) return;
+
+            mMonitors.map(function(client) {
+                sendWSMessage(client, { event: "monitor-to-gcs", data: { worker_id: workerId, message: msg } }, {
+                    onError: function(err) {
+                        log(`Error sending monitor message to ${client}`);
+
+                        const idx = mMonitors.indexOf(client);
+                        if(idx >= 0) {
+                            mMonitors.splice(idx, 1);
+                        }
+                    },
+
+                    onSuccess: function() {
+                        trace(`Sent monitor message`);
+                    }
                 });
-            }
+            });
         }
     };
 
@@ -293,17 +334,30 @@ function setupWorker() {
         app.get("/dispatch/reload", dispatcher.reload);
         app.get("/dispatch/log_filter", dispatcher.getLogWorkers);
         app.get("/dispatch/log_filter/:worker_ids", dispatcher.setLogWorkers);
+        app.get("/dispatch/worker/enable/:worker_id/:flag", dispatcher.enableWorker);
+        app.get("/dispatch/package/enable/:package_id/:flag", dispatcher.enablePackage);
+        
+        app.get("/ui/:screen/enter", dispatcher.screenEnter);
+        app.get("/ui/:screen/exit", dispatcher.screenExit);
+        app.get("/ui/image/:worker_id/:name", dispatcher.imageDownload);
+
         app.get("/sys/restart", dispatcher.restartSystem);
 
         // Worker list
         app.get("/workers", dispatcher.getWorkers);
         app.post("/worker/upload", dispatcher.uploadWorker);
         app.post("/worker/install", dispatcher.installWorker);
+        app.get("/worker/reload/:worker_id", dispatcher.reloadWorker);
+        app.get("/worker/details/:worker_id", dispatcher.getWorkerDetails);
+        app.get("/worker/monitor/:worker_id/:monitor", dispatcher.monitorWorker);
         app.delete("/worker/:worker_id", dispatcher.removeWorker);
+        app.delete("/package/:package_id", dispatcher.removePackage);
         // POST a message to a worker
         app.post("/worker/msg/:worker_id", dispatcher.workerMessage);
         // Content download
         app.post("/worker-download", dispatcher.workerDownload);
+        // Features endpoint
+        app.get("/features", dispatcher.getFeatures);
 
         // Trace
         app.get("/trace/:on_or_off", function (req, res, next) {
@@ -312,6 +366,10 @@ function setupWorker() {
         });
 
         app.get('/', routes.index);
+
+        app.get("/client/ping", function(req, res) {
+            res.status(200).json({message: "ok"});
+        });
 
         // Return the caller's IP address
         app.get('/client/myip', function (req, res) {
@@ -330,50 +388,84 @@ function setupWorker() {
     //
     // WebSockets 
     //
-    const wss = new WebSocketServer({ server: server });
+    const webSocketServer = new WebSocketServer({ server: server });
+
+    const WS_COMPRESS_THRESHOLD = 512;
+
+    function doSendWSData(wsConnection, buffer, cb) {
+        wsConnection.send(buffer, function (error) {
+            // if no error, send worked.
+            // otherwise the error describes the problem.
+            if (error) {
+                log("send result: error=" + error);
+                if (cb && cb.onError) cb.onError(error);
+            } else {
+                if (cb && cb.onSuccess) cb.onSuccess();
+            }
+        });
+    }
 
     // Send a WS message, and get an ack or an error.
-    function send(ws, data, cb) {
-        const str = JSON.stringify(data);
+    function sendWSMessage(wsConnection, data, cb, compressData) {
+        const compress = (compressData !== undefined)? compressData: false;
 
-        if (ws) {
-            ws.send(str, function (error) {
-                // if no error, send worked.
-                // otherwise the error describes the problem.
-                if (error) {
-                    log("send result: error=" + error);
-                    if (cb && cb.onError) cb.onError(error);
-                } else {
-                    if (cb && cb.onSuccess) cb.onSuccess();
-                }
-            });
+        if (wsConnection) {
+            const str = JSON.stringify(data);
+
+            if(compress && str.length > WS_COMPRESS_THRESHOLD) {
+                zlib.gzip(str, function(err, buffer) {
+                    if(err) {
+                        log(`error compressing data: ${err.message}`);
+                        doSendWSData(wsConnection, str, cb);
+                    } else {
+                        log(`Compress ${str.length} to ${buffer.length}`);
+
+                        const sendMe = (str.length > buffer.length)? buffer: str;
+                        doSendWSData(wsConnection, sendMe, cb);
+                    }
+                })
+            } else {
+                doSendWSData(wsConnection, str, cb);
+            }
         } else {
-            log("ERROR: No web socket!");
+            log("ERROR: No web socket connection to send on!");
         }
     }
 
     // Send a message to all clients
-    wss.broadcast = function (data) {
-        wss.clients.foreach(function (client) {
+    webSocketServer.broadcast = function (data) {
+        webSocketServer.clients.foreach(function (client) {
             client.send(data);
         });
     };
 
     // websockets stuff
-    wss.on('connection', function (client) {
-        log("Connected from " + client);
+    webSocketServer.on("headers", function(headers) {
+        log(`headers`);
+        headers.map(function(h) {
+            log(h);
+        });
+    });
 
+    webSocketServer.on("error", function(error) {
+        log(`WS error: ${error.message}`);
+    });
+
+    webSocketServer.on('connection', function (client) {
+        log("Connected from client");
+
+        // If we have queued messages waiting, send them now and clear them.
         if(mQueuedWorkerMessages && mQueuedWorkerMessages.length > 0) {
-            for(let i = 0, size = mQueuedWorkerMessages.length; i < size; ++i) {
-                wss.broadcast(mQueuedWorkerMessages[i]);
-            }
+            mQueuedWorkerMessages.map(function(msg) {
+                webSocketServer.broadcast(msg);
+            });
 
             mQueuedWorkerMessages.splice(0, mQueuedWorkerMessages.length);
         }
 
         // got a message from the client
         client.on('message', function (data) {
-            log("received message " + data);
+            log(`received message ${JSON.stringify(data)}`);
 
             try {
                 const jo = JSON.parse(data);
@@ -402,15 +494,35 @@ function setupWorker() {
 
                         case "subscribe-gcs": {
                             if (mGCSSubscribers.indexOf(client) == -1) {
+                                client.compressData = jo.compress;
                                 mGCSSubscribers.push(client);
+                                client.send(JSON.stringify({event: "subscribe-status", status: "subscribed"}));
                             }
                             break;
                         }
 
                         case "unsubscribe-gcs": {
-                            var idx = mGCSSubscribers.indexOf(client);
+                            const idx = mGCSSubscribers.indexOf(client);
                             if (idx >= 0) {
                                 mGCSSubscribers.splice(idx, 1);
+                                client.send(JSON.stringify({ event: "subscribe-status", status: "unsubscribed" }));
+                            }
+                            break;
+                        }
+
+                        case "subscribe-monitor": {
+                            if(mMonitors.indexOf(client) === -1) {
+                                mMonitors.push(client);
+                                client.send(JSON.stringify({event: "monitor-status", status: "subscribed"}));
+                            }
+                            break;
+                        }
+
+                        case "unsubscribe-monitor": {
+                            const idx = mMonitors.indexOf(client);
+                            if(idx >= 0) {
+                                mMonitors.splice(idx, 1);
+                                client.send(JSON.stringify({event: "monitor-status", status: "unsubscribed"}));
                             }
                             break;
                         }
@@ -431,7 +543,7 @@ function setupWorker() {
                         }
 
                         case "ping": {
-                            send(client, { message: "ok" });
+                            sendWSMessage(client, { message: "ok" });
                             break;
                         }
                     }
@@ -439,16 +551,21 @@ function setupWorker() {
             }
             catch (err) {
                 log(err);
-                send(client, "error in " + data);
+                sendWSMessage(client, "error in " + data);
             }
         });
 
         client.on('close', function () {
-            log("connection to " + client + " closed");
+            log("connection to client closed");
+
+            var idx = mGCSSubscribers.indexOf(client);
+            if (idx >= 0) {
+                mGCSSubscribers.splice(idx, 1);
+            }
         });
 
         // Send a connected message back to the client
-        send(client, "connected");
+        sendWSMessage(client, "connected");
     });
 
     // End websockets
@@ -464,6 +581,22 @@ function setupWorker() {
             log(JSON.stringify(configData));
 
             global.workerConfig = configData;
+
+            if(configData.dispatcher) {
+                if (configData.dispatcher.worker_lib_root) {
+                    const root = configData.dispatcher.worker_lib_root;
+                    const filename = path.join(__dirname, root);
+                    if(fs.existsSync(filename)) {
+                        configData.dispatcher.worker_lib_root = path.join(__dirname, root);
+                    }
+                } else {
+                    const filename = path.join(__dirname, "worker_lib");
+                    if(fs.existsSync(filename)) {
+                        global.worker_lib_root = filename;
+                        configData.dispatcher.worker_lib_root = filename;
+                    }
+                }
+            }
 
             dispatcher.setConfig(configData.dispatcher);
             dispatcher.addGCSListener(mGCSMessageListener);
