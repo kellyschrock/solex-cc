@@ -45,19 +45,13 @@ const mWorkerListener = {
 
         if(msg) {
             if (udpclient.isConnected()) {
-                function ex() {
-                    const m = msg;
-                    return function () {
-                        try {
-                            const packet = Buffer.from(m.pack(mMavlink));
-                            udpclient.sendMessage(packet);
-                        } catch (ex) {
-                            log("Error sending mavlink message from worker: " + ex.message);
-                        }
-                    }
+                const packet = Buffer.from(msg.pack(mMavlink));
+                
+                try {
+                    udpclient.sendMessage(packet);
+                } catch (ex) {
+                    log(`Error sending mavlink message from worker: ${ex.message}`);
                 }
-
-                process.nextTick(ex());
             } else {
                 log("UDP client is not connected");
             }
@@ -68,18 +62,13 @@ const mWorkerListener = {
 
     /** Gets a GCS message from the specified worker, broadcasts to all GCSMessageListeners. */
     onGCSMessage: function (workerId, msg) {
-        trace("GCS message from " + workerId + ": " + msg);
+        trace(`GCS message from ${workerId}: ${msg.id}`);
 
-        function ex() {
-            const m = msg;
-            return function() {
-                for (let i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
-                    mGCSMessageListeners[i].onGCSMessage(workerId, m);
-                }
-            };
-        }
-
-        process.nextTick(ex());
+        mGCSMessageListeners.map(function(listener) {
+            if(listener.onGCSMessage) {
+                listener.onGCSMessage(workerId, msg);
+            }
+        });
     },
 
     /** Gets a message from the specified worker, sends it to all other workers in the system */
@@ -87,28 +76,21 @@ const mWorkerListener = {
         trace("Broadcast message from " + workerId + ": " + msg);
 
         if (mWorkers) {
-            function ex() {
-                const wid = workerId;
-                const m = msg;
-                return function() {
-                    for (let prop in mWorkers) {
-                        const worker = mWorkers[prop];
 
-                        if (!worker.worker) continue;
-                        if (worker.attributes.id === wid) continue;
+            for(let prop in mWorkers) {
+                const worker = mWorkers[prop];
+                if(!worker) continue;
+                if(!worker.worker) continue;
+                if(worker.attributes.id === workerId) continue;
 
-                        if (worker.worker.onGCSMessage) {
-                            try {
-                                worker.worker.onGCSMessage(m);
-                            } catch(ex) {
-                                handleWorkerCallException(worker, ex);
-                            }
-                        }
+                if(worker.worker.onGCSMessage) {
+                    try {
+                        worker.worker.onGCSMessage(msg);
+                    } catch (ex) {
+                        handleWorkerCallException(worker, ex);
                     }
                 }
             }
-
-            process.nextTick(ex());
         }
     },
 
