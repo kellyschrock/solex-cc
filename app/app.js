@@ -4,7 +4,6 @@ global.appRoot = process.cwd();
 
 const path = require("path");
 const fs = require("fs");
-const cluster = require("cluster");
 const express = require('express');
 const http = require('http');
 const ws = require("ws");
@@ -47,123 +46,11 @@ const WORKER_HEALTH_DELAY = 5000;
 const RESTART_DELAY = 2000;
 var mSubProcess;
 
-if(cluster.isMaster) {
-    log("Set up master");
-    setupMaster();
-} else {
-    log("Set up worker");
-    setupWorker();
-}
-
-function setupMaster() {
-
-    const queuedWorkerMessages = [];
-
-    function initWorker(worker) {
-        cluster.on("online", function (worker) {
-            log(`worker pid ${worker.process.pid} is online`);
-
-            if(queuedWorkerMessages.length > 0) {
-                const msg = {
-                    id: "queued_worker_messages", 
-                    sender: "master",
-                    queued_messages: queuedWorkerMessages
-                };
-
-                worker.send(msg);
-            }
-        });
-
-        cluster.on("exit", function (worker, code, signal) {
-            log(`worker ${worker.process.pid} stopped with code ${code} and signal ${signal}`);
-
-            if (worker.exitedAfterDisconnect) {
-                // All good, worker exited intentionally
-            } else {
-                // TODO: Ping the web socket and let clients know there was a problem.
-
-                // Then restart the worker.
-                log(`worker ${worker.process.pid} died unexpectedly, restart it`);
-                mSubProcess = cluster.fork();
-                initWorkerCallback(mSubProcess);
-                // process.exit(122);
-            }
-        });
-
-        initWorkerCallback(worker);
-    }
-
-    function initWorkerCallback(worker) {
-        worker.on("message", function (msg) {
-            // Message from the worker.
-            switch (msg.id) {
-                case "health": {
-                    const workerPid = msg.worker_pid;
-                    const time = (msg.answered - msg.asked);
-                    // log(`worker responded to health check in ${time} ms`);
-
-                    if (time > WORKER_HEALTH_DELAY && workerPid) {
-                        log(`kill/restart ${workerPid}`);
-                        // TODO: Kill/restart the worker
-                        try {
-                            mSubProcess.send({ id: "shutdown", sender: "master" });
-
-                            // setTimeout(function() {
-                            //     mSubProcess = cluster.fork();
-                            // }, 1000);
-                        } catch (ex) {
-                            log(`error killing ${workerPid}: ${ex.message}`);
-                        }
-                    }
-
-                    break;
-                }
-
-                case "restart_system": {
-                    mSubProcess.send({
-                        id: "shutdown", sender: "master"
-                    });
-
-                    setTimeout(function() {
-                        mSubProcess = cluster.fork();
-                        initWorkerCallback(mSubProcess);
-                    }, RESTART_DELAY);
-                    break;
-                }
-
-                default: {
-                    log(`received ${msg.id} message from worker ${msg.worker_pid}`);
-                    break;
-                }
-            }
-        });
-    }
-
-    // Only want 1 worker process since this app loads stuff from fs.
-    mSubProcess = cluster.fork();
-    initWorker(mSubProcess);
-
-    function healthCheck() {
-        if(mSubProcess) {
-            try {
-                mSubProcess.send({
-                    id: "health",
-                    sender: "master",
-                    asked: new Date().getTime()
-                });
-            } catch(ex) {
-                log(`error sending health check: ${ex.message}`);
-            }
-
-            setTimeout(healthCheck, HEALTHCHECK_INTERVAL);
-        }
-    }
-
-    setTimeout(healthCheck, HEALTHCHECK_INTERVAL);
-}
+log("Set up app");
+setupApp();
 
 // Setup function for the normal app
-function setupWorker() {
+function setupApp() {
     const WebSocketServer = ws.Server;
 
     const mGCSSubscribers = [];
@@ -202,47 +89,6 @@ function setupWorker() {
     if ('development' == app.get('env')) {
         app.use(express.errorHandler());
     }
-
-    function setupWorkerMessages() {
-        process.on("message", function(msg) {
-            if (!msg) { return; }
-
-            // log(`Worker got msg: ${msg.id}`);
-
-            msg.worker_pid = process.pid;
-
-            switch(msg.id) {
-                case "health": {
-                    if(msg.sender === "master") {
-                        msg.answered = new Date().getTime();
-                        // Send it back
-                        process.send(msg);
-                    }
-                    break;
-                }
-
-                case "shutdown": {
-                    msg.answered = new Date().getTime();
-                    process.send(msg);
-
-                    process.exit(0);
-                    break;
-                }
-
-                case "queued_worker_messages": {
-                    const messages = msg.queued_messages;
-                    if(messages) {
-                        messages.map(function(message) {
-                            mQueuedWorkerMessages.push(message);
-                        });
-                    }
-                    break
-                }
-            }
-        });
-    }
-
-    setupWorkerMessages();
 
     //
     // LISTENERS
