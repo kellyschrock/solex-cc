@@ -23,147 +23,16 @@ const mConfig = {
 
 // Worker list/map
 var mWorkers = {};
-// Worker lib list
-var mWorkerLibraries = {};
 // Worker load error list
 var mWorkerLoadErrors = [];
-// Lookup table (message id to list of workers interested in that message)
-var mMavlinkLookup = {};
 // Listeners for GCS messages from workers
 const mGCSMessageListeners = [];
 // Monitors (for debug page)
 const mMonitors = {};
-// Driver for looping
-var mLoopTimer = null;
+// Worker enabled states
+var mWorkerEnabledStates = {};
 // Mavlink message parser
 var mMavlink;
-
-const mWorkerListener = {
-    /** Gets a Mavlink message from the specified worker, sends it to the Mavlink output */
-    onMavlinkMessage: function (workerId, msg) {
-        trace("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
-
-        if(msg) {
-            if (udpclient.isConnected()) {
-                const packet = Buffer.from(msg.pack(mMavlink));
-                
-                try {
-                    udpclient.sendMessage(packet);
-                } catch (ex) {
-                    log(`Error sending mavlink message from worker: ${ex.message}`);
-                }
-            } else {
-                log("UDP client is not connected");
-            }
-        } else {
-            log("WARNING: No message");
-        }
-    },
-
-    /** Gets a GCS message from the specified worker, broadcasts to all GCSMessageListeners. */
-    onGCSMessage: function (workerId, msg) {
-        trace(`GCS message from ${workerId}: ${msg.id}`);
-
-        mGCSMessageListeners.map(function(listener) {
-            if(listener.onGCSMessage) {
-                listener.onGCSMessage(workerId, msg);
-            }
-        });
-    },
-
-    /** Gets a message from the specified worker, sends it to all other workers in the system */
-    onBroadcastMessage: function(workerId, msg) {
-        trace("Broadcast message from " + workerId + ": " + msg);
-
-        if (mWorkers) {
-
-            for(let prop in mWorkers) {
-                const worker = mWorkers[prop];
-                if(!worker) continue;
-                if(!worker.worker) continue;
-                if(worker.attributes.id === workerId) continue;
-
-                if(worker.worker.onGCSMessage) {
-                    try {
-                        worker.worker.onGCSMessage(msg);
-                    } catch (ex) {
-                        handleWorkerCallException(worker, ex);
-                    }
-                }
-            }
-        }
-    },
-
-    /** Called by a worker to get a list of the other workers on the system */
-    getWorkerRoster: function(workerId) {
-        const others = [];
-
-        for (let prop in mWorkers) {
-            const worker = mWorkers[prop];
-
-            if (!worker.worker) continue;
-            if (worker.attributes.id === workerId) continue;
-
-            others.push({
-                attributes: worker.attributes,
-                worker: worker.worker,
-                enabled: worker.enabled
-            });
-        }
-
-        return others;
-    },
-
-    subscribeMavlinkMessages: function(workerId, messages) {
-        const worker = mWorkers[workerId];
-        if(!worker) return;
-
-        worker.attributes.mavlinkMessages = messages;
-
-        messages.map(function(message) {
-            const name = message;
-
-            if(mMavlinkLookup[name]) {
-                mMavlinkLookup[name].workers.push(worker);
-            } else {
-                mMavlinkLookup[name] = { workers: [worker]};
-            }
-        });
-    },
-
-    findWorkerById: function(workerId) {
-        const worker = mWorkers[workerId];
-
-        return (worker && worker.worker)?
-            worker.worker: null;
-    },
-
-    findWorkersInPackage: function(packageId) {
-        const out = [];
-
-        for(let workerId in mWorkers) {
-            const worker = mWorkers[workerId];
-            const attrs = worker.attributes;
-            if(attrs && attrs.parent_package && attrs.parent_package.id === packageId) {
-                out.push(worker.worker);
-            }
-        }
-
-        return out;
-    },
-
-    workerLog: function(workerId, msg) {
-        const filter = mConfig.logWorkers || [];
-
-        if(filter.length === 0 || filter.indexOf(workerId) >= 0) {
-            console.log(`${workerId}: ${msg}`);
-
-            for (let i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
-                mGCSMessageListeners[i].onLogMessage(workerId, msg);
-            }
-        }
-    }
-};
 
 const mConnectionCallback = {
     onOpen: function (port) {
@@ -193,26 +62,11 @@ const mConnectionCallback = {
     }
 };
 
-function log(s) {
-    logger.v(path.basename(__filename, ".js"), s);
-}
+function log(s) { logger.v(path.basename(__filename, ".js"), s); }
+function d(s) { log(s); }
+function v(str) { if (VERBOSE) log(str); }
+function trace(s) { if (global.TRACE) { logger.v(__filename + "(trace)", s); } }
 
-function v(str) {
-    if(VERBOSE) log(str);
-}
-
-function trace(s) {
-    if(global.TRACE) {
-        logger.v(__filename + "(trace)", s);
-    }
-}
-
-/**
- * 
- * @param {string} dir 
- * @param {string} filter 
- * @returns an array of filenames
- */
 function findFiles(dir, filter) {
     var out = [];
 
@@ -253,27 +107,10 @@ function findFiles(dir, filter) {
 function onReceivedMavlinkMessage(msg) {
     trace("onReceivedMavlinkMessage(): msg=" + msg);
 
-    if(mMavlinkLookup && msg.name) {
-        const lookup = mMavlinkLookup[msg.name];
-        if(lookup) {
-            const workers = lookup.workers;
-
-            workers.map(function(worker) {
-                try {
-                    trace("Send " + msg.name + " to " + worker.attributes.name);
-
-                    if (worker.worker.onMavlinkMessage) {
-                        try {
-                            worker.worker.onMavlinkMessage(msg);
-                        } catch (ex) {
-                            handleWorkerCallException(worker, ex);
-                        }
-                    }
-                } catch (ex) {
-                    log("Exception hitting onMavlinkMessage() in " + worker.attributes.name + ": " + ex.message);
-                    console.trace();
-                }
-            });
+    for(let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if(worker && worker.child && worker.enabled) {
+            worker.child.send({id: "mavlink_msg", msg: msg});
         }
     }
 }
@@ -286,17 +123,9 @@ function start() {
     udpclient.connect({
         udp_port: mConfig.udpPort
     }, mConnectionCallback);
-
-    // Start the looper.
-    loop();
 }
 
 function stop() {
-    if(mLoopTimer) {
-        clearTimeout(mLoopTimer);
-        mLoopTimer = null;
-    }
-
     try {
         udpclient.disconnect(mConnectionCallback);
     } catch(ex) {
@@ -305,59 +134,32 @@ function stop() {
 }
 
 function running() {
-    return (mLoopTimer != null);
+    return (mWorkers != null);
 }
 
 function reloadWorker(workerId) {
-    const worker = mWorkers[workerId];
+    const worker = findWorkerById(workerId);
+    
     if(worker) {
-        const parentPackage = worker.attributes.parent_package;
-
-        const cacheName = worker.cacheName;
-        log(`cacheName=${cacheName}`);
-        const dirName = path.dirname(cacheName);
-        log(`dirName=${dirName}`);
-
-        if(fs.existsSync(dirName)) {
-            delete mWorkers[workerId];
-
-            unloadWorker(worker);
-            loadWorkerRoot(dirName);
-
-            // mWorkers is updated again
-            mWorkers[workerId].attributes.parent_package = parentPackage;
-
-            notifyRosterChanged();
-            return true;
-        } else {
-            log(`Directory ${dirName} not found`);
-            return false;
-        }
-    } else {
-        return false;
-    }
+        const child = worker.child;
+        child.send({id: "reload", msg: {}});
+        return true;
+    } 
+    
+    return false;
 }
 
 function unloadWorker(worker) {
-    if (worker && worker.worker && worker.worker.onUnload) {
-        trace("Unload " + worker.attributes.name);
-        try {
-            worker.worker.onUnload();
-        } catch (ex) {
-            handleWorkerCallException(worker, ex);
-        }
-    }
-
-    if (worker.cacheName) {
-        log("Deleting " + worker.cacheName + " from cache");
-        delete require.cache[require.resolve(worker.cacheName)];
-    }
+    const child = worker.child;
+    child.send({id: "unload", msg: {}});
 }
 
 function unloadWorkers() {
+    d(`unloadWorkers()`);
+
     if(mWorkers) {
-        for(let prop in mWorkers) {
-            unloadWorker(mWorkers[prop]);
+        for(let pid in mWorkers) {
+            unloadWorker(mWorkers[pid]);
         }
     }
 
@@ -366,22 +168,12 @@ function unloadWorkers() {
 
 function reload() {
     unloadWorkers();
-    mMavlinkLookup = {};
-
-    if (mLoopTimer) {
-        clearTimeout(mLoopTimer);
-    }
 
     mWorkerLoadErrors = [];
 
-    // TODO: Unload these first.
-    mWorkerLibraries = {};
-
     const roots = mConfig.workerRoots;
 
-    if(mConfig.workerLibRoot) {
-        loadWorkerLibsIn(mConfig.workerLibRoot);
-    }
+    loadWorkerEnabledStates();
 
     if(roots) {
         roots.map(function(root) {
@@ -390,8 +182,144 @@ function reload() {
     }
 
     v(mWorkers);
+}
 
-    loadWorkerEnabledStates();
+function setupWorkerCallbacks(child) {
+    const childProcMap = {
+        "worker_loaded": workerLoaded,
+        "load_abort": loadAbort,
+        "worker_log": workerLog,
+        "worker_mavlink": workerMavlink,
+        "worker_gcs": workerGCS,
+        "gcs_msg_response": gcsMessageResponse,
+        "worker_broadcast": workerBroadcast,
+        "worker_removed": workerRemoved
+    };
+
+    // Finished loading a worker.
+    function workerLoaded(msg) {
+        // msg.pid, msg.worker_id, msg.file
+        // log(`workerLoaded(): ${JSON.stringify(msg)}`);
+        log(`workerLoaded(): ${msg.worker_id}`);
+
+        if(mWorkers && msg.pid) {
+            const val = mWorkers[msg.pid];
+            if(val) {
+                val.worker_id = msg.worker_id;
+                val.path = msg.file;
+                val.attributes = msg.attributes;
+                val.enabled = msg.enabled;
+
+                if (mWorkerEnabledStates) {
+                    if (mWorkerEnabledStates.hasOwnProperty(val.worker_id)) {
+                        val.enabled = mWorkerEnabledStates[val.worker_id];
+                    }
+                }
+            }
+        }
+    }
+
+    function workerRemoved(msg) {
+        const worker = findWorkerById(msg.worker_id);
+        if(worker && worker.child) {
+            delete mWorkers[worker.child.pid];
+        }
+    }
+
+    // Aborted loading a worker. msg.file is the file that wasn't loaded.
+    function loadAbort(msg) {
+        log(`Worker load failure: ${msg.msg}`);
+        // log(`Failed to load worker in ${msg.file}: ${msg.msg}`);
+        mWorkerLoadErrors.push({ file: msg.file, message: msg.msg});
+    }
+
+    function workerLog(msg) {
+        // msg.worker_id, msg.msg (text to log)
+        const filter = mConfig.logWorkers || [];
+
+        if (filter.length === 0 || filter.indexOf(workerId) >= 0) {
+            console.log(`${msg.worker_id}: ${msg.msg}`);
+
+            for (let i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
+                mGCSMessageListeners[i].onLogMessage(msg.worker_id, msg.msg);
+            }
+        }
+    }
+
+    function workerMavlink(msg) {
+        // msg.worker_id, msg.mavlinkMessage
+        if (msg.mavlinkMessage) {
+            if (udpclient.isConnected()) {
+                const packet = Buffer.from(msg.mavlinkMessage.pack(mMavlink));
+
+                try {
+                    udpclient.sendMessage(packet);
+                } catch (ex) {
+                    d(`Error sending mavlink message from worker: ${ex.message}`);
+                }
+            } else {
+                d("UDP client is not connected");
+            }
+        } else {
+            d("WARNING: No message");
+        }
+    }
+
+    function workerGCS(msg) {
+        // d(`workerGCS(): ${JSON.stringify(msg)}`);
+
+        // msg.worker_id, msg.msg
+        if(msg.msg && msg.worker_id) {
+            mGCSMessageListeners.map(function (listener) {
+                if (listener.onGCSMessage) {
+                    listener.onGCSMessage(msg.worker_id, msg.msg);
+                }
+            });
+        } else {
+            d(`Warning: No message/worker_id in ${JSON.stringify(msg)}`);
+        }
+    }
+
+    function gcsMessageResponse(msg) {
+        d(`gcsMessageResponse()`);
+        // TODO: This needs to go to the response for the initial call.
+    }
+
+    function workerBroadcast(msg) {
+        if (mWorkers) {
+
+            for (let pid in mWorkers) {
+                const worker = mWorkers[pid];
+                if(worker && worker.child) {
+                    worker.child.send({id: "gcs_msg", msg: { worker_id: worker.worker_id, msg: msg}});
+                }
+            }
+        }
+    }
+
+    // set up callbacks
+    child.on("message", function(msg) {
+        const func = childProcMap[msg.id];
+        if(func) {
+            func(msg.msg);
+        } else {
+            log(`No mapping for child message ${msg.id}`);
+        }
+    });
+
+    child.on("exit", function(code, signal) {
+        if(signal) {
+            d(`Child ${child.pid} was killed by signal ${signal}`);
+        } else if(code !== 0) {
+            d(`Child ${child.pid} exited with error code ${code}`);
+        } else {
+            d(`Child ${child.pid} normal exit`);
+        }
+
+        if(mWorkers && mWorkers[child.pid]) {
+            delete mWorkers[child.pid];
+        }
+    });
 }
 
 function loadWorkerRoot(basedir) {
@@ -421,93 +349,105 @@ function loadWorkerRoot(basedir) {
 
     for(let i = 0, size = files.length; i < size; ++i) {
         try {
-            // Load the module
-            const worker = require(files[i]);
+            // Start a sub-process and tell it to load the specified worker.
+            const child = child_process.fork(path.join(__dirname, "worker_app.js"));
+            d(`Started ${child.pid}`);
 
-            // const attrs = worker.getAttributes() || { name: "No name", looper: false };
-            const attrs = (worker.getAttributes)? worker.getAttributes() || { name: "No name", looper: false }: null;
-            if(!attrs) {
-                log(`Worker has no getAttributes() function, skip`);
-                continue;
-            }
+            setupWorkerCallbacks(child);
 
-            if(!attrs.id) {
-                log("Worker " + attrs.name + " in " + files[i] + " has no id, not loading");
-                continue;
-            }
-
-            const workerId = attrs.id;
-
-            attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
-            attrs.sendGCSMessage = mWorkerListener.onGCSMessage;
-            attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
-            attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
-            attrs.findWorkerById = mWorkerListener.findWorkerById;
-            attrs.findWorkersInPackage = mWorkerListener.findWorkersInPackage;
-            attrs.subscribeMavlinkMessages = mWorkerListener.subscribeMavlinkMessages;
-            attrs.log = mWorkerListener.workerLog;
-
-            packages.map(function(pk) {
-                const dirname = path.dirname(pk.file);
-                if(files[i].indexOf(dirname) >= 0) {
-                    attrs.parent_package = pk.parent_package;
-                }
-            });
-
-            attrs.api = { 
-                // unconditional loads here
-                Mavlink: mavlink 
+            mWorkers[child.pid] = {
+                child: child
             };
 
-            for(let prop in mWorkerLibraries) {
-                attrs.api[prop] = mWorkerLibraries[prop].module;
-            }
+            child.send({ id: "config", msg: { config: mConfig } });
+            child.send({ id: "load_libraries", msg: { path: mConfig.workerLibRoot }});
 
-            attrs.sysid = mConfig.sysid;
-            attrs.compid = mConfig.compid;
-            attrs.path = path.dirname(files[i]);
+            setTimeout(function () {
+                child.send({ id: "load_worker", msg: {file: files[i] } });
+            }, 100 * i);
 
-            const shell = {
-                worker: worker,
-                attributes: attrs,
-                enabled: true
-            };
+            // const worker = require(files[i]);
 
-            // If this guy is looking for mavlink messages, index the messages by name for fast
-            // lookup in onReceivedMavlinkMessage().
-            if (attrs.mavlinkMessages) {
-                for(let x = 0, sz = attrs.mavlinkMessages.length; x < sz; ++x) {
-                    const name = attrs.mavlinkMessages[x];
+            // // const attrs = worker.getAttributes() || { name: "No name", looper: false };
+            // const attrs = (worker.getAttributes)? worker.getAttributes() || { name: "No name", looper: false }: null;
+            // if(!attrs) {
+            //     log(`Worker has no getAttributes() function, skip`);
+            //     continue;
+            // }
 
-                    if (mMavlinkLookup[name]) {
-                        mMavlinkLookup[name].workers.push(shell);
-                    } else {
-                        mMavlinkLookup[name] = {
-                            workers: [shell]
-                        };
-                    }
-                }
-            }
+            // if(!attrs.id) {
+            //     log("Worker " + attrs.name + " in " + files[i] + " has no id, not loading");
+            //     continue;
+            // }
 
-            shell.cacheName = files[i];
+            // const workerId = attrs.id;
 
-            if(mWorkers[workerId]) {
-                log(`Worker ${workerId} already loaded. Unload`);
-                unloadWorker(mWorkers[workerId]);
-            }
+            // attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
+            // attrs.sendGCSMessage = mWorkerListener.onGCSMessage;
+            // attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
+            // attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
+            // attrs.findWorkerById = mWorkerListener.findWorkerById;
+            // attrs.findWorkersInPackage = mWorkerListener.findWorkersInPackage;
+            // attrs.subscribeMavlinkMessages = mWorkerListener.subscribeMavlinkMessages;
+            // attrs.log = mWorkerListener.workerLog;
 
-            mWorkers[workerId] = shell;
+            // packages.map(function(pk) {
+            //     const dirname = path.dirname(pk.file);
+            //     if(files[i].indexOf(dirname) >= 0) {
+            //         attrs.parent_package = pk.parent_package;
+            //     }
+            // });
 
-            // Delay loading workers a bit
-            if (worker.onLoad) {
-                setTimeout(function(werker) {
-                    try {
-                        werker.onLoad();
-                    } catch(ex) {
-                        handleWorkerCallException(werker, ex);
-                    }
-                }, 100 * (i + 1), worker);
-            }
+            // attrs.api = { 
+            //     // unconditional loads here
+            //     Mavlink: mavlink 
+            // };
+
+            // attrs.sysid = mConfig.sysid;
+            // attrs.compid = mConfig.compid;
+            // attrs.path = path.dirname(files[i]);
+
+            // const shell = {
+            //     worker: worker,
+            //     attributes: attrs,
+            //     enabled: true
+            // };
+
+            // // If this guy is looking for mavlink messages, index the messages by name for fast
+            // // lookup in onReceivedMavlinkMessage().
+            // if (attrs.mavlinkMessages) {
+            //     for(let x = 0, sz = attrs.mavlinkMessages.length; x < sz; ++x) {
+            //         const name = attrs.mavlinkMessages[x];
+
+            //         if (mMavlinkLookup[name]) {
+            //             mMavlinkLookup[name].workers.push(shell);
+            //         } else {
+            //             mMavlinkLookup[name] = {
+            //                 workers: [shell]
+            //             };
+            //         }
+            //     }
+            // }
+
+            // shell.cacheName = files[i];
+
+            // if(mWorkers[workerId]) {
+            //     log(`Worker ${workerId} already loaded. Unload`);
+            //     unloadWorker(mWorkers[workerId]);
+            // }
+
+            // mWorkers[workerId] = shell;
+
+            // // Delay loading workers a bit
+            // if (worker.onLoad) {
+            //     setTimeout(function(werker) {
+            //         try {
+            //             werker.onLoad();
+            //         } catch(ex) {
+            //             handleWorkerCallException(werker, ex);
+            //         }
+            //     }, 100 * (i + 1), worker);
+            // }
         } catch(ex) {
             log("Error loading worker at " + files[i] + ": " + ex.message);
 
@@ -520,39 +460,6 @@ function loadWorkerRoot(basedir) {
             });
         }
     }
-}
-
-function loadWorkerLibsIn(dir) {
-    log(`loadWorkerLibsIn(${dir})`);
-
-    if(!fs.existsSync(dir)) return;
-
-    const files = fs.readdirSync(dir);
-    files.map(function (file) {
-        const filename = path.join(dir, file);
-        const prop = path.basename(file, path.extname(file));
-
-        try {
-            log(`load library module: ${filename}`);
-            const module = require(filename);
-
-            const lib = {
-                module: module,
-                cacheName: filename
-            };
-
-            if (!mWorkerLibraries) {
-                mWorkerLibraries = {};
-            }
-
-            mWorkerLibraries[prop] = lib;
-        } catch(ex) {
-            log(`load library module error - ${filename}: ${ex.message}`);
-            mWorkerLibraries[prop] = {
-                error: ex.message
-            };
-        }
-    });
 }
 
 function handleWorkerCallException(worker, ex) {
@@ -571,35 +478,6 @@ function handleWorkerCallException(worker, ex) {
     mWorkerListener.onGCSMessage(workerId, msg);
     unloadWorker(worker);
     delete mWorkers[workerId];
-}
-
-// Called periodically to loop the workers.
-function loop() {
-    if(mWorkers) {
-        var hasLoopers = false;
-
-        for(let prop in mWorkers) {
-            const worker = mWorkers[prop];
-            if(worker && worker.attributes.looper && worker.worker && worker.worker.loop) {
-                if(!worker.enabled) continue;
-
-                hasLoopers = true;
-                try {
-                    worker.worker.loop();
-                } catch(ex) {
-                    handleWorkerCallException(worker, ex);
-                }
-            }
-        }
-
-        if(hasLoopers) {
-            mLoopTimer = setTimeout(loop, mConfig.loopTime);
-        } else {
-            mLoopTimer = null;
-        }
-    } else {
-        log("No workers");
-    }
 }
 
 function addGCSMessageListener(listener) {
@@ -622,6 +500,7 @@ function removeGCSMessageListener(listener) {
 }
 
 function handleWorkerDownload(body) {
+    // TODO: Implement
     const workerId = body.worker_id; // Worker
     const msgId = body.msg_id; // Action message
     const contentId = body.content_id; // Content to download
@@ -646,6 +525,7 @@ function handleWorkerDownload(body) {
 function handleScreenEnter(screenName) {
     const output = {};
 
+    // TODO: Implement
     if(mWorkers) {
         for (let prop in mWorkers) {
             const worker = mWorkers[prop];
@@ -678,6 +558,7 @@ function handleScreenEnter(screenName) {
 function handleScreenExit(screenName) {
     const output = {};
 
+    // TODO: Implement
     if (mWorkers) {
         for (let prop in mWorkers) {
             const worker = mWorkers[prop];
@@ -707,6 +588,7 @@ function handleScreenExit(screenName) {
 function gatherFeatures() {
     const output = {};
 
+    // TODO: Implement
     if (mWorkers) {
         for (let prop in mWorkers) {
             const worker = mWorkers[prop];
@@ -731,6 +613,7 @@ function imageDownload(req, res) {
     const worker_id = req.params.worker_id;
     const name = req.params.name;
 
+    // TODO: Implement
     if(mWorkers) {
         const worker = mWorkers[worker_id];
 
@@ -749,7 +632,8 @@ function imageDownload(req, res) {
 
 // Monitor (or not) worker post and response data
 function monitorWorker(workerId, monitor) {
-    if(mWorkers && mWorkers[workerId]) {
+    const worker = findWorkerById(workerId);
+    if(worker) {
         if(monitor) {
             mMonitors[workerId] = true;
         } else {
@@ -759,8 +643,40 @@ function monitorWorker(workerId, monitor) {
 }
 
 function handleGCSMessage(workerId, msg) {
-    trace("handleGCSMessage(): workerId=" + workerId);
+    log("handleGCSMessage(): workerId=" + workerId);
 
+    const worker = findWorkerById(workerId);
+    if(worker && worker.child) {
+        if(worker.enabled) {
+            worker.child.send({ id: "gcs_msg", msg: { message: msg } });
+
+            return {
+                ok: false,
+                message: `Waiting for ${workerId}`,
+                worker_id: workerId,
+                source_id: msg.id
+            };
+
+        } else {
+            return {
+                ok: false,
+                message: `worker ${workerId} not enabled`,
+                worker_id: workerId,
+                source_id: msg.id
+            };
+        }
+    } else {
+        return {
+            ok: false,
+            message: `No worker called ${workerId}`,
+            worker_id: workerId,
+            source_id: msg.id
+        };
+    }
+
+    return;
+
+    // TODO: YIKES! This is going to require some changes.
     if(mWorkers) {
         const worker = mWorkers[workerId];
 
@@ -841,8 +757,9 @@ function getWorkers() {
     };
 
     if(mWorkers) {
-        for(let prop in mWorkers) {
-            const worker = mWorkers[prop];
+        for(let pid in mWorkers) {
+            const worker = mWorkers[pid];
+            
             if(worker.attributes) {
                 const val = worker.attributes;
                 val.enabled = worker.enabled;
@@ -860,7 +777,7 @@ function getWorkers() {
 }
 
 function getWorkerDetails(workerId) {
-    const worker = (mWorkers)? mWorkers[workerId]: null;
+    const worker = findWorkerById(workerId);
     if(worker) {
         const val = worker.attributes;
         val.enabled = worker.enabled;
@@ -878,10 +795,6 @@ function setConfig(config) {
     mConfig.workerRoots = config.worker_roots || [];
     mConfig.workerLibs = config.worker_lib_dirs || [];
     mConfig.workerLibRoot = config.worker_lib_root;
-}
-
-function checkForManifestIn(srcPath, callback) {
-    callback();
 }
 
 function installWorker(srcPath, target, callback) {
@@ -926,11 +839,10 @@ function installWorker(srcPath, target, callback) {
 }
 
 function enableWorker(workerId, enable, callback) {
-    const worker = mWorkers[workerId];
+    const worker = findWorkerById(workerId);
     if(worker) {
         worker.enabled = ("true" === enable);
         callback(null, enable);
-
         saveWorkerEnabledStates();
         notifyRosterChanged();
     } else {
@@ -982,57 +894,14 @@ function removePackage(packageId, callback) {
         }
     });
 
-    if (packagePath && fs.existsSync(packagePath)) {
-        if (!global.BIN_DIR) {
-            return callback.onError("global.BIN_DIR is not defined");
-        }
-
-        // Run $APP/bin/remove_worker.sh to remove the worker.
-        const child = child_process.spawn(path.join(global.BIN_DIR, "remove_worker.sh"), [packagePath]);
-        const output = function (data) {
-            log(data.toString());
-        };
-
-        child.stdout.on("data", output);
-        child.stderr.on("data", output);
-
-        child.on("close", function (rc) {
-            log("script exited with return code " + rc);
-            if (rc != 0) {
-                callback.onError("Failed to remove worker with exit code " + rc);
-            } else {
-                callback.onComplete();
-            }
-        });
-    }
-}
-
-function removeWorker(workerId, callback) {
-    const worker = mWorkers[workerId];
-    if(worker) {
-        if(worker.worker && worker.worker.unUnload) {
-            try {
-                worker.worker.onUnload();
-            } catch(ex) {
-                handleWorkerCallException(worker, ex);
-            }
-        }
-
-        if (worker.cacheName) {
-            log("Deleting " + worker.cacheName + " from cache");
-            delete require.cache[require.resolve(worker.cacheName)];
-        }
-
-        delete mWorkers[workerId];
-
-        const filePath = worker.attributes.path;
-        if(filePath && fs.existsSync(filePath)) {
+    setTimeout(function() {
+        if (packagePath && fs.existsSync(packagePath)) {
             if (!global.BIN_DIR) {
                 return callback.onError("global.BIN_DIR is not defined");
             }
 
             // Run $APP/bin/remove_worker.sh to remove the worker.
-            const child = child_process.spawn(path.join(global.BIN_DIR, "remove_worker.sh"), [filePath]);
+            const child = child_process.spawn(path.join(global.BIN_DIR, "remove_worker.sh"), [packagePath]);
             const output = function (data) {
                 log(data.toString());
             };
@@ -1046,12 +915,19 @@ function removeWorker(workerId, callback) {
                     callback.onError("Failed to remove worker with exit code " + rc);
                 } else {
                     callback.onComplete();
-                    notifyRosterChanged();
                 }
             });
         }
+    }, 5000);
+}
+
+function removeWorker(workerId, callback) {
+    const worker = findWorkerById(workerId);
+    if(worker && worker.child) {
+        worker.child.send({id: "remove", msg: {}});
+        callback.onComplete();
     } else {
-        callback.onError("Worker " + workerId + " not found");
+        callback.onError(`Worker ${workerId} not found`);
     }
 }
 
@@ -1080,18 +956,22 @@ function setLogWorkers(workerIds) {
 function notifyRosterChanged() {
     if(!mWorkers) return;
 
-    for (let prop in mWorkers) {
-        const worker = mWorkers[prop];
+    const workerIds = [];
 
-        if (!worker.worker) continue;
+    for(let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if(!worker) continue;
+        if(!worker.attributes) continue;
 
-        if (worker.worker.onRosterChanged) {
-            try {
-                worker.worker.onRosterChanged();
-            } catch (ex) {
-                handleWorkerCallException(worker, ex);
-            }
-        }
+        workerIds.push(worker.attributes);
+    }
+
+    for(let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if(!worker) continue;
+        if(!worker.child) continue;
+
+        worker.child.send({id: "worker_roster", msg: { roster: workerIds}});
     }
 }
 
@@ -1103,10 +983,10 @@ function saveWorkerEnabledStates() {
     const enablements = {};
 
     if (mWorkers) {
-        for (let workerId in mWorkers) {
-            const worker = mWorkers[workerId];
+        for (let pid in mWorkers) {
+            const worker = mWorkers[pid];
             if (worker) {
-                enablements[workerId] = worker.enabled;
+                enablements[worker.worker_id] = worker.enabled;
             }
         }
 
@@ -1126,25 +1006,26 @@ function loadWorkerEnabledStates() {
         if (exists) {
             fs.readFile(file, function (err, data) {
                 try {
-                    const enabledStates = JSON.parse(data.toString());
-
-                    if(mWorkers && enabledStates) {
-                        for(let workerId in mWorkers) {
-                            const worker = mWorkers[workerId];
-                            if(worker) {
-                                if(enabledStates.hasOwnProperty(workerId)) {
-                                    worker.enabled = enabledStates[workerId];
-                                }
-                            }
-                        }
-                    }
-
+                    mWorkerEnabledStates = JSON.parse(data.toString());
                 } catch(ex) {
                     log(`Error loading enabled state: ${ex.message}`);
                 }
             });
         }
     });
+}
+
+function findWorkerById(workerId) {
+    if (mWorkers) {
+        for (let pid in mWorkers) {
+            const val = mWorkers[pid];
+            if (val.worker_id === workerId) {
+                return val;
+            }
+        }
+    }
+
+    return null;
 }
 
 exports.start = start;
