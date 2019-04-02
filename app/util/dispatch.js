@@ -37,6 +37,8 @@ var mWorkerEnabledStates = {};
 var mMavlink;
 // Screen-enter requests
 const mScreenEnterRequests = {};
+// Screen-exit requests
+const mScreenExitRequests = {};
 
 const mConnectionCallback = {
     onOpen: function (port) {
@@ -198,7 +200,8 @@ function setupWorkerCallbacks(child) {
         "gcs_msg_response": gcsMessageResponse,
         "worker_broadcast": workerBroadcast,
         "worker_removed": workerRemoved,
-        "screen_enter_response": screenEnterResponse
+        "screen_enter_response": screenEnterResponse,
+        "screen_exit_response": screenExitResponse
     };
 
     // Finished loading a worker.
@@ -224,6 +227,7 @@ function setupWorkerCallbacks(child) {
         }
     }
 
+    // Worker told us it's been removed.
     function workerRemoved(msg) {
         const worker = findWorkerById(msg.worker_id);
         if(worker && worker.child) {
@@ -232,6 +236,7 @@ function setupWorkerCallbacks(child) {
         }
     }
 
+    // Handle screen-enter responses from workers
     function screenEnterResponse(msg) {
         const screen = msg.screen_name;
         const res = mScreenEnterRequests[screen];
@@ -276,6 +281,46 @@ function setupWorkerCallbacks(child) {
         }
     }
 
+    // Handle screen-exit responses from workers.
+    function screenExitResponse(msg) {
+        const screen = msg.screen_name;
+        const res = mScreenExitRequests[screen];
+
+        if(res) {
+            if(!res.responses) {
+                res.responses = [];
+            }
+
+            if(msg.data) {
+                res.responses.push({ pid: msg.pid, data: msg.data});
+            }
+
+            res.pids.splice(res.pids.indexOf(msg.pid), 1);
+
+            if(res.pids.length == 0) {
+                d(`Got all responses`);
+
+                const output = {};
+
+                res.responses.map(function(response) {
+                    const item = response.data;
+                    if (!item) return;
+                    if (item.panel && item.layout) {
+                        output[item.panel] = item.layout;
+                    }
+                });
+
+                if(res.callback) res.callback(null, output);
+
+                delete mScreenExitRequests[screen];
+                d(`Cleared exit requests for ${screen}, leaving ${JSON.stringify(mScreenExitRequests)}`);
+            }
+        } else {
+            // Something's gone wrong.
+            d(`WTF! ${JSON.stringify(mScreenExitRequests)}`);
+        }
+    }
+
     // Aborted loading a worker. msg.file is the file that wasn't loaded.
     function loadAbort(msg) {
         log(`Worker load failure: ${msg.msg}`);
@@ -283,6 +328,7 @@ function setupWorkerCallbacks(child) {
         mWorkerLoadErrors.push({ file: msg.file, message: msg.msg});
     }
 
+    // Worker logged a message.
     function workerLog(msg) {
         // msg.worker_id, msg.msg (text to log)
         const filter = mConfig.logWorkers || [];
@@ -296,6 +342,7 @@ function setupWorkerCallbacks(child) {
         }
     }
 
+    // Worker sent a mavlink message.
     function workerMavlink(msg) {
         // msg.worker_id, msg.mavlinkMessage
         if (msg.mavlinkMessage) {
@@ -315,6 +362,7 @@ function setupWorkerCallbacks(child) {
         }
     }
 
+    // Worker sent a GCS message.
     function workerGCS(msg) {
         // d(`workerGCS(): ${JSON.stringify(msg)}`);
 
@@ -330,6 +378,7 @@ function setupWorkerCallbacks(child) {
         }
     }
 
+    // Worker responded to a GCS message.
     function gcsMessageResponse(msg) {
         d(`gcsMessageResponse(${JSON.stringify(msg)})`);
 
@@ -360,9 +409,9 @@ function setupWorkerCallbacks(child) {
         }
     }
 
+    // A worker broadcast a message for other workers.
     function workerBroadcast(msg) {
         if (mWorkers) {
-
             for (let pid in mWorkers) {
                 const worker = mWorkers[pid];
                 if(worker && worker.child) {
@@ -610,6 +659,7 @@ function handleScreenEnter(screenName, callback) {
     for(let pid in mWorkers) {
         const worker = mWorkers[pid];
         if(!worker) continue;
+        if(!worker.enabled) continue;
         if(!worker.child) continue;
         queue.pids.push(worker.child.pid);
         
@@ -618,65 +668,32 @@ function handleScreenEnter(screenName, callback) {
 
     d(`Sent request to ${queue.pids.length} processes`);
 
-    // const output = {};
-
-    // TODO: Move this up to where the final screen is captured.
-    // if(mWorkers) {
-    //     for (let prop in mWorkers) {
-    //         const worker = mWorkers[prop];
-    //         if (!worker.worker) continue;
-    //         if (!worker.enabled) continue;
-
-    //         if (worker.worker.onScreenEnter) {
-    //             try {
-    //                 const item = worker.worker.onScreenEnter(screenName);
-
-    //                 if(item) {
-    //                     for(let itemProp in item) {
-    //                         if(output[itemProp]) {
-    //                             output[itemProp].push(item[itemProp]);
-    //                         } else {
-    //                             output[itemProp] = [item[itemProp]];
-    //                         }
-    //                     }
-    //                 }
-    //             } catch (ex) {
-    //                 handleWorkerCallException(worker, ex);
-    //             }
-    //         }
-    //     }
-    // }
-
-    // return output;
+    if(queue.pids.length == 0) {
+        callback(null, {});
+    }
 }
 
-function handleScreenExit(screenName) {
-    const output = {};
+function handleScreenExit(screenName, callback) {
+    mScreenExitRequests[screenName] = {
+        pids: [], callback: callback
+    };
 
-    // TODO: Implement
-    if (mWorkers) {
-        for (let prop in mWorkers) {
-            const worker = mWorkers[prop];
-            if (!worker.worker) continue;
-            if (!worker.enabled) continue;
-            
-            if (worker.worker.onScreenExit) {
-                try {
-                    const item = worker.worker.onScreenExit(screenName);
+    const queue = mScreenExitRequests[screenName];
 
-                    if (item) {
-                        if (item.panel && item.layout) {
-                            output[item.panel] = item.layout;
-                        }
-                    }
-                } catch (ex) {
-                    handleWorkerCallException(worker, ex);
-                }
-            }
-        }
+    for(let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if (!worker) continue;
+        if (!worker.enabled) continue;
+        if (!worker.child) continue;
+        queue.pids.push(worker.child.pid);
+
+        worker.child.send({ id: "screen_exit", msg: { screen_name: screenName } });
     }
 
-    return output;
+    d(`Sent request to ${queue.pids.length} processes`);
+    if (queue.pids.length == 0) {
+        callback(null, {});
+    }
 }
 
 /** Gather up features from workers for the /features endpoint */

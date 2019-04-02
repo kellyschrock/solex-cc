@@ -232,6 +232,17 @@ function onScreenEnter(msg) {
     process.send({ id: "screen_enter_response", msg: response });
 }
 
+function onScreenExit(msg) {
+    const response = { screen_name: msg.screen_name, pid: process.pid };
+    if (mWorker && mWorker.onScreenExit) {
+        const item = mWorker.onScreenExit(msg.screen_name);
+        if (item) response.data = item;
+    }
+
+    // ALWAYS send this response whether or not we have data
+    process.send({ id: "screen_exit_response", msg: response });
+}
+
 // Messages sent by the parent process
 const mFunctionMap = {
     "load_worker": loadWorker,
@@ -244,7 +255,8 @@ const mFunctionMap = {
     "unload": onUnload,
     "remove": onRemove,
     "load_libraries": onLoadLibraries,
-    "screen_enter": onScreenEnter
+    "screen_enter": onScreenEnter,
+    "screen_exit": onScreenExit
 };
 
 // Incoming messages from the parent process

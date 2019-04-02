@@ -92,11 +92,16 @@ function screenEnter(req, res) {
 
 function screenExit(req, res) {
     const name = req.params.screen;
-    const output = dispatch.handleScreenExit(name);
-    const result = output || {};
 
-    result.screen_id = name;
-    res.status(200).json(result);
+    dispatch.handleScreenExit(name, function(err, output) {
+        if(err) {
+            return res.status(500).json({message: err.message});
+        }
+
+        const result = output || {};
+        result.screen_id = name;
+        res.status(200).json(result);
+    });
 }
 
 function imageDownload(req, res) {
