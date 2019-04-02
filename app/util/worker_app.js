@@ -243,6 +243,25 @@ function onScreenExit(msg) {
     process.send({ id: "screen_exit_response", msg: response });
 }
 
+function onImageRequest(msg) {
+    const name = msg.name;
+
+    const response = { id: "image_response", msg: { worker_id: msg.worker_id, name: name }};
+
+    if(mWorker && mWorker.onImageDownload) {
+        try {
+            const img = mWorker.onImageDownload(name);
+            if (img) {
+                response.msg.image = Buffer.from(img, 'binary').toString('base64');
+            }
+        } catch(ex) {
+            d(`Exception getting image: ${ex.message}`);
+        }
+    }
+
+    process.send(response);
+}
+
 // Messages sent by the parent process
 const mFunctionMap = {
     "load_worker": loadWorker,
@@ -256,7 +275,8 @@ const mFunctionMap = {
     "remove": onRemove,
     "load_libraries": onLoadLibraries,
     "screen_enter": onScreenEnter,
-    "screen_exit": onScreenExit
+    "screen_exit": onScreenExit,
+    "image_request": onImageRequest
 };
 
 // Incoming messages from the parent process

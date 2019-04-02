@@ -39,6 +39,8 @@ var mMavlink;
 const mScreenEnterRequests = {};
 // Screen-exit requests
 const mScreenExitRequests = {};
+// Image requests
+const mImageRequests = {};
 
 const mConnectionCallback = {
     onOpen: function (port) {
@@ -201,7 +203,8 @@ function setupWorkerCallbacks(child) {
         "worker_broadcast": workerBroadcast,
         "worker_removed": workerRemoved,
         "screen_enter_response": screenEnterResponse,
-        "screen_exit_response": screenExitResponse
+        "screen_exit_response": screenExitResponse,
+        "image_response": imageResponse
     };
 
     // Finished loading a worker.
@@ -318,6 +321,36 @@ function setupWorkerCallbacks(child) {
         } else {
             // Something's gone wrong.
             d(`WTF! ${JSON.stringify(mScreenExitRequests)}`);
+        }
+    }
+
+    // Worker sent image data
+    function imageResponse(msg) {
+        d(`imageResponse(): workerId=${msg.worker_id}`);
+        const req = mImageRequests[msg.worker_id][msg.name];
+        d(`req=${req.res}`);
+
+        if(req) {
+            d(`msg.image=${typeof(msg.image)}`);
+
+            if(msg.image) {
+                if(req.res) {
+                    const buf = Buffer.from(msg.image, 'base64');
+                    if(buf) {
+                        req.res.status(200).end(buf, "binary");
+                    } else {
+                        req.res.status(404).json({message: `image for ${msg.worker_id}/${msg.name} not found`});
+                    }
+                } else {
+                    d(`WTF! No response object to use`);
+                }
+            } else {
+                req.res.status(404).json({ message: `image for ${msg.worker_id}/${msg.name} not found` });
+            }
+
+            delete mImageRequests[msg.worker_id];
+        } else {
+            d(`WTF! No request`);
         }
     }
 
@@ -722,24 +755,48 @@ function gatherFeatures() {
 }
 
 function imageDownload(req, res) {
-    const worker_id = req.params.worker_id;
+    const workerId = req.params.worker_id;
     const name = req.params.name;
+    const worker = findWorkerById(workerId);
+    
+    if(worker) {
+        if(worker.child) {
+            if(worker.enabled) {
+                if(!mImageRequests[workerId]) {
+                    mImageRequests[workerId] = {};
+                }
 
-    // TODO: Implement
-    if(mWorkers) {
-        const worker = mWorkers[worker_id];
+                mImageRequests[workerId][name] = { res: res };
 
-        if (worker && worker.enabled && worker.worker && worker.worker.onImageDownload) {
-            const img = worker.worker.onImageDownload(name);
-            if(img) {
-                res.status(200).end(img, "binary");
+                worker.child.send({id: "image_request", msg: { worker_id: workerId, name: name }});
             } else {
-                res.status(404).json({message: `Image ${name} not found for ${worker_id}`});
+                res.status(422).json({message: `Worker ${workerId} not enabled`});
             }
+        } else {
+            res.status(500).json({message: `Worker ${workerId} has no child process`});
         }
     } else {
-        res.status(404).json({ message: `worker ${worker_id} not found`});
+        res.status(404).json({message: `worker ${workerId} not found`});
     }
+
+    // const worker_id = req.params.worker_id;
+    // const name = req.params.name;
+
+    // // TODO: Implement
+    // if(mWorkers) {
+    //     const worker = mWorkers[worker_id];
+
+    //     if (worker && worker.enabled && worker.worker && worker.worker.onImageDownload) {
+    //         const img = worker.worker.onImageDownload(name);
+    //         if(img) {
+    //             res.status(200).end(img, "binary");
+    //         } else {
+    //             res.status(404).json({message: `Image ${name} not found for ${worker_id}`});
+    //         }
+    //     }
+    // } else {
+    //     res.status(404).json({ message: `worker ${worker_id} not found`});
+    // }
 }
 
 // Monitor (or not) worker post and response data
