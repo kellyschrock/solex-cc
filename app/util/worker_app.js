@@ -262,6 +262,20 @@ function onImageRequest(msg) {
     process.send(response);
 }
 
+function onContentRequest(msg) {
+    // msg.worker_id, msg.content_id, msg.msg_id
+    const response = { id: "content_response", msg: { worker_id: msg.worker_id, content_id: msg.content_id, msg_id: msg.msg_id }};
+
+    if(mWorker && mWorker.onContentDownload) {
+        const content = mWorker.onContentDownload(msg.msg_id, msg.content_id);
+        if(content) {
+            response.msg.content = Buffer.from(content, 'binary').toString('base64');
+        }
+    }
+
+    process.send(response);
+}
+
 // Messages sent by the parent process
 const mFunctionMap = {
     "load_worker": loadWorker,
@@ -276,7 +290,8 @@ const mFunctionMap = {
     "load_libraries": onLoadLibraries,
     "screen_enter": onScreenEnter,
     "screen_exit": onScreenExit,
-    "image_request": onImageRequest
+    "image_request": onImageRequest,
+    "content_request": onContentRequest
 };
 
 // Incoming messages from the parent process

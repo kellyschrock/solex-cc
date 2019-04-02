@@ -41,6 +41,8 @@ const mScreenEnterRequests = {};
 const mScreenExitRequests = {};
 // Image requests
 const mImageRequests = {};
+// Content requests
+const mContentRequests = {};
 
 const mConnectionCallback = {
     onOpen: function (port) {
@@ -204,7 +206,8 @@ function setupWorkerCallbacks(child) {
         "worker_removed": workerRemoved,
         "screen_enter_response": screenEnterResponse,
         "screen_exit_response": screenExitResponse,
-        "image_response": imageResponse
+        "image_response": imageResponse,
+        "content_response": contentResponse
     };
 
     // Finished loading a worker.
@@ -331,8 +334,6 @@ function setupWorkerCallbacks(child) {
         d(`req=${req.res}`);
 
         if(req) {
-            d(`msg.image=${typeof(msg.image)}`);
-
             if(msg.image) {
                 if(req.res) {
                     const buf = Buffer.from(msg.image, 'base64');
@@ -349,6 +350,38 @@ function setupWorkerCallbacks(child) {
             }
 
             delete mImageRequests[msg.worker_id];
+        } else {
+            d(`WTF! No request`);
+        }
+    }
+
+    function contentResponse(msg) {
+        // msg: { worker_id: msg.worker_id, content_id: msg.content_id, msg_id: msg.msg_id, content: (base64) }
+        d(`contentResponse(${JSON.stringify(msg)})`);
+
+        const req = mContentRequests[msg.worker_id][msg.content_id];
+        d(`req=${req.res}`);
+
+        if (req) {
+            if (msg.content) {
+                if (req.res) {
+                    const buf = Buffer.from(msg.content, 'base64');
+                    if (buf) {
+                        req.res.status(200).end(buf, "binary");
+                    } else {
+                        req.res.status(404).json({ message: `image for ${msg.worker_id}/${msg.content_id} not found` });
+                    }
+                } else {
+                    d(`WTF! No response object to use`);
+                }
+            } else {
+                req.res.status(404).json({ message: `content for ${msg.worker_id}/${msg.content_id} not found` });
+            }
+
+            delete mContentRequests[msg.worker_id][msg.content_id];
+            if(Object.keys(mContentRequests[msg.worker_id]).length == 0) {
+                delete mContentRequests[msg.worker_id];
+            }
         } else {
             d(`WTF! No request`);
         }
@@ -656,29 +689,6 @@ function removeGCSMessageListener(listener) {
     return (idx >= 0);
 }
 
-function handleWorkerDownload(body) {
-    // TODO: Implement
-    const workerId = body.worker_id; // Worker
-    const msgId = body.msg_id; // Action message
-    const contentId = body.content_id; // Content to download
-
-    var output = null;
-
-    if(mWorkers) {
-        const worker = mWorkers[workerId];
-
-        if(worker && worker.enabled) {
-            if(worker.worker) {
-                if(worker.worker.onContentDownload) {
-                    output = worker.worker.onContentDownload(msgId, contentId);
-                }
-            }
-        }
-    }
-
-    return output;
-}
-
 function handleScreenEnter(screenName, callback) {
 
     // Need to make a list of PIDs I've requested data from so I can wait until they've all answered.
@@ -778,25 +788,33 @@ function imageDownload(req, res) {
     } else {
         res.status(404).json({message: `worker ${workerId} not found`});
     }
+}
 
-    // const worker_id = req.params.worker_id;
-    // const name = req.params.name;
+function handleWorkerDownload(body) {
+    const workerId = body.worker_id; // Worker
+    const msgId = body.msg_id; // Action message
+    const contentId = body.content_id; // Content to download
 
-    // // TODO: Implement
-    // if(mWorkers) {
-    //     const worker = mWorkers[worker_id];
+    const worker = findWorkerById(workerId);
 
-    //     if (worker && worker.enabled && worker.worker && worker.worker.onImageDownload) {
-    //         const img = worker.worker.onImageDownload(name);
-    //         if(img) {
-    //             res.status(200).end(img, "binary");
-    //         } else {
-    //             res.status(404).json({message: `Image ${name} not found for ${worker_id}`});
-    //         }
-    //     }
-    // } else {
-    //     res.status(404).json({ message: `worker ${worker_id} not found`});
-    // }
+    if(worker) {
+        if(worker.enabled) {
+            if(worker.chlid) {
+                if(!mContentRequests[workerId]) {
+                    mContentRequests[workerId] = {};
+                }
+
+                mContentRequests[workerId][contentId] = { res: res };
+                worker.child.send({id: "content_request", msg: { worker_id: workerId, content_id: contentId, msg_id: msgId }});
+            } else {
+                res.status(500).json({message: `Worker ${workerId} has no child process`});
+            }
+        } else {
+            res.status(422).json({message: `worker ${workerId} not enabled`});
+        }
+    } else {
+        res.status(404).json({message: `worker ${workerId} not found`});
+    }
 }
 
 // Monitor (or not) worker post and response data
