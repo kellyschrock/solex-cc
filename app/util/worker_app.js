@@ -145,7 +145,7 @@ function onGCSMessage(msg) {
     if(target && target.onGCSMessage) {
         const response = target.onGCSMessage(msg.message) || { ok: true, source_id: msg.id };
         d(`response=${response}`);
-        process.send({id: "gcs_msg_response", msg: { response: response }});
+        process.send({id: "gcs_msg_response", msg: { worker_id: mWorkerId, request: msg.message, response: response }});
     }
 }
 

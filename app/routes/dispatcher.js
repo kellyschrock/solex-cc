@@ -102,18 +102,25 @@ function imageDownload(req, res) {
 function workerMessage(req, res) {
     const body = req.body;
     if(body) {
-        const result = dispatch.handleGCSMessage(req.params.worker_id, body);
+        dispatch.handleGCSMessage(req.params.worker_id, body, function(err, result) {
+            if(err) {
+                return res.json({
+                    ok: false,
+                    message: err.message
+                });
+            }
 
-        if(result) {
-            if(!result.hasOwnProperty("ok")) result.ok = true;
-        }
+            if (result) {
+                if (!result.hasOwnProperty("ok")) result.ok = true;
+            }
 
-        res.status(200).json(result || { 
-            ok: true, 
-            message: "no response",
-            worker_id: req.params.worker_id,
-            source_id: body.id
-         });
+            res.status(200).json(result || {
+                ok: true,
+                message: "no response",
+                worker_id: req.params.worker_id,
+                source_id: body.id
+            });
+        });
     } else {
         res.status(422).json({message: "No message body"});
     }
@@ -284,7 +291,11 @@ function removeGCSListener(listener) {
 }
 
 function handleGCSMessage(workerId, msg) {
-    dispatch.handleGCSMessage(workerId, msg);
+    dispatch.handleGCSMessage(workerId, msg, function(err, result) {
+        if(err) {
+            d(`Error in handleGCSMessage(): ${ex.message}`);
+        }
+    });
 }
 
 function setConfig(config) {

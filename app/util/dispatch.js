@@ -29,6 +29,8 @@ var mWorkerLoadErrors = [];
 const mGCSMessageListeners = [];
 // Monitors (for debug page)
 const mMonitors = {};
+// Callbacks for GCS responses
+const mQueuedCallbacks = {};
 // Worker enabled states
 var mWorkerEnabledStates = {};
 // Mavlink message parser
@@ -223,6 +225,7 @@ function setupWorkerCallbacks(child) {
         const worker = findWorkerById(msg.worker_id);
         if(worker && worker.child) {
             delete mWorkers[worker.child.pid];
+            delete mQueuedCallbacks[worker.child.pid];
         }
     }
 
@@ -281,8 +284,33 @@ function setupWorkerCallbacks(child) {
     }
 
     function gcsMessageResponse(msg) {
-        d(`gcsMessageResponse()`);
-        // TODO: This needs to go to the response for the initial call.
+        d(`gcsMessageResponse(${JSON.stringify(msg)})`);
+
+        if(mQueuedCallbacks[child.pid]) {
+            d(`have callbacks for ${child.pid}`);
+
+            const workerId = msg.worker_id;
+
+            if(mQueuedCallbacks[child.pid][workerId]) {
+                d(`have callbacks for ${workerId}`);
+
+                if(mQueuedCallbacks[child.pid][workerId][msg.request.id]) {
+                    d(`have callback for ${msg.request.id}`);
+                    
+                    mQueuedCallbacks[child.pid][workerId][msg.request.id](null, msg.response);
+                    delete mQueuedCallbacks[child.pid][workerId][msg.request.id];
+                }
+
+                if(Object.keys(mQueuedCallbacks[child.pid][workerId]).length == 0) {
+                    delete mQueuedCallbacks[child.pid][workerId];
+                }
+            }
+
+            if(Object.keys(mQueuedCallbacks[child.pid]).length == 0) {
+                d(`clear callbacks for ${child.pid}`);
+                delete mQueuedCallbacks[child.pid];
+            }
+        }
     }
 
     function workerBroadcast(msg) {
@@ -642,113 +670,115 @@ function monitorWorker(workerId, monitor) {
     }
 }
 
-function handleGCSMessage(workerId, msg) {
+function handleGCSMessage(workerId, msg, callback) {
     log("handleGCSMessage(): workerId=" + workerId);
 
     const worker = findWorkerById(workerId);
     if(worker && worker.child) {
         if(worker.enabled) {
+            // Set a callback in global scope so it can be called when gcs_msg_response is triggered by the child process.
+            if(!mQueuedCallbacks[worker.child.pid]) {
+                mQueuedCallbacks[worker.child.pid] = {};
+            }
+
+            if(!mQueuedCallbacks[worker.child.pid][workerId]) {
+                mQueuedCallbacks[worker.child.pid][workerId] = {};
+            }
+
+            mQueuedCallbacks[worker.child.pid][workerId][msg.id] = callback;
+
             worker.child.send({ id: "gcs_msg", msg: { message: msg } });
 
-            return {
-                ok: false,
-                message: `Waiting for ${workerId}`,
-                worker_id: workerId,
-                source_id: msg.id
-            };
-
         } else {
-            return {
+            callback(null, {
                 ok: false,
                 message: `worker ${workerId} not enabled`,
                 worker_id: workerId,
                 source_id: msg.id
-            };
+            });
         }
     } else {
-        return {
+        callback(null, {
             ok: false,
             message: `No worker called ${workerId}`,
             worker_id: workerId,
             source_id: msg.id
-        };
+        });
     }
 
-    return;
+    // TODO: DO NOT DELETE. Get the monitoring stuff out of this first.
+    // if(mWorkers) {
+    //     const worker = mWorkers[workerId];
 
-    // TODO: YIKES! This is going to require some changes.
-    if(mWorkers) {
-        const worker = mWorkers[workerId];
+    //     if(worker) {
+    //         if(!worker.enabled) {
+    //             return {
+    //                 ok: false,
+    //                 message: `worker ${workerId} not enabled`,
+    //                 worker_id: workerId,
+    //                 source_id: msg.id
+    //             };
+    //         }
 
-        if(worker) {
-            if(!worker.enabled) {
-                return {
-                    ok: false,
-                    message: `worker ${workerId} not enabled`,
-                    worker_id: workerId,
-                    source_id: msg.id
-                };
-            }
+    //         if(worker.worker) {
+    //             if(worker.worker.onGCSMessage) {
+    //                 try {
+    //                     const output = worker.worker.onGCSMessage(msg) || {
+    //                         ok: true,
+    //                         source_id: msg.id
+    //                     };
 
-            if(worker.worker) {
-                if(worker.worker.onGCSMessage) {
-                    try {
-                        const output = worker.worker.onGCSMessage(msg) || {
-                            ok: true,
-                            source_id: msg.id
-                        };
+    //                     output.worker_id = workerId;
+    //                     output.source_id = msg.id;
 
-                        output.worker_id = workerId;
-                        output.source_id = msg.id;
-
-                        if(mMonitors[workerId]) {
-                            for (let i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
-                                mGCSMessageListeners[i].onMonitorMessage(workerId, {input: msg, output: output});
-                            }
-                        }
+    //                     if(mMonitors[workerId]) {
+    //                         for (let i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
+    //                             mGCSMessageListeners[i].onMonitorMessage(workerId, {input: msg, output: output});
+    //                         }
+    //                     }
                         
-                        return output;
-                    } catch(ex) {
-                        handleWorkerCallException(worker, ex);
-                        return { 
-                            ok: false, 
-                            worker_id: workerId,
-                            source_id: msg.id,
-                            message: ex.message 
-                        };
-                    }
-                } else {
-                    return {
-                        ok: false,
-                        message: `Worker ${workerId} has no onGCSMessage() interface`,
-                        worker_id: workerId,
-                        source_id: msg.id
-                    };
-                }
-            } else {
-                return {
-                    ok: false,
-                    message: `Invalid worker at ${workerId}`,
-                    worker_id: workerId,
-                    source_id: msg.id
-                };
-            }
-        } else {
-            return {
-                ok: false,
-                message: `No worker called ${workerId}`,
-                worker_id: workerId,
-                source_id: msg.id
-            };
-        }
-    } else {
-        return {
-            ok: false,
-            message: "FATAL: No workers",
-            worker_id: workerId,
-            source_id: msg.id
-        };
-    }
+    //                     return output;
+    //                 } catch(ex) {
+    //                     handleWorkerCallException(worker, ex);
+    //                     return { 
+    //                         ok: false, 
+    //                         worker_id: workerId,
+    //                         source_id: msg.id,
+    //                         message: ex.message 
+    //                     };
+    //                 }
+    //             } else {
+    //                 return {
+    //                     ok: false,
+    //                     message: `Worker ${workerId} has no onGCSMessage() interface`,
+    //                     worker_id: workerId,
+    //                     source_id: msg.id
+    //                 };
+    //             }
+    //         } else {
+    //             return {
+    //                 ok: false,
+    //                 message: `Invalid worker at ${workerId}`,
+    //                 worker_id: workerId,
+    //                 source_id: msg.id
+    //             };
+    //         }
+    //     } else {
+    //         return {
+    //             ok: false,
+    //             message: `No worker called ${workerId}`,
+    //             worker_id: workerId,
+    //             source_id: msg.id
+    //         };
+    //     }
+    // } else {
+    //     return {
+    //         ok: false,
+    //         message: "FATAL: No workers",
+    //         worker_id: workerId,
+    //         source_id: msg.id
+    //     };
+    // }
 }
 
 function getWorkers() {
