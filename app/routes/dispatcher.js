@@ -79,11 +79,15 @@ function workerDownload(req, res) {
 
 function screenEnter(req, res) {
     const name = req.params.screen;
-    const output = dispatch.handleScreenEnter(name);
-    const result = output || {};
-
-    result.screen_id = name;
-    res.status(200).json(result);
+    dispatch.handleScreenEnter(name, function(err, output) {
+        if(err) {
+            return res.status(500).json({message: err.message});
+        }
+        
+        const result = output || {};
+        result.screen_id = name;
+        res.status(200).json(result);
+    });
 }
 
 function screenExit(req, res) {
