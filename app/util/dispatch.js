@@ -611,8 +611,11 @@ function loadWorkerRoot(basedir) {
     const packages = [];
 
     manifests.map(function(manifest) {
+        d(`manifest: ${JSON.stringify(manifest)}`);
         try {
             const jo = JSON.parse(fs.readFileSync(manifest));
+            d(`manifest info: ${JSON.stringify(jo)}`);
+
             jo.path = path.dirname(manifest);
             packages.push({ file: manifest, parent_package: jo });
         } catch(ex) {
@@ -633,6 +636,13 @@ function loadWorkerRoot(basedir) {
             mWorkers[child.pid] = {
                 child: child
             };
+
+            packages.map(function (pk) {
+                const dirname = path.dirname(pk.file);
+                if (files[i].indexOf(dirname) >= 0) {
+                    mWorkers[child.pid].parent_package = pk.parent_package;
+                }
+            });
 
             child.send({ id: "config", msg: { config: mConfig } });
             child.send({ id: "load_libraries", msg: { path: mConfig.workerLibRoot }});
@@ -863,6 +873,7 @@ function getWorkers() {
             if(worker.attributes) {
                 const val = worker.attributes;
                 val.enabled = worker.enabled;
+                val.parent_package = worker.parent_package;
 
                 result.workers.push(val);
             }
@@ -962,6 +973,7 @@ function enablePackage(packageId, enable, callback) {
     }
 
     saveWorkerEnabledStates();
+    notifyRosterChanged();
     callback(null, enable);
 }
 

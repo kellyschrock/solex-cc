@@ -2,7 +2,8 @@
     "dispatcher": {
         "worker_roots": [
             "/home/kellys/work/drone/projects/solex-cc/workers/examples",
-            "/home/kellys/work/drone/projects/solex-cc/workers/smart-shots"
+            "/home/kellys/work/drone/projects/solex-cc/workers/smart-shots",
+            "/home/kellys/work/drone/projects/solex-cc/workers/package-example"
         ],
         "worker_lib_root": "worker_lib",
         "sysid": 221,
