@@ -266,13 +266,17 @@ function setLogWorkers(req, res) {
 }
 
 function getFeatures(req, res) {
-    const output = dispatch.gatherFeatures();
-    
-    if(output) {
-        res.status(200).json(output);
-    } else {
-        res.status(404).json({message: "no features at all!"});
-    }
+    const output = dispatch.gatherFeatures(function(err, output) {
+        if(err) {
+            return res.status(500).json({message: err.message});
+        }
+
+        if (output) {
+            res.status(200).json(output);
+        } else {
+            res.status(404).json({ message: "no features at all!" });
+        }
+    });
 }
 
 function restartSystem(req, res) {

@@ -43,6 +43,8 @@ const mScreenExitRequests = {};
 const mImageRequests = {};
 // Content requests
 const mContentRequests = {};
+// Feature request
+const mFeatureRequest = {};
 
 const mConnectionCallback = {
     onOpen: function (port) {
@@ -103,10 +105,10 @@ function findFiles(dir, filter) {
             if (filter) {
                 if (filename.indexOf(filter) >= 0) {
                     out.push(filename);
-                    log(`found ${filename}`);
+                    // log(`found ${filename}`);
                 }
             } else {
-                log(`found ${filename}`);
+                // log(`found ${filename}`);
             }
         }
     }
@@ -189,6 +191,8 @@ function reload() {
         roots.map(function(root) {
             loadWorkerRoot(root);
         });
+
+        setTimeout(function () { notifyRosterChanged(); }, 2000);
     }
 
     v(mWorkers);
@@ -207,7 +211,10 @@ function setupWorkerCallbacks(child) {
         "screen_enter_response": screenEnterResponse,
         "screen_exit_response": screenExitResponse,
         "image_response": imageResponse,
-        "content_response": contentResponse
+        "content_response": contentResponse,
+        "feature_response": featureResponse,
+        "broadcast_request": broadcastRequest,
+        "broadcast_response": broadcastResponse
     };
 
     // Finished loading a worker.
@@ -239,6 +246,67 @@ function setupWorkerCallbacks(child) {
         if(worker && worker.child) {
             delete mWorkers[worker.child.pid];
             delete mQueuedCallbacks[worker.child.pid];
+        }
+    }
+
+    function featureResponse(msg) {
+        // msg: { pid: process.pid, features: {} };
+
+        const req = mFeatureRequest;
+        if (req) {
+            if(!req.responses) req.responses = [];
+
+            if(msg.features) {
+                req.responses.push(msg.features);
+            }
+
+            req.pids.splice(req.pids.indexOf(msg.pid), 1);
+
+            if(req.pids.length === 0) {
+                d(`Got all feature responses`);
+
+                const output = {};
+
+                req.responses.map(function(features) {
+                    if(!features) return;
+
+                    for(let prop in features) {
+                        // A given feature from a worker overwrites any existing features in the output, so they must be unique!
+                        output[prop] = features[prop];
+                    }
+                });
+
+                if (req.callback) req.callback(null, output);
+            }
+        } else {
+            d(`WTF! No request`);
+        }
+    }
+
+    function broadcastRequest(msg) {
+        // d(`broadcastRequest(${JSON.stringify(msg)})`);
+
+        // Send this message out to all workers
+        for(let pid in mWorkers) {
+            const worker = mWorkers[pid];
+            if(!worker) continue;
+            if(!worker.child) continue;
+            if(!worker.enabled) continue;
+
+            worker.child.send({id: "broadcast_request", msg: msg});
+        }
+    }
+
+    function broadcastResponse(msg) {
+        // d(`broadcastResponse(${JSON.stringify(msg)})`);
+
+        for (let pid in mWorkers) {
+            const worker = mWorkers[pid];
+            if (!worker) continue;
+            if (!worker.child) continue;
+            if (!worker.enabled) continue;
+
+            worker.child.send({ id: "broadcast_response", msg: msg });
         }
     }
 
@@ -331,7 +399,6 @@ function setupWorkerCallbacks(child) {
     function imageResponse(msg) {
         d(`imageResponse(): workerId=${msg.worker_id}`);
         const req = mImageRequests[msg.worker_id][msg.name];
-        d(`req=${req.res}`);
 
         if(req) {
             if(msg.image) {
@@ -360,7 +427,6 @@ function setupWorkerCallbacks(child) {
         d(`contentResponse(${JSON.stringify(msg)})`);
 
         const req = mContentRequests[msg.worker_id][msg.content_id];
-        d(`req=${req.res}`);
 
         if (req) {
             if (msg.content) {
@@ -541,7 +607,7 @@ function loadWorkerRoot(basedir) {
         try {
             // Start a sub-process and tell it to load the specified worker.
             const child = child_process.fork(path.join(__dirname, "worker_app.js"));
-            d(`Started ${child.pid}`);
+            // d(`Started ${child.pid}`);
 
             setupWorkerCallbacks(child);
 
@@ -556,88 +622,6 @@ function loadWorkerRoot(basedir) {
                 child.send({ id: "load_worker", msg: {file: files[i] } });
             }, 100 * i);
 
-            // const worker = require(files[i]);
-
-            // // const attrs = worker.getAttributes() || { name: "No name", looper: false };
-            // const attrs = (worker.getAttributes)? worker.getAttributes() || { name: "No name", looper: false }: null;
-            // if(!attrs) {
-            //     log(`Worker has no getAttributes() function, skip`);
-            //     continue;
-            // }
-
-            // if(!attrs.id) {
-            //     log("Worker " + attrs.name + " in " + files[i] + " has no id, not loading");
-            //     continue;
-            // }
-
-            // const workerId = attrs.id;
-
-            // attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
-            // attrs.sendGCSMessage = mWorkerListener.onGCSMessage;
-            // attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
-            // attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
-            // attrs.findWorkerById = mWorkerListener.findWorkerById;
-            // attrs.findWorkersInPackage = mWorkerListener.findWorkersInPackage;
-            // attrs.subscribeMavlinkMessages = mWorkerListener.subscribeMavlinkMessages;
-            // attrs.log = mWorkerListener.workerLog;
-
-            // packages.map(function(pk) {
-            //     const dirname = path.dirname(pk.file);
-            //     if(files[i].indexOf(dirname) >= 0) {
-            //         attrs.parent_package = pk.parent_package;
-            //     }
-            // });
-
-            // attrs.api = { 
-            //     // unconditional loads here
-            //     Mavlink: mavlink 
-            // };
-
-            // attrs.sysid = mConfig.sysid;
-            // attrs.compid = mConfig.compid;
-            // attrs.path = path.dirname(files[i]);
-
-            // const shell = {
-            //     worker: worker,
-            //     attributes: attrs,
-            //     enabled: true
-            // };
-
-            // // If this guy is looking for mavlink messages, index the messages by name for fast
-            // // lookup in onReceivedMavlinkMessage().
-            // if (attrs.mavlinkMessages) {
-            //     for(let x = 0, sz = attrs.mavlinkMessages.length; x < sz; ++x) {
-            //         const name = attrs.mavlinkMessages[x];
-
-            //         if (mMavlinkLookup[name]) {
-            //             mMavlinkLookup[name].workers.push(shell);
-            //         } else {
-            //             mMavlinkLookup[name] = {
-            //                 workers: [shell]
-            //             };
-            //         }
-            //     }
-            // }
-
-            // shell.cacheName = files[i];
-
-            // if(mWorkers[workerId]) {
-            //     log(`Worker ${workerId} already loaded. Unload`);
-            //     unloadWorker(mWorkers[workerId]);
-            // }
-
-            // mWorkers[workerId] = shell;
-
-            // // Delay loading workers a bit
-            // if (worker.onLoad) {
-            //     setTimeout(function(werker) {
-            //         try {
-            //             werker.onLoad();
-            //         } catch(ex) {
-            //             handleWorkerCallException(werker, ex);
-            //         }
-            //     }, 100 * (i + 1), worker);
-            // }
         } catch(ex) {
             log("Error loading worker at " + files[i] + ": " + ex.message);
 
@@ -650,24 +634,6 @@ function loadWorkerRoot(basedir) {
             });
         }
     }
-}
-
-function handleWorkerCallException(worker, ex) {
-    const workerId = (worker && worker.attributes)?
-        worker.attributes.id : "(no worker id)";
-
-    const msg = {
-        id: "worker_exception",
-        worker_id: workerId,
-        stack: ex.stack
-    };
-
-    log(`Exception for ${workerId}: ${ex.message}`);
-
-    // Report this worker and unload it.
-    mWorkerListener.onGCSMessage(workerId, msg);
-    unloadWorker(worker);
-    delete mWorkers[workerId];
 }
 
 function addGCSMessageListener(listener) {
@@ -716,6 +682,31 @@ function handleScreenEnter(screenName, callback) {
     }
 }
 
+/** Gather up features from workers for the /features endpoint */
+function gatherFeatures(callback) {
+
+    mFeatureRequest.pids = [];
+    mFeatureRequest.callback = callback;
+
+    const queue = mFeatureRequest;
+
+    for (let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if (!worker) continue;
+        if (!worker.enabled) continue;
+        if (!worker.child) continue;
+        queue.pids.push(worker.child.pid);
+
+        worker.child.send({ id: "feature_request", msg: { }});
+    }
+
+    d(`Sent request to ${queue.pids.length} processes`);
+
+    if (queue.pids.length == 0) {
+        callback(null, {});
+    }
+}
+
 function handleScreenExit(screenName, callback) {
     mScreenExitRequests[screenName] = {
         pids: [], callback: callback
@@ -737,31 +728,6 @@ function handleScreenExit(screenName, callback) {
     if (queue.pids.length == 0) {
         callback(null, {});
     }
-}
-
-/** Gather up features from workers for the /features endpoint */
-function gatherFeatures() {
-    const output = {};
-
-    // TODO: Implement
-    if (mWorkers) {
-        for (let prop in mWorkers) {
-            const worker = mWorkers[prop];
-            if (!worker.worker) continue;
-            if (!worker.enabled) continue;
-            if(!worker.worker.getFeatures) continue;
-
-            const features = worker.worker.getFeatures();
-            if(features) {
-                for(let prop in features) {
-                    // A given feature from a worker overwrites any existing features in the output, so they must be unique!
-                    output[prop] = features[prop];
-                }
-            }
-        }
-    }
-
-    return output;
 }
 
 function imageDownload(req, res) {

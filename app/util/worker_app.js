@@ -150,8 +150,15 @@ function onGCSMessage(msg) {
 }
 
 function onWorkerRoster(msg) {
-    // msg.roster
     mWorkerRoster = msg.roster;
+
+    if(mWorker && mWorker.onRosterChanged()) {
+        try {
+            mWorker.onRosterChanged();
+        } catch(ex) {
+            d(ex.message);
+        }
+    }
 }
 
 function onConfig(msg) {
@@ -276,6 +283,47 @@ function onContentRequest(msg) {
     process.send(response);
 }
 
+function onFeatureRequest(msg) {
+    const response = { id: "feature_response", msg: { pid: process.pid }};
+
+    if(mWorker && mWorker.getFeatures) {
+        try {
+            const features = mWorker.getFeatures();
+            if (features) {
+                response.msg.features = features;
+            }
+        } catch(ex) {
+            d(ex.message);
+        }
+    }
+
+    process.send(response);
+}
+
+function onBroadcastRequest(msg) {
+    // d(`onBroadcastRequest(${JSON.stringify(msg)})`);
+
+    if(mWorker && mWorker.onBroadcastRequest) {
+        try {
+            const output = mWorker.onBroadcastRequest(msg);
+            if(output) {
+                const response = { id: "broadcast_response", msg: { request: msg, response: output } };
+                process.send(response);
+            }
+        } catch(ex) { d(ex.message); }
+    }
+}
+
+function onBroadcastResponse(msg) {
+    // d(`onBroadcastResponse(${JSON.stringify(msg)})`);
+
+    if(mWorker && mWorker.onBroadcastResponse) {
+        try {
+            mWorker.onBroadcastResponse(msg);
+        } catch (ex) { d(ex.message); }
+    }
+}
+
 // Messages sent by the parent process
 const mFunctionMap = {
     "load_worker": loadWorker,
@@ -291,7 +339,10 @@ const mFunctionMap = {
     "screen_enter": onScreenEnter,
     "screen_exit": onScreenExit,
     "image_request": onImageRequest,
-    "content_request": onContentRequest
+    "content_request": onContentRequest,
+    "feature_request": onFeatureRequest,
+    "broadcast_request": onBroadcastRequest,
+    "broadcast_response": onBroadcastResponse
 };
 
 // Incoming messages from the parent process
@@ -302,7 +353,7 @@ process.on("message", function (msg) {
     if (func) {
         func(msg.msg);
     } else {
-        d(`Unknown message ${msg.id}`);
+        d(`Unknown message: ${JSON.stringify(msg)}`);
     }
 });
 
