@@ -13,6 +13,59 @@ var mWorkerRoster = null;
 var mConfig = null;
 var mWorkerLibraries = {};
 
+const mWorkerListener = {
+    /** Gets a Mavlink message from the specified worker, sends it to the Mavlink output */
+    onMavlinkMessage: function (workerId, msg) {
+        d("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
+        // Worker sent a Mavlink message. Forward to the parent process.
+        process.send({ id: "worker_mavlink", msg: { worker_id: workerId, mavlinkMessage: msg } });
+    },
+
+    /** Gets a GCS message from the specified worker, broadcasts to all GCSMessageListeners. */
+    sendGCSMessage: function (workerId, msg) {
+        d(`GCS message from ${workerId}: ${msg.id}`);
+        // Forward the message to the parent
+        process.send({ id: "worker_gcs", msg: { worker_id: workerId, msg: msg } });
+    },
+
+    /** Gets a message from the specified worker, sends it to all other workers in the system */
+    onBroadcastMessage: function (workerId, msg) {
+        d("Broadcast message from " + workerId + ": " + msg);
+        // Forward to parent
+        process.send({ id: "worker_broadcast", msg: { worker_id: workerId, msg: msg } });
+    },
+
+    /** Called by a worker to get a list of the other workers on the system */
+    getWorkerRoster: function (workerId) {
+        return mWorkerRoster || [];
+    },
+
+    subscribeMavlinkMessages: function (workerId, messages) {
+        mMavlinkLookup = {};
+        for (let i = 0, size = messages.size; i < size; ++i) {
+            const name = messages[i];
+            mMavlinkLookup[name] = name;
+        }
+    },
+
+    workerLog: function (workerId, msg) {
+        // Worker is logging via ATTRS.log(ATTRS.id): Forward to the parent process to handle logging.
+        process.send({ id: "worker_log", msg: { worker_id: workerId, msg: msg } });
+    },
+
+    sendBroadcastRequest: function(msg) {
+        d(`sendBroadcastRequest(${JSON.stringify(msg)})`);
+        process.send({ id: "broadcast_request", msg: msg});
+    },
+
+    sendWorkerMessage: function(workerId, msg) {
+        d(`sendWorkerMessage(${JSON.stringify(msg)})`);
+
+        msg.worker_id = workerId;
+        process.send({ id: "worker_message", msg: msg});
+    }
+};
+
 function d(str) {
     console.log(`worker_app: ${str}`);
 }
@@ -46,13 +99,13 @@ function loadWorker(msg) {
         const workerId = attrs.id;
 
         attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
-        attrs.sendGCSMessage = mWorkerListener.onGCSMessage;
+        attrs.sendGCSMessage = mWorkerListener.sendGCSMessage;
         attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
         attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
-        attrs.findWorkerById = mWorkerListener.findWorkerById;
-        attrs.findWorkersInPackage = mWorkerListener.findWorkersInPackage;
         attrs.subscribeMavlinkMessages = mWorkerListener.subscribeMavlinkMessages;
         attrs.log = mWorkerListener.workerLog;
+        attrs.sendBroadcastRequest = mWorkerListener.sendBroadcastRequest;
+        attrs.sendWorkerMessage = mWorkerListener.sendWorkerMessage;
 
         // packages.map(function (pk) {
         //     const dirname = path.dirname(pk.file);
@@ -356,81 +409,6 @@ process.on("message", function (msg) {
         d(`Unknown message: ${JSON.stringify(msg)}`);
     }
 });
-
-// d(`${process.pid} starting up`);
-
-const mWorkerListener = {
-    /** Gets a Mavlink message from the specified worker, sends it to the Mavlink output */
-    onMavlinkMessage: function (workerId, msg) {
-        d("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
-        // Worker sent a Mavlink message. Forward to the parent process.
-        process.send({ id: "worker_mavlink", msg: {worker_id: workerId, mavlinkMessage: msg }});
-    },
-
-    /** Gets a GCS message from the specified worker, broadcasts to all GCSMessageListeners. */
-    onGCSMessage: function (workerId, msg) {
-        d(`GCS message from ${workerId}: ${msg.id}`);
-        // Forward the message to the parent
-        process.send({ id: "worker_gcs", msg: { worker_id: workerId, msg: msg}});
-    },
-
-    /** Gets a message from the specified worker, sends it to all other workers in the system */
-    onBroadcastMessage: function (workerId, msg) {
-        d("Broadcast message from " + workerId + ": " + msg);
-        // Forward to parent
-        process.send({ id: "worker_broadcast", msg: { worker_id: workerId, msg: msg}});
-    },
-
-    /** Called by a worker to get a list of the other workers on the system */
-    getWorkerRoster: function (workerId) {
-        return mWorkerRoster || [];
-    },
-
-    subscribeMavlinkMessages: function (workerId, messages) {
-        mMavlinkLookup = {};
-        for(let i = 0, size = messages.size; i < size; ++i) {
-            const name = messages[i];
-            mMavlinkLookup[name] = name;
-        }
-    },
-
-    findWorkerById: function (workerId) {
-        var result = null;
-
-        if(mWorkerRoster) {
-            for(let i = 0, size = mWorkerRoster.length; i < size; ++i) {
-                const worker = mWorkerRoster[i];
-                if(worker.attributes && worker.attributes.id === workerId) {
-                    result = worker;
-                    break;
-                }
-            }
-        }
-
-        return result;
-    },
-
-    findWorkersInPackage: function (packageId) {
-        const out = [];
-
-        if(mWorkerRoster) {
-            for(let i = 0, size = mWorkerRoster.length; i < size; ++i) {
-                const worker = mWorkerRoster[i];
-                const attrs  = worker.attributes;
-                if (attrs && attrs.parent_package && attrs.parent_package.id === packageId) {
-                    out.push(worker.worker);
-                }
-            }
-        }
-
-        return out;
-    },
-
-    workerLog: function (workerId, msg) {
-        // Worker is logging via ATTRS.log(ATTRS.id): Forward to the parent process to handle logging.
-        process.send({id: "worker_log", msg: { worker_id: workerId, msg: msg}});
-    }
-};
 
 function loadAbort(code, msg) {
     if(msg) {

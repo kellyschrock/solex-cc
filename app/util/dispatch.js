@@ -200,25 +200,26 @@ function reload() {
 
 function setupWorkerCallbacks(child) {
     const childProcMap = {
-        "worker_loaded": workerLoaded,
-        "load_abort": loadAbort,
-        "worker_log": workerLog,
-        "worker_mavlink": workerMavlink,
-        "worker_gcs": workerGCS,
-        "gcs_msg_response": gcsMessageResponse,
-        "worker_broadcast": workerBroadcast,
-        "worker_removed": workerRemoved,
-        "screen_enter_response": screenEnterResponse,
-        "screen_exit_response": screenExitResponse,
-        "image_response": imageResponse,
-        "content_response": contentResponse,
-        "feature_response": featureResponse,
-        "broadcast_request": broadcastRequest,
-        "broadcast_response": broadcastResponse
+        "worker_loaded": onWorkerLoaded,
+        "load_abort": onWorkerLoadAbort,
+        "worker_log": onWorkerLog,
+        "worker_removed": onWorkerRemoved,
+        "worker_mavlink": sendWorkerMavlinkToVehicle,
+        "worker_gcs": sendWorkerMessageToGCS,
+        "worker_message": sendGCSMessageToWorker,
+        "gcs_msg_response": onGCSMessageResponse,
+        "worker_broadcast": onWorkerBroadcast,
+        "screen_enter_response": onScreenEnterResponse,
+        "screen_exit_response": onScreenExitResponse,
+        "image_response": onImageResponse,
+        "content_response": onContentResponse,
+        "feature_response": onFeatureResponse,
+        "broadcast_request": onBroadcastRequest,
+        "broadcast_response": onBroadcastResponse
     };
 
     // Finished loading a worker.
-    function workerLoaded(msg) {
+    function onWorkerLoaded(msg) {
         // msg.pid, msg.worker_id, msg.file
         // log(`workerLoaded(): ${JSON.stringify(msg)}`);
         log(`workerLoaded(): ${msg.worker_id}`);
@@ -241,7 +242,7 @@ function setupWorkerCallbacks(child) {
     }
 
     // Worker told us it's been removed.
-    function workerRemoved(msg) {
+    function onWorkerRemoved(msg) {
         const worker = findWorkerById(msg.worker_id);
         if(worker && worker.child) {
             delete mWorkers[worker.child.pid];
@@ -249,7 +250,7 @@ function setupWorkerCallbacks(child) {
         }
     }
 
-    function featureResponse(msg) {
+    function onFeatureResponse(msg) {
         // msg: { pid: process.pid, features: {} };
 
         const req = mFeatureRequest;
@@ -283,7 +284,7 @@ function setupWorkerCallbacks(child) {
         }
     }
 
-    function broadcastRequest(msg) {
+    function onBroadcastRequest(msg) {
         // d(`broadcastRequest(${JSON.stringify(msg)})`);
 
         // Send this message out to all workers
@@ -297,7 +298,7 @@ function setupWorkerCallbacks(child) {
         }
     }
 
-    function broadcastResponse(msg) {
+    function onBroadcastResponse(msg) {
         // d(`broadcastResponse(${JSON.stringify(msg)})`);
 
         for (let pid in mWorkers) {
@@ -311,7 +312,7 @@ function setupWorkerCallbacks(child) {
     }
 
     // Handle screen-enter responses from workers
-    function screenEnterResponse(msg) {
+    function onScreenEnterResponse(msg) {
         const screen = msg.screen_name;
         const res = mScreenEnterRequests[screen];
 
@@ -356,7 +357,7 @@ function setupWorkerCallbacks(child) {
     }
 
     // Handle screen-exit responses from workers.
-    function screenExitResponse(msg) {
+    function onScreenExitResponse(msg) {
         const screen = msg.screen_name;
         const res = mScreenExitRequests[screen];
 
@@ -396,7 +397,7 @@ function setupWorkerCallbacks(child) {
     }
 
     // Worker sent image data
-    function imageResponse(msg) {
+    function onImageResponse(msg) {
         d(`imageResponse(): workerId=${msg.worker_id}`);
         const req = mImageRequests[msg.worker_id][msg.name];
 
@@ -422,7 +423,7 @@ function setupWorkerCallbacks(child) {
         }
     }
 
-    function contentResponse(msg) {
+    function onContentResponse(msg) {
         // msg: { worker_id: msg.worker_id, content_id: msg.content_id, msg_id: msg.msg_id, content: (base64) }
         d(`contentResponse(${JSON.stringify(msg)})`);
 
@@ -454,14 +455,14 @@ function setupWorkerCallbacks(child) {
     }
 
     // Aborted loading a worker. msg.file is the file that wasn't loaded.
-    function loadAbort(msg) {
+    function onWorkerLoadAbort(msg) {
         log(`Worker load failure: ${msg.msg}`);
         // log(`Failed to load worker in ${msg.file}: ${msg.msg}`);
         mWorkerLoadErrors.push({ file: msg.file, message: msg.msg});
     }
 
     // Worker logged a message.
-    function workerLog(msg) {
+    function onWorkerLog(msg) {
         // msg.worker_id, msg.msg (text to log)
         const filter = mConfig.logWorkers || [];
 
@@ -475,7 +476,7 @@ function setupWorkerCallbacks(child) {
     }
 
     // Worker sent a mavlink message.
-    function workerMavlink(msg) {
+    function sendWorkerMavlinkToVehicle(msg) {
         // msg.worker_id, msg.mavlinkMessage
         if (msg.mavlinkMessage) {
             if (udpclient.isConnected()) {
@@ -495,7 +496,7 @@ function setupWorkerCallbacks(child) {
     }
 
     // Worker sent a GCS message.
-    function workerGCS(msg) {
+    function sendWorkerMessageToGCS(msg) {
         // d(`workerGCS(): ${JSON.stringify(msg)}`);
 
         // msg.worker_id, msg.msg
@@ -510,8 +511,15 @@ function setupWorkerCallbacks(child) {
         }
     }
 
+    function sendGCSMessageToWorker(msg) {
+        const worker = findWorkerById(msg.worker_id);
+        if(worker && worker.enabled && worker.child) {
+            worker.child.send({ id: "gcs_msg", msg: { message: msg } });
+        }
+    }
+
     // Worker responded to a GCS message.
-    function gcsMessageResponse(msg) {
+    function onGCSMessageResponse(msg) {
         d(`gcsMessageResponse(${JSON.stringify(msg)})`);
 
         if(mQueuedCallbacks[child.pid]) {
@@ -542,7 +550,7 @@ function setupWorkerCallbacks(child) {
     }
 
     // A worker broadcast a message for other workers.
-    function workerBroadcast(msg) {
+    function onWorkerBroadcast(msg) {
         if (mWorkers) {
             for (let pid in mWorkers) {
                 const worker = mWorkers[pid];
