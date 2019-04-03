@@ -4,6 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const mavlink = require("./mavlink.js");
 
+const LOOP_INTERVAL = 1000;
+
 // Worker "app" module. Each worker that's loaded is run by this module as a forked process.
 // All communication between this and the master is done via Node IPC mechanisms.
 var mWorker = null;
@@ -12,6 +14,7 @@ var mMavlinkLookup = {};
 var mWorkerRoster = null;
 var mConfig = null;
 var mWorkerLibraries = {};
+var mLoopTimer = null;
 
 const mWorkerListener = {
     /** Gets a Mavlink message from the specified worker, sends it to the Mavlink output */
@@ -70,6 +73,20 @@ function d(str) {
     console.log(`worker_app: ${str}`);
 }
 
+function loopCaller() {
+    if(mWorker && mWorker.loop) {
+        try {
+            mWorker.loop();
+            mLoopTimer = setTimeout(loopCaller, LOOP_INTERVAL);
+        } catch(ex) {
+            d(`Error running loop() in ${mWorkerId}: ${ex.message}`);
+            clearTimeout(mLoopTimer);
+        }
+    }
+
+    return false;
+}
+
 // Load a worker. msg.file is the file to load.
 function loadWorker(msg) {
     // d(`loadWorker(): ${msg.file}`);
@@ -107,13 +124,6 @@ function loadWorker(msg) {
         attrs.sendBroadcastRequest = mWorkerListener.sendBroadcastRequest;
         attrs.sendWorkerMessage = mWorkerListener.sendWorkerMessage;
 
-        // packages.map(function (pk) {
-        //     const dirname = path.dirname(pk.file);
-        //     if (files[i].indexOf(dirname) >= 0) {
-        //         attrs.parent_package = pk.parent_package;
-        //     }
-        // });
-
         attrs.api = {
             // unconditional loads here
             Mavlink: mavlink
@@ -143,10 +153,9 @@ function loadWorker(msg) {
         if (attrs.mavlinkMessages) {
 
             mMavlinkLookup = {};
-            for (let x = 0, sz = attrs.mavlinkMessages.length; x < sz; ++x) {
-                const name = attrs.mavlinkMessages[x];
-                mMavlinkLookup[name] = name;
-            }
+            attrs.mavlinkMessages.map(function(mav) {
+                mMavlinkLookup[mav] = mav;
+            });
         }
 
         shell.cacheName = file;
@@ -165,6 +174,10 @@ function loadWorker(msg) {
                     attributes: shell.attributes,
                     enabled: shell.enabled
                 }});
+
+                if(attrs.looper) {
+                    setTimeout(loopCaller, LOOP_INTERVAL);
+                }
 
             } catch(ex) {
                 loadAbort(100, `Worker ${workerId} onLoad() failure: ${ex.message}`);
@@ -224,6 +237,9 @@ function onReload(msg) {
 
 function onUnload(msg) {
     d("onUnload()");
+
+    if(mLoopTimer) clearTimeout(mLoopTimer);
+
     if(mWorker && mWorker.onUnload) {
         try {
             mWorker.onUnload();
@@ -263,7 +279,7 @@ function onRemove(msg) {
                     process.send({ id: "worker_removed", msg: { worker_id: mWorkerId } });
                 }
 
-                setTimeout(function() { process.exit(0); }, 1000);
+                setTimeout(function() { process.exit(); }, 1000);
             });
         }
     }
