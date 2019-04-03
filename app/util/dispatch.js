@@ -456,9 +456,9 @@ function setupWorkerCallbacks(child) {
 
     // Aborted loading a worker. msg.file is the file that wasn't loaded.
     function onWorkerLoadAbort(msg) {
-        log(`Worker load failure: ${msg.msg}`);
+        log(`onWorkerLoadAbort(): ${JSON.stringify(msg)}`);
         // log(`Failed to load worker in ${msg.file}: ${msg.msg}`);
-        mWorkerLoadErrors.push({ file: msg.file, message: msg.msg});
+        mWorkerLoadErrors.push({ path: msg.file, error: msg.msg, detail: msg.stack });
     }
 
     // Worker logged a message.

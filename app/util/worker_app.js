@@ -10,6 +10,7 @@ const LOOP_INTERVAL = 1000;
 // All communication between this and the master is done via Node IPC mechanisms.
 var mWorker = null;
 var mWorkerId = null;
+var mWorkerFile = null;
 var mMavlinkLookup = {};
 var mWorkerRoster = null;
 var mConfig = null;
@@ -97,6 +98,8 @@ function loadWorker(msg) {
         return;
     }
 
+    mWorkerFile = file;
+
     try {
         // Load the specified worker.
         const worker = require(file);
@@ -109,7 +112,7 @@ function loadWorker(msg) {
         }
 
         if (!attrs.id) {
-            loadAbort(100, { file: file, msg: `Worker ${attrs.name} in ${file} has no id, not loading`});
+            loadAbort(100, { file: file, msg: `Worker ${attrs.id} in ${file} has no id, not loading`});
             return;
         }
 
@@ -180,7 +183,8 @@ function loadWorker(msg) {
                 }
 
             } catch(ex) {
-                loadAbort(100, `Worker ${workerId} onLoad() failure: ${ex.message}`);
+                loadAbort(100, { file: file, msg: `${workerId} onLoad(): ${ex.message}`, stack: ex.stack });
+                // loadAbort(100, `Worker ${workerId} onLoad() failure: ${ex.message}`);
             }
         }
     } catch (ex) {
@@ -427,7 +431,11 @@ process.on("message", function (msg) {
 
 function loadAbort(code, msg) {
     if(msg) {
-        process.send({ id: "load_abort", msg: {msg: msg}});
+        if(!msg.stack) msg.stack = "(none)";
+        if(!msg.file) msg.file = mWorkerFile;
+        if(!msg.msg) msg.msg = "(unknown)";
+
+        process.send({ id: "load_abort", msg: msg});
     }
 
     process.exit(code);
