@@ -190,14 +190,13 @@ function onMavlinkMessage(msg) {
 }
 
 function onGCSMessage(msg) {
-    d(`onGCSMessage()`);
+    d(`onGCSMessage(${JSON.stringify(msg)})`);
     // Message for a worker. msg.worker_id and msg.msg are the attributes.
     const target = mWorker;
-    d(`target=${target}`);
 
     if(target && target.onGCSMessage) {
         const response = target.onGCSMessage(msg.message) || { ok: true, source_id: msg.id };
-        d(`response=${response}`);
+        d(`response=${JSON.stringify(response)}`);
         process.send({id: "gcs_msg_response", msg: { worker_id: mWorkerId, request: msg.message, response: response }});
     }
 }

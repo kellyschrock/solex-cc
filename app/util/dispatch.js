@@ -533,8 +533,19 @@ function setupWorkerCallbacks(child) {
                 if(mQueuedCallbacks[child.pid][workerId][msg.request.id]) {
                     d(`have callback for ${msg.request.id}`);
 
+                    // This ugly-ass code is the callback
                     mQueuedCallbacks[child.pid][workerId][msg.request.id](null, msg.response);
                     delete mQueuedCallbacks[child.pid][workerId][msg.request.id];
+
+                    if(mMonitors[workerId]) {
+                        mGCSMessageListeners.map(function(listener) {
+                            try {
+                                listener.onMonitorMessage(workerId, { input: msg.request, output: msg.response });
+                            } catch(ex) {
+                                d(`Error sending monitor message for ${workerId}: ${ex.message}`);
+                            }
+                        });
+                    }
                 }
 
                 if(Object.keys(mQueuedCallbacks[child.pid][workerId]).length == 0) {
@@ -838,80 +849,6 @@ function handleGCSMessage(workerId, msg, callback) {
             source_id: msg.id
         });
     }
-
-    // TODO: DO NOT DELETE. Get the monitoring stuff out of this first.
-    // if(mWorkers) {
-    //     const worker = mWorkers[workerId];
-
-    //     if(worker) {
-    //         if(!worker.enabled) {
-    //             return {
-    //                 ok: false,
-    //                 message: `worker ${workerId} not enabled`,
-    //                 worker_id: workerId,
-    //                 source_id: msg.id
-    //             };
-    //         }
-
-    //         if(worker.worker) {
-    //             if(worker.worker.onGCSMessage) {
-    //                 try {
-    //                     const output = worker.worker.onGCSMessage(msg) || {
-    //                         ok: true,
-    //                         source_id: msg.id
-    //                     };
-
-    //                     output.worker_id = workerId;
-    //                     output.source_id = msg.id;
-
-    //                     if(mMonitors[workerId]) {
-    //                         for (let i = 0, size = mGCSMessageListeners.length; i < size; ++i) {
-    //                             mGCSMessageListeners[i].onMonitorMessage(workerId, {input: msg, output: output});
-    //                         }
-    //                     }
-                        
-    //                     return output;
-    //                 } catch(ex) {
-    //                     handleWorkerCallException(worker, ex);
-    //                     return { 
-    //                         ok: false, 
-    //                         worker_id: workerId,
-    //                         source_id: msg.id,
-    //                         message: ex.message 
-    //                     };
-    //                 }
-    //             } else {
-    //                 return {
-    //                     ok: false,
-    //                     message: `Worker ${workerId} has no onGCSMessage() interface`,
-    //                     worker_id: workerId,
-    //                     source_id: msg.id
-    //                 };
-    //             }
-    //         } else {
-    //             return {
-    //                 ok: false,
-    //                 message: `Invalid worker at ${workerId}`,
-    //                 worker_id: workerId,
-    //                 source_id: msg.id
-    //             };
-    //         }
-    //     } else {
-    //         return {
-    //             ok: false,
-    //             message: `No worker called ${workerId}`,
-    //             worker_id: workerId,
-    //             source_id: msg.id
-    //         };
-    //     }
-    // } else {
-    //     return {
-    //         ok: false,
-    //         message: "FATAL: No workers",
-    //         worker_id: workerId,
-    //         source_id: msg.id
-    //     };
-    // }
 }
 
 function getWorkers() {
