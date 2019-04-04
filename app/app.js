@@ -156,6 +156,23 @@ function setupApp() {
                     }
                 });
             });
+        },
+
+        onRosterChanged: function() {
+            log("onRosterChanged()");
+            
+            mGCSSubscribers.map(function (client) {
+                trace(`send to ${client}`);
+                sendWSMessage(client, { event: "roster-changed", data: {} }, {
+                    onError: function (err) {
+                        log("Error sending message to " + client);
+                    },
+
+                    onSuccess() {
+                        // log("Sent " + msg + " to " + client);
+                    }
+                }, false);
+            });
         }
     };
 

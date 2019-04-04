@@ -256,6 +256,8 @@ function setupWorkerCallbacks(child) {
 
         const req = mFeatureRequest;
         if (req) {
+            d(`req=${JSON.stringify(req)}`);
+
             if(!req.responses) req.responses = [];
 
             if(msg.features) {
@@ -277,6 +279,8 @@ function setupWorkerCallbacks(child) {
                         output[prop] = features[prop];
                     }
                 });
+
+                d(`onFeatureResponse(): features=${JSON.stringify(output)}`);
 
                 if (req.callback) req.callback(null, output);
             }
@@ -716,6 +720,7 @@ function handleScreenEnter(screenName, callback) {
 function gatherFeatures(callback) {
 
     mFeatureRequest.pids = [];
+    mFeatureRequest.responses = [];
     mFeatureRequest.callback = callback;
 
     const queue = mFeatureRequest;
@@ -1091,6 +1096,12 @@ function notifyRosterChanged() {
 
         worker.child.send({id: "worker_roster", msg: { roster: workerIds}});
     }
+
+    mGCSMessageListeners.map(function (listener) {
+        if (listener.onRosterChanged) {
+            listener.onRosterChanged();
+        }
+    });
 }
 
 function getWorkerEnabledConfigFile() {
