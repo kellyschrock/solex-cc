@@ -9,6 +9,7 @@ const LOOP_INTERVAL = 1000;
 // Worker "app" module. Each worker that's loaded is run by this module as a forked process.
 // All communication between this and the master is done via Node IPC mechanisms.
 var mWorker = null;
+var mWorkerAttributes = null;
 var mWorkerId = null;
 var mWorkerFile = null;
 var mMavlinkLookup = {};
@@ -78,7 +79,11 @@ function loopCaller() {
     if(mWorker && mWorker.loop) {
         try {
             mWorker.loop();
-            mLoopTimer = setTimeout(loopCaller, LOOP_INTERVAL);
+
+            if(mWorkerAttributes.enabled) {
+                mLoopTimer = setTimeout(loopCaller, LOOP_INTERVAL);
+            }
+            
         } catch(ex) {
             d(`Error running loop() in ${mWorkerId}: ${ex.message}`);
             clearTimeout(mLoopTimer);
@@ -167,6 +172,8 @@ function loadWorker(msg) {
             try {
                 worker.onLoad();
                 mWorker = worker;
+                mWorkerAttributes = attrs;
+                mWorkerAttributes.enabled = shell.enabled;
                 mWorkerId = workerId;
 
                 // d(`Loaded worker ${mWorkerId}`);
@@ -395,6 +402,20 @@ function onBroadcastResponse(msg) {
     }
 }
 
+function onWorkerEnable(msg) {
+    d(`onWorkerEnable(${JSON.stringify(msg)})`);
+
+    if(msg.enabled) {
+        if(mWorkerAttributes.looper) {
+            mLoopTimer = setTimeout(loopCaller, LOOP_INTERVAL);
+        }
+    } else {
+        if(mLoopTimer) clearTimeout(mLoopTimer);
+    }
+
+    mWorkerAttributes.enabled = msg.enabled;
+}
+
 // Messages sent by the parent process
 const mFunctionMap = {
     "load_worker": loadWorker,
@@ -413,7 +434,8 @@ const mFunctionMap = {
     "content_request": onContentRequest,
     "feature_request": onFeatureRequest,
     "broadcast_request": onBroadcastRequest,
-    "broadcast_response": onBroadcastResponse
+    "broadcast_response": onBroadcastResponse,
+    "worker_enable": onWorkerEnable
 };
 
 // Incoming messages from the parent process

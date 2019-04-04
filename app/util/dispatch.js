@@ -953,6 +953,11 @@ function enableWorker(workerId, enable, callback) {
     const worker = findWorkerById(workerId);
     if(worker) {
         worker.enabled = ("true" === enable);
+        
+        if(worker.child) {
+            worker.child.send({id: "worker_enable", msg: { enabled: worker.enabled }});
+        }
+
         callback(null, enable);
         saveWorkerEnabledStates();
         notifyRosterChanged();
