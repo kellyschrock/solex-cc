@@ -1,6 +1,8 @@
 # All about Workers
 
-Workers are at the core of what SolexCC does. They're loaded dynamically into SolexCC's process and can interact with the vehicle, attached hardware _on_ the vehicle, and with each other. Following is a list of some of the interfaces supported by workers, and what you can do with them.
+Workers are kind of the point of SolexCC. Think of them in the same role as apps on a phone. 
+
+Workers are loaded dynamically into SolexCC and run as child processes of main SolexCC process. They can interact with the vehicle, attached hardware on the vehicle, and with each other through messages relayed through SolexCC. Following is a list of some of the interfaces supported by workers, and what you can do with them.
 
 ## Worker basics
 
@@ -77,21 +79,20 @@ SolexCC injects some functions into this object so your worker can interact with
 	});
 	```
 
--	`findWorkerById(workerId)`
+-	`sendBroadcastRequest(msg)`
 
-	Returns a `worker` with the given id if present on the system.
+	If you need to get information from other workers on the system, you can do so by sending a broadcast request. In this case, `msg` is a JSON object structured however you see fit. Suppose you have a family of workers that support related functions. You can come up with a message layout that they all understand, and they can send information to each other. For example, the `/examples/features/missions` worker uses this to gather mission item support from other workers like so:
 
 	```javascript
-	// Spray some water via "spray_gun" if available
-	const gun = ATTRS.findWorkerById("spray_gun");
-	if(gun && gun.spray) {
-		gun.spray();
-	}
+	ATTRS.sendBroadcastRequest({ type: "mission_item_support" });
 	```
 
--	`findWorkersInPackage(packageId)`
+	Any other worker in the system can respond to a broadcast by implementing the `onBroadcastRequest(msg)` function, and returning the appropriate value. Again,
+	this is dependent on what you want to do.
 
-	Returns an array of workers that are part of the specified package.
+	This function's return value (if any) is passed to any worker in the system that implements the `onBroadcastResponse(msg)` function.
+
+	The `examples/features/missions` workers demonstrate how all of this works.
 
 -	`subscribeMavlinkMessages(workerId, messages)`
 
@@ -205,13 +206,17 @@ A worker can export various functions to get basic functionality. They are:
 	}
 	```
 
--	`onRosterChanged()`: Called when a new worker is installed, or an existing one removed.
+-	`onRosterChanged()`: Called when the list of installed/enabled workers changes for any reason. 
 
 -	`onScreenEnter(screen)` If you expose this function, it's called when a screen is entered on the GCS side. This is your worker's chance to send a UI to display. There's a ton of this sort of thing in the examples, showing how to generate screens.
 
--	`onImageDownload(name)` This is optional, and only called when your worker sends a GCS message indicating the presence of a download to perform. This is the function that returns the actual data required to fill the request. `name` specifies the 
+-	`onImageDownload(name)` This is optional, and only called when your worker sends a GCS message indicating the presence of a download to perform. This is the function that returns the actual data required to fill the request. `name` specifies the name of the image to return, for example `foo.png`. The `examples/ui/camera` worker illustrates this.
 
 -	`getFeatures()` This is implemented by workers that want to describe specific features or sub-features of features. See the `mission_support` worker example to see how this works.
+
+-	`onBroadcastRequest(msg)` This is called on any worker implementing it when a worker calls `sendBroadcastRequest()` as described above. To pass data to the requesting worker, return a non-null value.
+
+-	`onBroadcastResponse(msg)` Implement this function if you want to receive the return values from workers' `onBroadcastRequest()` functions.
 
 ## Deploying a worker
 

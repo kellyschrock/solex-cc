@@ -184,7 +184,6 @@ function loadWorker(msg) {
 
             } catch(ex) {
                 loadAbort(100, { file: file, msg: `${workerId} onLoad(): ${ex.message}`, stack: ex.stack });
-                // loadAbort(100, `Worker ${workerId} onLoad() failure: ${ex.message}`);
             }
         }
     } catch (ex) {
