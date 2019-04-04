@@ -12,7 +12,7 @@ var mWorker = null;
 var mWorkerAttributes = null;
 var mWorkerId = null;
 var mWorkerFile = null;
-var mMavlinkLookup = {};
+var mMavlinkNames = [];
 var mWorkerRoster = null;
 var mConfig = null;
 var mWorkerLibraries = {};
@@ -46,11 +46,11 @@ const mWorkerListener = {
     },
 
     subscribeMavlinkMessages: function (workerId, messages) {
-        mMavlinkLookup = {};
-        for (let i = 0, size = messages.size; i < size; ++i) {
-            const name = messages[i];
-            mMavlinkLookup[name] = name;
-        }
+        d(`subscribeMavlinkMessages(): messages=${messages}`);
+
+        mMavlinkNames = messages;
+
+        d(`subscribeMavlinkMessages(): mMavlinkNames for ${mWorkerId}=${JSON.stringify(mMavlinkNames)}`);
     },
 
     workerLog: function (workerId, msg) {
@@ -160,21 +160,19 @@ function loadWorker(msg) {
         // lookup in onReceivedMavlinkMessage().
         if (attrs.mavlinkMessages) {
 
-            mMavlinkLookup = {};
-            attrs.mavlinkMessages.map(function(mav) {
-                mMavlinkLookup[mav] = mav;
-            });
+            mMavlinkNames = attrs.mavlinkMessages;
+            d(`mMavlinkNames for ${attrs.id}=${JSON.stringify(mMavlinkNames)}`);
         }
 
         shell.cacheName = file;
 
         if(worker.onLoad) {
             try {
-                worker.onLoad();
                 mWorker = worker;
                 mWorkerAttributes = attrs;
                 mWorkerAttributes.enabled = shell.enabled;
                 mWorkerId = workerId;
+                worker.onLoad();
 
                 // d(`Loaded worker ${mWorkerId}`);
                 process.send({id: "worker_loaded", msg: { 
@@ -205,8 +203,11 @@ function unload(msg) {
 
 // Parent sent a mavlink message from input
 function onMavlinkMessage(msg) {
-    if(mMavlinkLookup[msg.name]) {
+    // d(`onMavlinkMessage(${msg.name})`);
+
+    if(mMavlinkNames.indexOf(msg.name) >= 0) {
         if(mWorker && mWorker.onMavlinkMessage) {
+            // d(`Call ${mWorkerId} with ${msg.name}`);
             mWorker.onMavlinkMessage(msg);
         }
     }
@@ -463,7 +464,7 @@ function loadAbort(code, msg) {
 }
 
 function loadWorkerLibsIn(dir) {
-    d(`loadWorkerLibsIn(${dir})`);
+    // d(`loadWorkerLibsIn(${dir})`);
 
     if (!fs.existsSync(dir)) return;
 

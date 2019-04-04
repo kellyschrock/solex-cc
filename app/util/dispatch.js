@@ -117,7 +117,8 @@ function findFiles(dir, filter) {
 }
 
 function onReceivedMavlinkMessage(msg) {
-    trace("onReceivedMavlinkMessage(): msg=" + msg);
+    // trace("onReceivedMavlinkMessage(): msg=" + msg);
+    // d(`onReceivedMavlinkMessage(${msg.name})`);
 
     for(let pid in mWorkers) {
         const worker = mWorkers[pid];
