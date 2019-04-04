@@ -97,6 +97,7 @@ function loopCaller() {
 function loadWorker(msg) {
     // d(`loadWorker(): ${msg.file}`);
 
+    const enabledStates = msg.enabledStates;
     const file = msg.file;
     if(!file) {
         loadAbort(100, { file: null, msg: `No file specified` });
@@ -122,6 +123,11 @@ function loadWorker(msg) {
         }
 
         const workerId = attrs.id;
+        let workerEnabled = true;
+
+        if(enabledStates.hasOwnProperty(workerId)) {
+            workerEnabled = enabledStates[workerId];
+        }
 
         attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
         attrs.sendGCSMessage = mWorkerListener.sendGCSMessage;
@@ -153,7 +159,7 @@ function loadWorker(msg) {
         const shell = {
             worker: worker,
             attributes: attrs,
-            enabled: true
+            enabled: workerEnabled
         };
 
         // If this guy is looking for mavlink messages, index the messages by name for fast
@@ -183,7 +189,7 @@ function loadWorker(msg) {
                     enabled: shell.enabled
                 }});
 
-                if(attrs.looper) {
+                if(attrs.looper && workerEnabled) {
                     setTimeout(loopCaller, LOOP_INTERVAL);
                 }
 

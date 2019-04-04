@@ -649,7 +649,7 @@ function loadWorkerRoot(basedir) {
             child.send({ id: "load_libraries", msg: { path: mConfig.workerLibRoot }});
 
             setTimeout(function () {
-                child.send({ id: "load_worker", msg: {file: files[i] } });
+                child.send({ id: "load_worker", msg: {file: files[i], enabledStates: mWorkerEnabledStates || {} } });
             }, 100 * i);
 
         } catch(ex) {
