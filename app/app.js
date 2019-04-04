@@ -159,8 +159,8 @@ function setupApp() {
         },
 
         onRosterChanged: function() {
-            log("onRosterChanged()");
-            
+            trace("onRosterChanged()");
+
             mGCSSubscribers.map(function (client) {
                 trace(`send to ${client}`);
                 sendWSMessage(client, { event: "roster-changed", data: {} }, {

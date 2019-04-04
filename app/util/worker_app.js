@@ -71,7 +71,12 @@ const mWorkerListener = {
     }
 };
 
+const VERBOSE = false;
 function d(str) {
+    if(VERBOSE) console.log(`worker_app: ${str}`);
+}
+
+function e(str) {
     console.log(`worker_app: ${str}`);
 }
 
@@ -85,7 +90,7 @@ function loopCaller() {
             }
             
         } catch(ex) {
-            d(`Error running loop() in ${mWorkerId}: ${ex.message}`);
+            e(`Error running loop() in ${mWorkerId}: ${ex.message}`);
             clearTimeout(mLoopTimer);
         }
     }
@@ -211,7 +216,7 @@ function unload(msg) {
 function onMavlinkMessage(msg) {
     // d(`onMavlinkMessage(${msg.name})`);
 
-    if(mMavlinkNames.indexOf(msg.name) >= 0) {
+    if(mMavlinkNames.ind.Of(msg.name) >= 0) {
         if(mWorker && mWorker.onMavlinkMessage) {
             // d(`Call ${mWorkerId} with ${msg.name}`);
             mWorker.onMavlinkMessage(msg);
@@ -234,11 +239,11 @@ function onGCSMessage(msg) {
 function onWorkerRoster(msg) {
     mWorkerRoster = msg.roster;
 
-    if(mWorker && mWorker.onRosterChanged()) {
+    if(mWorker && mWorker.onRosterChanged) {
         try {
             mWorker.onRosterChanged();
         } catch(ex) {
-            d(ex.message);
+            e(ex.message);
         }
     }
 }
@@ -261,7 +266,7 @@ function onUnload(msg) {
         try {
             mWorker.onUnload();
         } catch(ex) {
-            d(`Error in onUnload(): ${ex.message}`);
+            e(`Error in onUnload(): ${ex.message}`);
         }
     }
 
@@ -347,7 +352,7 @@ function onImageRequest(msg) {
                 response.msg.image = Buffer.from(img, 'binary').toString('base64');
             }
         } catch(ex) {
-            d(`Exception getting image: ${ex.message}`);
+            e(`Exception getting image: ${ex.message}`);
         }
     }
 
@@ -378,7 +383,7 @@ function onFeatureRequest(msg) {
                 response.msg.features = features;
             }
         } catch(ex) {
-            d(ex.message);
+            e(ex.message);
         }
     }
 
@@ -395,7 +400,7 @@ function onBroadcastRequest(msg) {
                 const response = { id: "broadcast_response", msg: { request: msg, response: output } };
                 process.send(response);
             }
-        } catch(ex) { d(ex.message); }
+        } catch(ex) { e(ex.message); }
     }
 }
 
@@ -405,7 +410,7 @@ function onBroadcastResponse(msg) {
     if(mWorker && mWorker.onBroadcastResponse) {
         try {
             mWorker.onBroadcastResponse(msg);
-        } catch (ex) { d(ex.message); }
+        } catch (ex) { e(ex.message); }
     }
 }
 
