@@ -361,12 +361,23 @@ function onImageRequest(msg) {
 
 function onContentRequest(msg) {
     // msg.worker_id, msg.content_id, msg.msg_id
-    const response = { id: "content_response", msg: { worker_id: msg.worker_id, content_id: msg.content_id, msg_id: msg.msg_id }};
+    const response = { id: "content_response", msg: { 
+        worker_id: msg.worker_id, 
+        content_id: msg.content_id, 
+        msg_id: msg.msg_id,
+        mime_type: msg.mime_type,
+        filename: msg.filename
+    }};
 
     if(mWorker && mWorker.onContentDownload) {
-        const content = mWorker.onContentDownload(msg.msg_id, msg.content_id);
-        if(content) {
-            response.msg.content = Buffer.from(content, 'binary').toString('base64');
+        try {
+            const content = mWorker.onContentDownload(msg.msg_id, msg.content_id);
+            if (content) {
+                response.msg.content = Buffer.from(content, 'binary').toString('base64');
+            }
+        } catch(ex) {
+            e(ex.message);
+            response.msg.error = ex.message;
         }
     }
 

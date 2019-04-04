@@ -430,7 +430,7 @@ function setupWorkerCallbacks(child) {
 
     function onContentResponse(msg) {
         // msg: { worker_id: msg.worker_id, content_id: msg.content_id, msg_id: msg.msg_id, content: (base64) }
-        d(`contentResponse(${JSON.stringify(msg)})`);
+        d(`onContentResponse(${JSON.stringify(msg)})`);
 
         const req = mContentRequests[msg.worker_id][msg.content_id];
 
@@ -439,6 +439,14 @@ function setupWorkerCallbacks(child) {
                 if (req.res) {
                     const buf = Buffer.from(msg.content, 'base64');
                     if (buf) {
+                        if(msg.filename) {
+                            req.res.setHeader("Content-Disposition", "attachment; filename=" + msg.filename);
+                        }
+
+                        if(msg.mime_type) {
+                            req.res.setHeader("Content-Type", msg.mime_type);
+                        }
+
                         req.res.status(200).end(buf, "binary");
                     } else {
                         req.res.status(404).json({ message: `image for ${msg.worker_id}/${msg.content_id} not found` });
@@ -791,22 +799,32 @@ function imageDownload(req, res) {
     }
 }
 
-function handleWorkerDownload(body) {
+function handleWorkerDownload(body, req, res) {
     const workerId = body.worker_id; // Worker
     const msgId = body.msg_id; // Action message
     const contentId = body.content_id; // Content to download
+    const mimeType = body.mime_type;
+    const filename = body.filename;
 
     const worker = findWorkerById(workerId);
 
     if(worker) {
         if(worker.enabled) {
-            if(worker.chlid) {
+            if(worker.child) {
                 if(!mContentRequests[workerId]) {
                     mContentRequests[workerId] = {};
                 }
 
                 mContentRequests[workerId][contentId] = { res: res };
-                worker.child.send({id: "content_request", msg: { worker_id: workerId, content_id: contentId, msg_id: msgId }});
+                d("send content_request");
+
+                worker.child.send({id: "content_request", msg: { 
+                    worker_id: workerId, 
+                    content_id: contentId, 
+                    msg_id: msgId,
+                    mime_type: mimeType,
+                    filename: filename
+                }});
             } else {
                 res.status(500).json({message: `Worker ${workerId} has no child process`});
             }

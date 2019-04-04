@@ -55,23 +55,23 @@ function workerDownload(req, res) {
     const body = req.body;
 
     if(body) {
-        const resultBuf = dispatch.handleWorkerDownload(body);
-        if(resultBuf) {
-            const mimeType = body.mime_type; // File MIME type
-            const filename = body.filename; // Filename output is stored in
+        dispatch.handleWorkerDownload(body, req, res);
+        // if(resultBuf) {
+        //     const mimeType = body.mime_type; // File MIME type
+        //     const filename = body.filename; // Filename output is stored in
 
-            if(filename) {
-                res.setHeader("Content-Disposition", "attachment; filename=" + filename);
-            }
+        //     if(filename) {
+        //         res.setHeader("Content-Disposition", "attachment; filename=" + filename);
+        //     }
 
-            if(mimeType) {
-                res.setHeader("Content-Type", mimeType);
-            }
+        //     if(mimeType) {
+        //         res.setHeader("Content-Type", mimeType);
+        //     }
 
-            res.send(new Buffer(resultBuf, 'binary'));
-        } else {
-            res.status(404).json({message: `No content with ${body.content_id} found for ${body.worker_id}`});
-        }
+        //     res.send(new Buffer(resultBuf, 'binary'));
+        // } else {
+        //     res.status(404).json({message: `No content with ${body.content_id} found for ${body.worker_id}`});
+        // }
     } else {
         res.status(422).json({ message: "No message body" });
     }
