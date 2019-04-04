@@ -254,7 +254,15 @@ function onConfig(msg) {
 
 function onReload(msg) {
     d(`onReload()`);
-    // TODO: Reload the worker
+
+    // Unload the worker
+    if(mWorker) {
+        if(mWorker.onUnload) {
+            try { mWorker.onUnload(); } catch(ex) { e(ex.message); }
+        }
+
+        
+    }
 }
 
 function onUnload(msg) {
