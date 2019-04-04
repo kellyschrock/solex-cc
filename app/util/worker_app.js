@@ -71,7 +71,7 @@ const mWorkerListener = {
     }
 };
 
-const VERBOSE = false;
+const VERBOSE = true;
 function d(str) {
     if(VERBOSE) console.log(`worker_app: ${str}`);
 }
@@ -134,14 +134,7 @@ function loadWorker(msg) {
             workerEnabled = enabledStates[workerId];
         }
 
-        attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
-        attrs.sendGCSMessage = mWorkerListener.sendGCSMessage;
-        attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
-        attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
-        attrs.subscribeMavlinkMessages = mWorkerListener.subscribeMavlinkMessages;
-        attrs.log = mWorkerListener.workerLog;
-        attrs.sendBroadcastRequest = mWorkerListener.sendBroadcastRequest;
-        attrs.sendWorkerMessage = mWorkerListener.sendWorkerMessage;
+        attachFunctionsTo(attrs);
 
         attrs.api = {
             // unconditional loads here
@@ -207,6 +200,17 @@ function loadWorker(msg) {
     }
 }
 
+function attachFunctionsTo(attrs) {
+    attrs.sendMavlinkMessage = mWorkerListener.onMavlinkMessage;
+    attrs.sendGCSMessage = mWorkerListener.sendGCSMessage;
+    attrs.broadcastMessage = mWorkerListener.onBroadcastMessage;
+    attrs.getWorkerRoster = mWorkerListener.getWorkerRoster;
+    attrs.subscribeMavlinkMessages = mWorkerListener.subscribeMavlinkMessages;
+    attrs.log = mWorkerListener.workerLog;
+    attrs.sendBroadcastRequest = mWorkerListener.sendBroadcastRequest;
+    attrs.sendWorkerMessage = mWorkerListener.sendWorkerMessage;
+}
+
 // Unload: Called just before shutting this process down.
 function unload(msg) {
     d(`unload(): msg=${JSON.stringify(msg)}`);
@@ -255,13 +259,28 @@ function onConfig(msg) {
 function onReload(msg) {
     d(`onReload()`);
 
-    // Unload the worker
-    if(mWorker) {
+    if(mWorker && mWorkerFile) {
+        d("unload");
         if(mWorker.onUnload) {
             try { mWorker.onUnload(); } catch(ex) { e(ex.message); }
         }
 
-        
+        d("un-cache");
+        delete require.cache[require.resolve(mWorkerFile)];
+
+        d("load");
+        const worker = require(mWorkerFile);
+        const attrs = worker.getAttributes();
+        attachFunctionsTo(attrs);
+
+        if(worker.onLoad) {
+            try {
+                worker.onLoad();
+                mWorker = worker;                
+            } catch(ex) {
+                e(ex.message);
+            }
+        }
     }
 }
 
