@@ -75,9 +75,16 @@ const mConnectionCallback = {
 };
 
 function log(s) { logger.v(path.basename(__filename, ".js"), s); }
-function d(s) { log(s); }
+function d(s) { if(VERBOSE) log(s); }
 function v(str) { if (VERBOSE) log(str); }
 function trace(s) { if (global.TRACE) { logger.v(__filename + "(trace)", s); } }
+
+function e(s, err) { 
+    log(s);
+    if(err) {
+        log(err.stack);
+    } 
+}
 
 function findFiles(dir, filter) {
     var out = [];
@@ -142,7 +149,7 @@ function stop() {
     try {
         udpclient.disconnect(mConnectionCallback);
     } catch(ex) {
-        log("Error closing UDP: " + ex.message);
+        e("Closing UDP", ex);
     }
 }
 
@@ -223,7 +230,7 @@ function setupWorkerCallbacks(child) {
     function onWorkerLoaded(msg) {
         // msg.pid, msg.worker_id, msg.file
         // log(`workerLoaded(): ${JSON.stringify(msg)}`);
-        log(`workerLoaded(): ${msg.worker_id}`);
+        d(`workerLoaded(): ${msg.worker_id}`);
 
         if(mWorkers && msg.pid) {
             const val = mWorkers[msg.pid];
@@ -469,7 +476,7 @@ function setupWorkerCallbacks(child) {
 
     // Aborted loading a worker. msg.file is the file that wasn't loaded.
     function onWorkerLoadAbort(msg) {
-        log(`onWorkerLoadAbort(): ${JSON.stringify(msg)}`);
+        d(`onWorkerLoadAbort(): ${JSON.stringify(msg)}`);
         // log(`Failed to load worker in ${msg.file}: ${msg.msg}`);
         mWorkerLoadErrors.push({ path: msg.file, error: msg.msg, detail: msg.stack });
     }
@@ -498,7 +505,7 @@ function setupWorkerCallbacks(child) {
                 try {
                     udpclient.sendMessage(packet);
                 } catch (ex) {
-                    d(`Error sending mavlink message from worker: ${ex.message}`);
+                    e("Sending mavlink message from worker", ex);
                 }
             } else {
                 d("UDP client is not connected");
@@ -555,7 +562,7 @@ function setupWorkerCallbacks(child) {
                             try {
                                 listener.onMonitorMessage(workerId, { input: msg.request, output: msg.response });
                             } catch(ex) {
-                                d(`Error sending monitor message for ${workerId}: ${ex.message}`);
+                                e(`Error sending monitor message for ${workerId}: ${ex.message}`);
                             }
                         });
                     }
@@ -591,7 +598,7 @@ function setupWorkerCallbacks(child) {
         if(func) {
             func(msg.msg);
         } else {
-            log(`No mapping for child message ${msg.id}`);
+            d(`No mapping for child message ${msg.id}`);
         }
     });
 
@@ -612,11 +619,11 @@ function setupWorkerCallbacks(child) {
 
 function loadWorkerRoot(basedir) {
     if(!basedir) {
-        log("No basedir, not reloading");
+        d("No basedir, not reloading");
         return;
     }
 
-    log("Loading workers from " + basedir);
+    d("Loading workers from " + basedir);
 
     const files = findFiles(basedir, "worker.js");
 
@@ -632,11 +639,11 @@ function loadWorkerRoot(basedir) {
             jo.path = path.dirname(manifest);
             packages.push({ file: manifest, parent_package: jo });
         } catch(ex) {
-            log(`Error parsing manifest: ${ex.message}`);
+            e("Parsing manifest", ex);
         }
     });
 
-    log(`manifests=${manifests}`);
+    d(`manifests=${manifests}`);
 
     for(let i = 0, size = files.length; i < size; ++i) {
         try {
@@ -665,7 +672,7 @@ function loadWorkerRoot(basedir) {
             }, 100 * i);
 
         } catch(ex) {
-            log("Error loading worker at " + files[i] + ": " + ex.message);
+            e(`Loading worker at ${files[i]}`, ex);
 
             if(!mWorkerLoadErrors) {
                 mWorkerLoadErrors = [];
@@ -849,7 +856,7 @@ function monitorWorker(workerId, monitor) {
 }
 
 function handleGCSMessage(workerId, msg, callback) {
-    log("handleGCSMessage(): workerId=" + workerId);
+    d("handleGCSMessage(): workerId=" + workerId);
 
     const worker = findWorkerById(workerId);
     if(worker && worker.child) {
@@ -950,7 +957,7 @@ function installWorker(srcPath, target, callback) {
         const child = child_process.spawn(path.join(global.BIN_DIR, "install_worker.sh"), [srcPath, target]);
         var consoleOutput = "";
         const output = function (data) {
-            log(data.toString());
+            d(data.toString());
             consoleOutput += data.toString();
         }
 
@@ -958,7 +965,7 @@ function installWorker(srcPath, target, callback) {
         child.stderr.on("data", output);
 
         child.on("close", function (rc) {
-            log("script exited with return code " + rc);
+            d("script exited with return code " + rc);
             if (rc != 0) {
                 callback.onError("Failed to install worker with exit code " + rc, consoleOutput.trim());
             } else {
@@ -1030,7 +1037,7 @@ function removePackage(packageId, callback) {
             try {
                 removeWorker(worker.attributes.id, callback);
             } catch(ex) {
-                log(`Error unloading worker ${worker.id}: ${ex.message}`);
+                e(`Error unloading worker ${worker.id}: ${ex.message}`);
             }
         }
     });
@@ -1044,14 +1051,14 @@ function removePackage(packageId, callback) {
             // Run $APP/bin/remove_worker.sh to remove the worker.
             const child = child_process.spawn(path.join(global.BIN_DIR, "remove_worker.sh"), [packagePath]);
             const output = function (data) {
-                log(data.toString());
+                d(data.toString());
             };
 
             child.stdout.on("data", output);
             child.stderr.on("data", output);
 
             child.on("close", function (rc) {
-                log("script exited with return code " + rc);
+                d("script exited with return code " + rc);
                 if (rc != 0) {
                     callback.onError("Failed to remove worker with exit code " + rc);
                 } else {
@@ -1140,13 +1147,13 @@ function saveWorkerEnabledStates() {
         try {
             fs.writeFileSync(getWorkerEnabledConfigFile(), JSON.stringify(enablements));
         } catch (ex) {
-            log(`Error saving enabled states: ${ex.message}`);
+            e(`Error saving enabled states: ${ex.message}`);
         }
     }
 }
 
 function loadWorkerEnabledStates() {
-    log(`loadWorkerEnabledStates()`);
+    d(`loadWorkerEnabledStates()`);
 
     const file = getWorkerEnabledConfigFile();
     fs.exists(file, function (exists) {
@@ -1155,7 +1162,7 @@ function loadWorkerEnabledStates() {
                 try {
                     mWorkerEnabledStates = JSON.parse(data.toString());
                 } catch(ex) {
-                    log(`Error loading enabled state: ${ex.message}`);
+                    e(`Error loading enabled state: ${ex.message}`);
                 }
             });
         }
@@ -1209,13 +1216,3 @@ function testReload() {
     start();
 }
 
-function test() {
-    // testRemoveWorker();
-    // testInstallWorker();
-    testReload();
-}
-
-if(process.mainModule === module) {
-    log("Running self test");
-    test();
-}

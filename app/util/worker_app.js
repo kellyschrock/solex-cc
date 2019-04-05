@@ -71,7 +71,7 @@ const mWorkerListener = {
     }
 };
 
-const VERBOSE = true;
+const VERBOSE = false;
 function d(str) {
     if(VERBOSE) console.log(`worker_app: ${str}`);
 }
