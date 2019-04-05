@@ -135,22 +135,8 @@ function loadWorker(msg) {
         }
 
         attachFunctionsTo(attrs);
-
-        attrs.api = {
-            // unconditional loads here
-            Mavlink: mavlink
-        };
-
-        for (let prop in mWorkerLibraries) {
-            attrs.api[prop] = mWorkerLibraries[prop].module;
-        }
-
-        if(mConfig) {
-            attrs.sysid = mConfig.sysid;
-            attrs.compid = mConfig.compid;
-        } else {
-            d(`No configuration`);
-        }
+        attachApisTo(attrs);
+        attachConfigTo(attrs);
 
         attrs.path = path.dirname(file);
 
@@ -209,6 +195,26 @@ function attachFunctionsTo(attrs) {
     attrs.log = mWorkerListener.workerLog;
     attrs.sendBroadcastRequest = mWorkerListener.sendBroadcastRequest;
     attrs.sendWorkerMessage = mWorkerListener.sendWorkerMessage;
+}
+
+function attachApisTo(attrs) {
+    attrs.api = {
+        // unconditional loads here
+        Mavlink: mavlink
+    };
+
+    for (let prop in mWorkerLibraries) {
+        attrs.api[prop] = mWorkerLibraries[prop].module;
+    }
+}
+
+function attachConfigTo(attrs) {
+    if (mConfig) {
+        attrs.sysid = mConfig.sysid;
+        attrs.compid = mConfig.compid;
+    } else {
+        d(`No configuration`);
+    }
 }
 
 // Unload: Called just before shutting this process down.
@@ -272,6 +278,8 @@ function onReload(msg) {
         const worker = require(mWorkerFile);
         const attrs = worker.getAttributes();
         attachFunctionsTo(attrs);
+        attachApisTo(attrs);
+        attachConfigTo(attrs);
 
         if(worker.onLoad) {
             try {
