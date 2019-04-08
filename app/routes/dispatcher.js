@@ -55,23 +55,7 @@ function workerDownload(req, res) {
     const body = req.body;
 
     if(body) {
-        const resultBuf = dispatch.handleWorkerDownload(body);
-        if(resultBuf) {
-            const mimeType = body.mime_type; // File MIME type
-            const filename = body.filename; // Filename output is stored in
-
-            if(filename) {
-                res.setHeader("Content-Disposition", "attachment; filename=" + filename);
-            }
-
-            if(mimeType) {
-                res.setHeader("Content-Type", mimeType);
-            }
-
-            res.send(new Buffer(resultBuf, 'binary'));
-        } else {
-            res.status(404).json({message: `No content with ${body.content_id} found for ${body.worker_id}`});
-        }
+        dispatch.handleWorkerDownload(body, req, res);
     } else {
         res.status(422).json({ message: "No message body" });
     }
@@ -79,20 +63,29 @@ function workerDownload(req, res) {
 
 function screenEnter(req, res) {
     const name = req.params.screen;
-    const output = dispatch.handleScreenEnter(name);
-    const result = output || {};
-
-    result.screen_id = name;
-    res.status(200).json(result);
+    dispatch.handleScreenEnter(name, function(err, output) {
+        if(err) {
+            return res.status(500).json({message: err.message});
+        }
+        
+        const result = output || {};
+        result.screen_id = name;
+        res.status(200).json(result);
+    });
 }
 
 function screenExit(req, res) {
     const name = req.params.screen;
-    const output = dispatch.handleScreenExit(name);
-    const result = output || {};
 
-    result.screen_id = name;
-    res.status(200).json(result);
+    dispatch.handleScreenExit(name, function(err, output) {
+        if(err) {
+            return res.status(500).json({message: err.message});
+        }
+
+        const result = output || {};
+        result.screen_id = name;
+        res.status(200).json(result);
+    });
 }
 
 function imageDownload(req, res) {
@@ -102,18 +95,25 @@ function imageDownload(req, res) {
 function workerMessage(req, res) {
     const body = req.body;
     if(body) {
-        const result = dispatch.handleGCSMessage(req.params.worker_id, body);
+        dispatch.handleGCSMessage(req.params.worker_id, body, function(err, result) {
+            if(err) {
+                return res.json({
+                    ok: false,
+                    message: err.message
+                });
+            }
 
-        if(result) {
-            if(!result.hasOwnProperty("ok")) result.ok = true;
-        }
+            if (result) {
+                if (!result.hasOwnProperty("ok")) result.ok = true;
+            }
 
-        res.status(200).json(result || { 
-            ok: true, 
-            message: "no response",
-            worker_id: req.params.worker_id,
-            source_id: body.id
-         });
+            res.status(200).json(result || {
+                ok: true,
+                message: "no response",
+                worker_id: req.params.worker_id,
+                source_id: body.id
+            });
+        });
     } else {
         res.status(422).json({message: "No message body"});
     }
@@ -250,13 +250,17 @@ function setLogWorkers(req, res) {
 }
 
 function getFeatures(req, res) {
-    const output = dispatch.gatherFeatures();
-    
-    if(output) {
-        res.status(200).json(output);
-    } else {
-        res.status(404).json({message: "no features at all!"});
-    }
+    dispatch.gatherFeatures(function(err, output) {
+        if(err) {
+            return res.status(500).json({message: err.message});
+        }
+
+        if (output) {
+            res.status(200).json(output);
+        } else {
+            res.status(404).json({ message: "no features at all!" });
+        }
+    });
 }
 
 function restartSystem(req, res) {
@@ -284,7 +288,11 @@ function removeGCSListener(listener) {
 }
 
 function handleGCSMessage(workerId, msg) {
-    dispatch.handleGCSMessage(workerId, msg);
+    dispatch.handleGCSMessage(workerId, msg, function(err, result) {
+        if(err) {
+            d(`Error in handleGCSMessage(): ${ex.message}`);
+        }
+    });
 }
 
 function setConfig(config) {
