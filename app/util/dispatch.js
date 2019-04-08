@@ -411,7 +411,7 @@ function setupWorkerCallbacks(child) {
     // Worker sent image data
     function onImageResponse(msg) {
         d(`imageResponse(): workerId=${msg.worker_id}`);
-        const req = mImageRequests[msg.worker_id][msg.name];
+        const req = (mImageRequests[msg.worker_id])? mImageRequests[msg.worker_id][msg.name]: null;
 
         if(req) {
             if(msg.image) {

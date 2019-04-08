@@ -376,6 +376,7 @@ function onScreenExit(msg) {
 }
 
 function onImageRequest(msg) {
+    d(`onImageRequest(${JSON.stringify(msg)})`);
     const name = msg.name;
 
     const response = { id: "image_response", msg: { worker_id: msg.worker_id, name: name }};
@@ -391,6 +392,7 @@ function onImageRequest(msg) {
         }
     }
 
+    d(`send response ${JSON.stringify(response)}`);
     process.send(response);
 }
 
