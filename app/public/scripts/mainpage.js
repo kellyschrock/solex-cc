@@ -262,5 +262,9 @@ $(document).ready(function() {
     $("#btn_logging").click(function(evt) {
         loadView("logging.html");
     });
+
+    $("#btn_updates").click(function(evt) {
+        loadView("updates.html");
+    });
 });
 
