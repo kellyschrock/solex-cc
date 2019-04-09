@@ -3,6 +3,7 @@
 const formidable = require("formidable");
 const fs = require("fs");
 const path = require("path");
+const child_process = require("child_process");
 
 const dispatch = require("../util/dispatch");
 
@@ -181,6 +182,78 @@ function installWorker(req, res) {
     }
 }
 
+function uploadSystemUpdate(req, res) {
+    const form = new formidable.IncomingForm();
+    form.parse(req, function (err, fields, upload) {
+        const file = (upload) ? upload.file : null;
+
+        if (file) {
+            function basename(name, ext) {
+                const pos = name.indexOf(ext);
+                return (pos > 0) ? name.substring(0, pos) : name;
+            }
+
+            const targetRoot = global.appRoot;
+
+            // const outputRoot = path.join(targetRoot, basename(file.name, ".zip"));
+
+            if (targetRoot) {
+                res.status(200).json({
+                    name: file.name,
+                    path: file.path,
+                    type: file.type,
+                    size: file.size
+                });
+            } else {
+                res.status(200).json({
+                    message: "Can't find the app root"
+                });
+            }
+        } else {
+            res.status(200).json({
+                message: "No file"
+            });
+        }
+    });
+}
+
+function installSystemUpdate(req, res) {
+    const filePath = req.body.path;
+
+    if (filePath) {
+        d(`path=${filePath}`);
+
+        if(!fs.existsSync(filePath)) {
+            return res.status(500).json({message: `Path ${filePath} not found`});
+        }
+
+        if(!global.BIN_DIR) {
+            return res.status(500).json({message: `BIN_DIR is not defined`});
+        }
+
+        const child = child_process.spawn(path.join(global.BIN_DIR, "install_update.sh"), [filePath, global.appRoot]);
+        let consoleOutput = "";
+        const output = function(data) {
+            d(data.toString());
+            consoleOutput += data.toString();
+        }
+
+        child.stdout.on("data", output);
+        child.stderr.on("data", output);
+
+        child.on("close", function(rc) {
+            d("script exited with return code " + rc);
+            if (rc != 0) {
+                res.status(200).json( { success: false, message: `Failed to install update with exit code ${rc}: ${consoleOutput.trim()}` } );
+            } else {
+                res.status(200).json({ success: true, message: "Updated. Reboot your vehicle." });
+            }
+        });
+    } else {
+        res.status(200).json({ message: "No update path specified." });
+    }
+}
+
 function enableWorker(req, res) {
     const workerId = req.params.worker_id;
     const enable = req.params.flag;
@@ -306,6 +379,8 @@ exports.reload = reload;
 exports.workerMessage = workerMessage;
 exports.workerDownload = workerDownload;
 exports.uploadWorker = uploadWorker;
+exports.uploadSystemUpdate = uploadSystemUpdate;
+exports.installSystemUpdate = installSystemUpdate;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
 exports.reloadWorker = reloadWorker;
