@@ -5,4 +5,5 @@ app/util/workers_enabled.json
 workers/**/node_modules/
 test/**/test.zip
 solexcc-deploy.zip
+update/versions
 

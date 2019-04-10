@@ -205,6 +205,8 @@ function setupApp() {
         app.get("/ui/image/:worker_id/:name", dispatcher.imageDownload);
 
         app.get("/sys/restart", dispatcher.restartSystem);
+        app.post("/sys/update/upload", dispatcher.uploadSystemUpdate);
+        app.post("/sys/update/install", dispatcher.installSystemUpdate);
 
         // Worker list
         app.get("/workers", dispatcher.getWorkers);
