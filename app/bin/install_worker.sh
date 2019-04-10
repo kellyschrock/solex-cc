@@ -2,8 +2,6 @@
 
 HERE=`pwd`
 
-# echo $0 Starting up in $HERE
-
 die() {
     echo $1
     exit 127
@@ -35,3 +33,4 @@ fi
 
 echo "Installed $path to $target"
 
+rm -f $path
