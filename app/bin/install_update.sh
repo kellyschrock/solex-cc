@@ -22,13 +22,23 @@ fi
 path=$1
 target=$2
 
-unzip -o $path -d $target > /dev/null 2>&1 || die "Cannot unzip ${path} to ${target}"
-ls $target/files.zip || die "Cannot find $target/files.zip"
-ls $target/install.sh || die "Cannot find $target/install.sh"
+tmp=/tmp/install_$(basename $path)
 
-rc=$($target/install.sh)
+unzip -o $path -d $tmp > /dev/null 2>&1 || die "Cannot unzip ${path} to ${tmp}"
+ls $tmp/files.zip > /dev/null 2>&1 || die "Cannot find $tmp/files.zip"
+ls $tmp/install.sh  > /dev/null 2>&1 || die "Cannot find $tmp/install.sh"
 
-rm $target/files.zip
-rm $target/install.sh
+echo Execute install script
+cd $tmp
+chmod +x $tmp/install.sh
+$tmp/install.sh $target
+rc=$?
+
+echo $tmp/install.sh returned $rc
+
+# clean up
+rm $path
+rm -rf $tmp
 
 exit $rc
+
