@@ -251,6 +251,10 @@ $(document).ready(function() {
 
     loadView("workers.html");
 
+    $.get("/sys/version", function(version) {
+        $("#txt_version").html(`v${version}`);
+    });
+
     $("#btn_workers").click(function(evt) {
         loadView("workers.html");
     });

@@ -204,6 +204,7 @@ function setupApp() {
         app.get("/ui/:screen/exit", dispatcher.screenExit);
         app.get("/ui/image/:worker_id/:name", dispatcher.imageDownload);
 
+        app.get("/sys/version", dispatcher.sysVersion);
         app.get("/sys/restart", dispatcher.restartSystem);
         app.post("/sys/update/upload", dispatcher.uploadSystemUpdate);
         app.post("/sys/update/install", dispatcher.installSystemUpdate);

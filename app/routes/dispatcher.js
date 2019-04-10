@@ -254,6 +254,17 @@ function installSystemUpdate(req, res) {
     }
 }
 
+function sysVersion(req, res) {
+    const versionFile = path.join(global.appRoot, "version");
+    
+    if(fs.existsSync(versionFile)) {
+        const content = fs.readFileSync(versionFile);
+        res.status(200).send(content.toString());
+    } else {
+        res.status(200).send("1.0 (I think)");
+    }
+}
+
 function enableWorker(req, res) {
     const workerId = req.params.worker_id;
     const enable = req.params.flag;
@@ -381,6 +392,7 @@ exports.workerDownload = workerDownload;
 exports.uploadWorker = uploadWorker;
 exports.uploadSystemUpdate = uploadSystemUpdate;
 exports.installSystemUpdate = installSystemUpdate;
+exports.sysVersion = sysVersion;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
 exports.reloadWorker = reloadWorker;
