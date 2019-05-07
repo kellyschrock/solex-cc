@@ -224,9 +224,9 @@ function unload(msg) {
 
 // Parent sent a mavlink message from input
 function onMavlinkMessage(msg) {
-    // d(`onMavlinkMessage(${msg.name})`);
+    d(`onMavlinkMessage(${msg.name})`);
 
-    if(mMavlinkNames.ind.Of(msg.name) >= 0) {
+    if(mMavlinkNames.indexOf(msg.name) >= 0) {
         if(mWorker && mWorker.onMavlinkMessage) {
             // d(`Call ${mWorkerId} with ${msg.name}`);
             mWorker.onMavlinkMessage(msg);
