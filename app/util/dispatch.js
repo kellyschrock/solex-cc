@@ -45,6 +45,8 @@ const mImageRequests = {};
 const mContentRequests = {};
 // Feature request
 const mFeatureRequest = {};
+// Active payload
+var mActivePayload = null;
 
 const mConnectionCallback = {
     onOpen: function (port) {
@@ -84,6 +86,24 @@ function e(s, err) {
     if(err) {
         log(err.stack);
     } 
+}
+
+const PAYLOAD_PING_INTERVAL = 10000;
+var mPayloadPing = null;
+
+function payloadPing() {
+    const workerId = (mActivePayload)? mActivePayload.worker_id: null;
+
+    if(workerId) {
+        log(`Ping ${workerId} for payload status`);
+
+        const worker = findWorkerById(workerId);
+        if(worker && worker.child) {
+            worker.child.send({ id: "on_payload_ping", msg: {
+                payload: mActivePayload.payload
+            } });
+        }
+    }
 }
 
 function findFiles(dir, filter) {
@@ -224,7 +244,9 @@ function setupWorkerCallbacks(child) {
         "content_response": onContentResponse,
         "feature_response": onFeatureResponse,
         "broadcast_request": onBroadcastRequest,
-        "broadcast_response": onBroadcastResponse
+        "broadcast_response": onBroadcastResponse,
+        "on_payload_start_response": onPayloadStartResponse,
+        "on_payload_ping_response": onPayloadPingResponse
     };
 
     // Finished loading a worker.
@@ -321,6 +343,55 @@ function setupWorkerCallbacks(child) {
             if (!worker.enabled) continue;
 
             worker.child.send({ id: "broadcast_response", msg: msg });
+        }
+    }
+
+    function onPayloadStartResponse(msg) {
+        d(`onPayloadStartResponse(${JSON.stringify(msg)})`);
+
+        if(mPayloadPing) {
+            clearTimeout(mPayloadPing);
+        }
+
+        mActivePayload = msg;
+
+        if(mActivePayload) {
+            sendWorkerMessageToGCS({
+                id: "payload_start",
+                payload: msg.payload
+            });
+
+            mPayloadPing = setTimeout(payloadPing, PAYLOAD_PING_INTERVAL);
+        } else if(mPayloadPing) {
+            clearTimeout(mPayloadPing);
+            mPayloadPing = null;
+        }
+    }
+
+    function onPayloadPingResponse(msg) {
+        const payload = msg.payload;
+
+        if(payload) {
+            if(msg.active) {
+                d(`Payload ${payload.payload_id} is active`);
+                mPayloadPing = setTimeout(payloadPing, PAYLOAD_PING_INTERVAL);
+            } else {
+                log("Payload didn't respond to ping. Might be unplugged");
+
+                // Payload hasn't responded to ping. Might have been turned off or unplugged.
+                // Send a GCS notification that the payload has departed.
+                sendWorkerMessageToGCS({
+                    id: "payload_stop",
+                    payload: mActivePayload.payload
+                });
+
+                mActivePayload = null;
+
+                if(mPayloadPing) {
+                    clearTimeout(mPayloadPing);
+                    mPayloadPing = null;
+                }
+            }
         }
     }
 
@@ -1183,6 +1254,23 @@ function findWorkerById(workerId) {
     return null;
 }
 
+function onPayloadStart(payload) {
+    log(`onPayloadStart(): payload=${JSON.stringify(payload)}`);
+
+    for (let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if (!worker) continue;
+        if (!worker.child) continue;
+        if (!worker.enabled) continue;
+
+        worker.child.send({ id: "on_payload_start", msg: payload });
+    }
+}
+
+function getActivePayload() {
+    return mActivePayload;
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.running = running;
@@ -1207,6 +1295,8 @@ exports.enablePackage = enablePackage;
 exports.gatherFeatures = gatherFeatures;
 exports.getLogWorkers = getLogWorkers;
 exports.setLogWorkers = setLogWorkers;
+exports.onPayloadStart = onPayloadStart;
+exports.getActivePayload = getActivePayload;
 
 function testReload() {
     mConfig.workerRoots = [

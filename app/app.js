@@ -225,6 +225,10 @@ function setupApp() {
         // Features endpoint
         app.get("/features", dispatcher.getFeatures);
 
+        // Payload support
+        app.post("/payload/start", dispatcher.onPayloadStart);
+        app.get("/payload/check", dispatcher.onPayloadCheck);
+
         // Trace
         app.get("/trace/:on_or_off", function (req, res, next) {
             global.TRACE = (req.params.on_or_off === "on");
