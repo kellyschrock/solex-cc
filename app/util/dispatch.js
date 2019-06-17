@@ -246,7 +246,8 @@ function setupWorkerCallbacks(child) {
         "broadcast_request": onBroadcastRequest,
         "broadcast_response": onBroadcastResponse,
         "on_payload_start_response": onPayloadStartResponse,
-        "on_payload_ping_response": onPayloadPingResponse
+        "on_payload_ping_response": onPayloadPingResponse,
+        "on_payload_stop_response": onPayloadStopResponse
     };
 
     // Finished loading a worker.
@@ -393,6 +394,10 @@ function setupWorkerCallbacks(child) {
                 }
             }
         }
+    }
+
+    function onPayloadStopResponse(msg) {
+        log(`Got stop response from ${msg.worker_id} for payload ${msg.payload.payload_id}`);
     }
 
     // Handle screen-enter responses from workers
@@ -1267,6 +1272,28 @@ function onPayloadStart(payload) {
     }
 }
 
+/** Remove the active payload (if any) and stop pinging */
+function onPayloadStop() {
+    const active = (mActivePayload != null);
+
+    if(mActivePayload) {
+        const worker = findWorkerById(mActivePayload.worker_id);
+        
+        if(worker && worker.child) {
+            worker.child.send({ id: "on_payload_stop", msg: mActivePayload });
+        }
+
+        mActivePayload = null;
+
+        if(mPayloadPing) {
+            clearTimeout(mPayloadPing);
+            mPayloadPing = null;
+        }
+    }
+
+    return active;
+}
+
 function getActivePayload() {
     return mActivePayload;
 }
@@ -1297,6 +1324,7 @@ exports.getLogWorkers = getLogWorkers;
 exports.setLogWorkers = setLogWorkers;
 exports.onPayloadStart = onPayloadStart;
 exports.getActivePayload = getActivePayload;
+exports.onPayloadStop = onPayloadStop;
 
 function testReload() {
     mConfig.workerRoots = [

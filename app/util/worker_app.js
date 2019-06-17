@@ -522,6 +522,35 @@ function onPayloadPingRequest(msg) {
     }
 }
 
+function onPayloadStopRequest(msg) {
+    log(`onPayloadStopRequest(${JSON.stringify(msg)})`);
+
+    if (mWorker) {
+        const attrs = mWorker.getAttributes();
+        const workerId = mWorker.getAttributes().id;
+        const payload = msg.payload;
+
+        // If ours is the worker that deals with the specified payload
+        log(`Stop ${workerId}/${payload.payload_id}`);
+
+        if (attrs.payload_id === payload.payload_id) {
+            if (mWorker.onPayloadStop) {
+                try {
+                    mWorker.onPayloadStop();
+
+                    process.send({
+                        id: "on_payload_stop_response",
+                        msg: {
+                            worker_id: workerId,
+                            payload: payload
+                        }
+                    });
+                } catch (ex) { e(ex.message); }
+            }
+        }
+    }
+}
+
 function onWorkerEnable(msg) {
     d(`onWorkerEnable(${JSON.stringify(msg)})`);
 
@@ -557,7 +586,8 @@ const mFunctionMap = {
     "broadcast_response": onBroadcastResponse,
     "worker_enable": onWorkerEnable,
     "on_payload_start": onPayloadStart,
-    "on_payload_ping": onPayloadPingRequest
+    "on_payload_ping": onPayloadPingRequest,
+    "on_payload_stop": onPayloadStopRequest
 };
 
 // Incoming messages from the parent process

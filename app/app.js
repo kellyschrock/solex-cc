@@ -228,6 +228,7 @@ function setupApp() {
         // Payload support
         app.post("/payload/start", dispatcher.onPayloadStart);
         app.get("/payload/check", dispatcher.onPayloadCheck);
+        app.get("/payload/stop", dispatcher.onPayloadStop);
 
         // Trace
         app.get("/trace/:on_or_off", function (req, res, next) {
