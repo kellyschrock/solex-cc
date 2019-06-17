@@ -1278,7 +1278,7 @@ function onPayloadStop() {
 
     if(mActivePayload) {
         const worker = findWorkerById(mActivePayload.worker_id);
-        
+
         if(worker && worker.child) {
             worker.child.send({ id: "on_payload_stop", msg: mActivePayload });
         }
