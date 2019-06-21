@@ -383,6 +383,22 @@ function setConfig(config) {
     dispatch.setConfig(config);
 }
 
+function onPayloadStart(req, res) {
+    dispatch.onPayloadStart(req.body);
+    res.json({ok: true});
+}
+
+function onPayloadCheck(req, res) {
+    const payload = dispatch.getActivePayload();
+
+    res.json({ payload: payload });
+}
+
+function onPayloadStop(req, res) {
+    const active = dispatch.onPayloadStop();
+    res.json({ was_active: active });
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.running = running;
@@ -415,6 +431,9 @@ exports.monitorWorker = monitorWorker;
 exports.setConfig = setConfig;
 exports.restartSystem = restartSystem;
 exports.getFeatures = getFeatures;
+exports.onPayloadStart = onPayloadStart;
+exports.onPayloadCheck = onPayloadCheck;
+exports.onPayloadStop = onPayloadStop;
 
 function getFirstWorkerRoot() {
     const cfg = (global.workerConfig) ? global.workerConfig.dispatcher : null;

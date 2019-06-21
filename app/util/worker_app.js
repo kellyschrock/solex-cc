@@ -76,6 +76,10 @@ function d(str) {
     if(VERBOSE) console.log(`worker_app: ${str}`);
 }
 
+function log(str) {
+    console.log(`worker_app: ${str}`);
+}
+
 function e(str) {
     console.log(`worker_app: ${str}`);
 }
@@ -224,9 +228,9 @@ function unload(msg) {
 
 // Parent sent a mavlink message from input
 function onMavlinkMessage(msg) {
-    // d(`onMavlinkMessage(${msg.name})`);
+    d(`onMavlinkMessage(${msg.name})`);
 
-    if(mMavlinkNames.ind.Of(msg.name) >= 0) {
+    if(mMavlinkNames.indexOf(msg.name) >= 0) {
         if(mWorker && mWorker.onMavlinkMessage) {
             // d(`Call ${mWorkerId} with ${msg.name}`);
             mWorker.onMavlinkMessage(msg);
@@ -462,6 +466,91 @@ function onBroadcastResponse(msg) {
     }
 }
 
+// See if our worker is interested in a payload.
+function onPayloadStart(payload) {
+    d(`onPayloadStart(${JSON.stringify(payload)})`);
+
+    if (mWorker && mWorker.onPayloadStart) {
+        try {
+            if (mWorker.onPayloadStart(payload)) {
+                const workerId = mWorker.getAttributes().id;
+
+                d(`Worker ${workerId} likes this payload`);
+                process.send({
+                    id: "on_payload_start_response",
+                    msg: {
+                        worker_id: workerId,
+                        payload: payload
+                    }
+                });
+            }
+        } catch (ex) { e(ex.message); }
+    }
+}
+
+/** Dispatch wants to know if the payload is alive */
+function onPayloadPingRequest(msg) {
+    d(`onPayloadPingRequest()`);
+
+    if(mWorker) {
+        const attrs = mWorker.getAttributes();
+        const workerId = mWorker.getAttributes().id;
+        const payload = msg.payload;
+
+        d(`payload=${JSON.stringify(payload)}, attrs.payload_id=${attrs.payload_id}`);
+
+        // If ours is the worker that deals with the specified payload
+        d(`Ping ${workerId} for ${payload.payload_id} status`);
+
+        if(attrs.payload_id === payload.payload_id) {
+            if (mWorker.onPayloadPing) {
+                try {
+                    const result = mWorker.onPayloadPing(payload);
+
+                    d(`Worker ${workerId} payload active? ${result}`);
+                    process.send({
+                        id: "on_payload_ping_response",
+                        msg: {
+                            active: result,
+                            worker_id: workerId,
+                            payload: payload
+                        }
+                    });
+                } catch (ex) { e(ex.message); }
+            }
+        }
+    }
+}
+
+function onPayloadStopRequest(msg) {
+    log(`onPayloadStopRequest(${JSON.stringify(msg)})`);
+
+    if (mWorker) {
+        const attrs = mWorker.getAttributes();
+        const workerId = mWorker.getAttributes().id;
+        const payload = msg.payload;
+
+        // If ours is the worker that deals with the specified payload
+        log(`Stop ${workerId}/${payload.payload_id}`);
+
+        if (attrs.payload_id === payload.payload_id) {
+            if (mWorker.onPayloadStop) {
+                try {
+                    mWorker.onPayloadStop();
+
+                    process.send({
+                        id: "on_payload_stop_response",
+                        msg: {
+                            worker_id: workerId,
+                            payload: payload
+                        }
+                    });
+                } catch (ex) { e(ex.message); }
+            }
+        }
+    }
+}
+
 function onWorkerEnable(msg) {
     d(`onWorkerEnable(${JSON.stringify(msg)})`);
 
@@ -495,7 +584,10 @@ const mFunctionMap = {
     "feature_request": onFeatureRequest,
     "broadcast_request": onBroadcastRequest,
     "broadcast_response": onBroadcastResponse,
-    "worker_enable": onWorkerEnable
+    "worker_enable": onWorkerEnable,
+    "on_payload_start": onPayloadStart,
+    "on_payload_ping": onPayloadPingRequest,
+    "on_payload_stop": onPayloadStopRequest
 };
 
 // Incoming messages from the parent process
