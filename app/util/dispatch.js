@@ -379,6 +379,12 @@ function setupWorkerCallbacks(child) {
             } else {
                 log("Payload didn't respond to ping. Might be unplugged");
 
+                // Tell the worker to stop pinging the payload if it's doing that.
+                const worker = findWorkerById(mActivePayload.worker_id);
+                if (worker && worker.child) {
+                    worker.child.send({ id: "on_payload_stop", msg: mActivePayload });
+                }
+
                 // Payload hasn't responded to ping. Might have been turned off or unplugged.
                 // Send a GCS notification that the payload has departed.
                 sendWorkerMessageToGCS({
