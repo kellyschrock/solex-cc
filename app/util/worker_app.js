@@ -253,13 +253,18 @@ function onGCSMessage(msg) {
 function onWorkerRoster(msg) {
     mWorkerRoster = msg.roster;
 
+    let handlesOnRosterChanged = false;
+
     if(mWorker && mWorker.onRosterChanged) {
         try {
             mWorker.onRosterChanged();
+            handlesOnRosterChanged = true;
         } catch(ex) {
             e(ex.message);
         }
     }
+
+    process.send({ id: "on_worker_roster_response", msg: { worker_id: mWorkerId, handles_roster_change: handlesOnRosterChanged }});
 }
 
 function onConfig(msg) {

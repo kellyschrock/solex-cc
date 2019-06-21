@@ -247,7 +247,8 @@ function setupWorkerCallbacks(child) {
         "broadcast_response": onBroadcastResponse,
         "on_payload_start_response": onPayloadStartResponse,
         "on_payload_ping_response": onPayloadPingResponse,
-        "on_payload_stop_response": onPayloadStopResponse
+        "on_payload_stop_response": onPayloadStopResponse,
+        "on_worker_roster_response": onWorkerRosterResponse
     };
 
     // Finished loading a worker.
@@ -403,7 +404,12 @@ function setupWorkerCallbacks(child) {
     }
 
     function onPayloadStopResponse(msg) {
+        // No action to take here, really. We asked the payload to stop, and it did.
         log(`Got stop response from ${msg.worker_id} for payload ${msg.payload.payload_id}`);
+    }
+
+    function onWorkerRosterResponse(msg) {
+        d(`onWorkerRosterResponse(): ${JSON.stringify(msg)}`);
     }
 
     // Handle screen-enter responses from workers
@@ -1197,19 +1203,25 @@ function notifyRosterChanged() {
         workerIds.push(worker.attributes);
     }
 
+    let count = 0;
     for(let pid in mWorkers) {
         const worker = mWorkers[pid];
         if(!worker) continue;
         if(!worker.child) continue;
 
         worker.child.send({id: "worker_roster", msg: { roster: workerIds}});
+        ++count;
     }
+
+    log(`Sent worker_roster to ${count} workers`);
 
     mGCSMessageListeners.map(function (listener) {
         if (listener.onRosterChanged) {
             listener.onRosterChanged();
         }
     });
+
+    return count;
 }
 
 function getWorkerEnabledConfigFile() {
@@ -1304,6 +1316,12 @@ function getActivePayload() {
     return mActivePayload;
 }
 
+function pingWorkerRoster() {
+    const count = notifyRosterChanged();
+
+    return { ping_count: count };
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.running = running;
@@ -1331,6 +1349,7 @@ exports.setLogWorkers = setLogWorkers;
 exports.onPayloadStart = onPayloadStart;
 exports.getActivePayload = getActivePayload;
 exports.onPayloadStop = onPayloadStop;
+exports.pingWorkerRoster = pingWorkerRoster;
 
 function testReload() {
     mConfig.workerRoots = [

@@ -213,6 +213,7 @@ function setupApp() {
         app.get("/workers", dispatcher.getWorkers);
         app.post("/worker/upload", dispatcher.uploadWorker);
         app.post("/worker/install", dispatcher.installWorker);
+        app.get("/worker/roster", dispatcher.pingWorkerRoster);
         app.get("/worker/reload/:worker_id", dispatcher.reloadWorker);
         app.get("/worker/details/:worker_id", dispatcher.getWorkerDetails);
         app.get("/worker/monitor/:worker_id/:monitor", dispatcher.monitorWorker);

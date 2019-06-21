@@ -182,6 +182,12 @@ function installWorker(req, res) {
     }
 }
 
+function pingWorkerRoster(req, res) {
+    const result = dispatch.pingWorkerRoster();
+
+    res.json(result);
+}
+
 function uploadSystemUpdate(req, res) {
     const form = new formidable.IncomingForm();
     form.parse(req, function (err, fields, upload) {
@@ -434,6 +440,7 @@ exports.getFeatures = getFeatures;
 exports.onPayloadStart = onPayloadStart;
 exports.onPayloadCheck = onPayloadCheck;
 exports.onPayloadStop = onPayloadStop;
+exports.pingWorkerRoster = pingWorkerRoster;
 
 function getFirstWorkerRoot() {
     const cfg = (global.workerConfig) ? global.workerConfig.dispatcher : null;
