@@ -306,14 +306,18 @@ function onUnload(msg) {
 
     if(mLoopTimer) clearTimeout(mLoopTimer);
 
+    let workerId = "unknown";
+
     if(mWorker && mWorker.onUnload) {
         try {
+            workerId = mWorker.getAttributes().id;
             mWorker.onUnload();
         } catch(ex) {
             e(`Error in onUnload(): ${ex.message}`);
         }
     }
 
+    log(`Shutting ${workerId} down`);
     process.exit(0);
 }
 
@@ -573,7 +577,6 @@ function onWorkerEnable(msg) {
 // Messages sent by the parent process
 const mFunctionMap = {
     "load_worker": loadWorker,
-    "unload": unload,
     "mavlink_msg": onMavlinkMessage,
     "gcs_msg": onGCSMessage,
     "worker_roster": onWorkerRoster,

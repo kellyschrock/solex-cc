@@ -335,7 +335,9 @@ function WorkersPage() {
         reloadButton.click(function() {
             $.get("/dispatch/reload", function() {
                 console.log("reloaded");
-                loadWorkers();
+                setTimeout(() => {
+                    loadWorkers();
+                }, 3000);
             });
         });
 

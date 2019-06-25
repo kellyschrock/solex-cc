@@ -4,5 +4,5 @@
  */
 
 exports.index = function(req, res) {
-  res.render('index', { title: 'Base Station' });
+  res.render('index', { title: 'SolexCC' });
 };
