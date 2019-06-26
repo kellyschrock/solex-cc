@@ -358,6 +358,9 @@ function setupWorkerCallbacks(child) {
         mActivePayload = msg;
 
         if(mActivePayload) {
+            // Notify that we need to update features.
+            notifyRosterChanged();
+
             sendWorkerMessageToGCS({
                 id: "payload_start",
                 payload: msg.payload
