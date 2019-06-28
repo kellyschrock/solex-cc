@@ -82,7 +82,8 @@ function v(str) { if (VERBOSE) log(str); }
 function trace(s) { if (global.TRACE) { logger.v(__filename + "(trace)", s); } }
 
 function e(s, err) { 
-    log(s);
+    log(`${s}: ${err.message}`);
+
     if(err) {
         log(err.stack);
     } 
@@ -146,7 +147,7 @@ function findFiles(dir, filter) {
 function onReceivedMavlinkMessage(msg) {
     // trace("onReceivedMavlinkMessage(): msg=" + msg);
     // d(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
-    d(`onReceivedMavlinkMessage(${msg.name})`);
+    // d(`onReceivedMavlinkMessage(${msg.name})`);
 
     for(let pid in mWorkers) {
         const worker = mWorkers[pid];
@@ -225,6 +226,31 @@ function reload() {
     }
 
     v(mWorkers);
+}
+
+function mavlinkMessageFor(msg) {
+    d(`mavlinkMessageFor(): ${JSON.stringify(msg)}`);
+
+    if(!msg.name) return null;
+
+    const lc = msg.name.toLowerCase();
+    const ctor = mavlink.messages[lc];
+
+    if(!ctor) return null;
+
+    d(`ctor: ${ctor}`);
+
+    const args = [];
+    msg.fieldnames.map(function(field) {
+        args.push(msg[field]);
+    });
+
+    d(`args=${JSON.stringify(args)}`);
+
+    const output = Reflect.construct(ctor, args);
+    d(`output=${JSON.stringify(output)}`);
+
+    return output;
 }
 
 function setupWorkerCallbacks(child) {
@@ -592,10 +618,15 @@ function setupWorkerCallbacks(child) {
         // msg.worker_id, msg.mavlinkMessage
         if (msg.mavlinkMessage) {
             if (udpclient.isConnected()) {
-                const packet = Buffer.from(msg.mavlinkMessage.pack(mMavlink));
-
                 try {
-                    udpclient.sendMessage(packet);
+                    const mav = mavlinkMessageFor(msg.mavlinkMessage);
+
+                    if(mav) {
+                        const packet = Buffer.from(mav.pack(mMavlink));
+                        udpclient.sendMessage(packet);
+                    } else {
+                        log(`No mavlink message found for ${msg.mavlinkMessage.name}`);
+                    }
                 } catch (ex) {
                     e("Sending mavlink message from worker", ex);
                 }
