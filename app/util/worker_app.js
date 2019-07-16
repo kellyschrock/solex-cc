@@ -186,7 +186,7 @@ function loadWorker(msg) {
             }
         }
     } catch (ex) {
-        loadAbort(100, `Error loading worker at ${file}: ${ex.message}`);
+        loadAbort(100, { file: file, msg: `${workerId} onLoad(): ${ex.message}`, stack: ex.stack });
     }
 }
 

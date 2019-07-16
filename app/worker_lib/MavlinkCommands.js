@@ -30,6 +30,23 @@ function sendSetROI(sysid, compid, lat, lng, alt, callback) {
     callback(msg);
 }
 
+function sendClearROI(sysid, compid, callback) {
+    const msg = new mavlink.messages.command_long(
+        sysid, compid,
+        mavlink.MAV_CMD_DO_SET_ROI,
+        0, // confirmation,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+    );
+
+    callback(msg);
+}
+
 function changeMissionSpeed(sysid, compid, speed, callback) {
     const msg = new mavlink.messages.command_long(
         sysid, compid, 
@@ -74,7 +91,7 @@ function sendGuidedPosition(sysid, compid, lat, lng, alt, callback) {
         sysid,
         compid,
         mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, // coordinate_frame
-        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE | MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE, // type_mask
+        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE | MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE | MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE, // type_mask
         (lat * 1E7), // lat_int
         (lng * 1E7), // lon_int
         alt,
@@ -86,6 +103,40 @@ function sendGuidedPosition(sysid, compid, lat, lng, alt, callback) {
         0, // afz
         0, // yaw
         0  // yaw_rate
+    );
+
+    callback(msg);
+}
+
+function sendGuidedPosInfo(sysid, compid, pos, callback) {
+    let flags = MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE;
+
+    if(pos.yaw == null) {
+        flags |= MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
+    }
+
+    const speed = post.speed || 0;
+    if(pos.speed == null) {
+        flags |= MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE;
+    }
+
+    const msg = new mavlink.messages.set_position_target_global_int(
+        0, // time_boot_ms
+        sysid,
+        compid,
+        mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, // coordinate_frame
+        flags, // type_mask
+        (lat * 1E7), // lat_int
+        (lng * 1E7), // lon_int
+        alt,
+        speed, // vx
+        speed, // vy
+        0, // vz
+        0, // afx
+        0, // afy
+        0, // afz
+        pos.yaw || 0, // yaw
+        pos.yaw_rate || 0  // yaw_rate
     );
 
     callback(msg);
@@ -175,10 +226,14 @@ function sendGuidedPosAndVelocity(sysid, compid, lat, lng, alt, xVel, yVel, zVel
 }
 
 function changeVehicleMode(sysid, compid, modeNumber, callback) {
-    const msg = new mavlink.messages.set_mode(
+    const msg = new mavlink.messages.command_long(
         sysid,
-        1, // base_mode
-        modeNumber
+        compid,
+        mavlink.MAV_CMD_DO_SET_MODE,
+        0, // confirmation,
+        mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED, // param1
+        modeNumber, // param2
+        0, 0, 0, 0, 0 // unused params
     );
 
     callback(msg);
@@ -273,10 +328,12 @@ function requestParamRead(sysid, compid, paramid, callback) {
 
 // exports
 exports.sendSetROI = sendSetROI;
+exports.sendClearROI = sendClearROI;
 exports.changeMissionSpeed = changeMissionSpeed;
 exports.setSpeed = setSpeed;
 exports.setGuidedMode = setGuidedMode;
 exports.sendGuidedPosition = sendGuidedPosition;
+exports.sendGuidedPosInfo = sendGuidedPosInfo;
 exports.sendGuidedVelocity = sendGuidedVelocity;
 exports.sendVelocityInLocalFrame = sendVelocityInLocalFrame;
 exports.sendGuidedPosAndVelocity = sendGuidedPosAndVelocity;

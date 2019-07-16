@@ -330,6 +330,9 @@ function toVehicleType(/* mavlink.MAV_TYPE */ type) {
 }
 
 function processHeartbeat(msg) {
+    // Ignore HB from the GCS
+    if(msg.type == 6) return;
+
     // Type
     if(!mState.mavlink_vehicle_type) {
         mState.mavlink_vehicle_type = msg.type;
@@ -485,12 +488,12 @@ function processVfrHud(msg) {
 
 function processAttitude(msg) {
     mState.attitude = {
-        roll: msg.roll,
-        rollSpeed: msg.rollspeed,
-        pitch: msg.pitch,
-        pitchSpeed: msg.pitchspeed,
-        yaw: msg.yaw,
-        yawSpeed: msg.yawspeed
+        roll: Math.toDegrees(msg.roll),
+        rollSpeed: Math.toDegrees(msg.rollspeed),
+        pitch: Math.toDegrees(msg.pitch),
+        pitchSpeed: Math.toDegrees(msg.pitchspeed),
+        yaw: Math.toDegrees(msg.yaw),
+        yawSpeed: Math.toDegrees(msg.yawspeed)
     };
 
     notifyEvent(VehicleEvents.ATTITUDE_UPDATED, { attitude: mState.attitude });
@@ -589,7 +592,7 @@ function setROI(point) {
 }
 
 function clearROI() {
-    MavlinkCommands.sendSetROI(mSysId, mCompId, 0, 0, 0, mavlinkCallback);   
+    MavlinkCommands.sendClearROI(mSysId, mCompId, mavlinkCallback);
 }
 
 function sendGuidedVelocity(xVel, yVel, zVel) {
@@ -634,6 +637,20 @@ module.exports.sendGuidedVelocity = sendGuidedVelocity;
 module.exports.setROI = setROI;
 module.exports.clearROI = clearROI;
 module.exports.sendVelocityLocalNed = sendVelocityLocalNed;
+
+(function () {
+    if (!Math.toRadians) {
+        Math.toRadians = function (degrees) {
+            return degrees * Math.PI / 180;
+        }
+    }
+
+    if (!Math.toDegrees) {
+        Math.toDegrees = function (radians) {
+            return radians * 180 / Math.PI;
+        }
+    }
+})();
 
 // Tests
 function testTypeIterate() {

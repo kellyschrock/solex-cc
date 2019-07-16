@@ -388,8 +388,10 @@ function setupWorkerCallbacks(child) {
             notifyRosterChanged();
 
             sendWorkerMessageToGCS({
-                id: "payload_start",
-                payload: msg.payload
+                worker_id: "payload_manager",
+                msg: {
+                    id: "payload_start", payload: msg.payload
+                }
             });
 
             mPayloadPing = setTimeout(payloadPing, PAYLOAD_PING_INTERVAL);
@@ -418,8 +420,10 @@ function setupWorkerCallbacks(child) {
                 // Payload hasn't responded to ping. Might have been turned off or unplugged.
                 // Send a GCS notification that the payload has departed.
                 sendWorkerMessageToGCS({
-                    id: "payload_stop",
-                    payload: mActivePayload.payload
+                    worker_id: "payload_manager",
+                    msg: {
+                        id: "payload_stop", payload: mActivePayload.payload
+                    }
                 });
 
                 mActivePayload = null;
