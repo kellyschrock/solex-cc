@@ -145,7 +145,7 @@ function findFiles(dir, filter) {
 }
 
 function onReceivedMavlinkMessage(msg) {
-    // trace("onReceivedMavlinkMessage(): msg=" + msg);
+    // console.log("onReceivedMavlinkMessage(): msg.name=" + msg.name);
     // d(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
     // d(`onReceivedMavlinkMessage(${msg.name})`);
 

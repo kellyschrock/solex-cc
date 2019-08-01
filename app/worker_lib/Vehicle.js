@@ -49,10 +49,10 @@ const VehicleEvents = Object.freeze(
 /** Vehicle type */
 const VehicleType = Object.freeze(
     {
-        NONE: { type: TYPE_UNKNOWN, name: "None", is: function (t) { return this.type === t.type } },
-        PLANE: { type: TYPE_PLANE, name: "Plane", is: function (t) { return this.type === t.type } },
-        COPTER: { type: TYPE_COPTER, name: "Copter", is: function(t) { return this.type === t.type } },
-        ROVER: { type: TYPE_ROVER, name: "Rover", is: function (t) { return this.type === t.type } },
+        NONE: { type: TYPE_UNKNOWN, name: "None", is: function (t) { return t && this.type === t.type } },
+        PLANE: { type: TYPE_PLANE, name: "Plane", is: function (t) { return t && this.type === t.type } },
+        COPTER: { type: TYPE_COPTER, name: "Copter", is: function(t) { return t && this.type === t.type } },
+        ROVER: { type: TYPE_ROVER, name: "Rover", is: function (t) { return t && this.type === t.type } },
 
         values: function() {
             const out = [];
@@ -67,15 +67,15 @@ const VehicleType = Object.freeze(
         },
 
         isPlane: function(type) {
-            return (type.type === TYPE_PLANE);
+            return (type && type.type === TYPE_PLANE);
         },
 
         isRover: function(type) {
-            return (type.type === TYPE_ROVER);
+            return (type && type.type === TYPE_ROVER);
         },
 
         isCopter: function(type) {
-            return (type.type === TYPE_COPTER);
+            return (type && type.type === TYPE_COPTER);
         }
     }
 );

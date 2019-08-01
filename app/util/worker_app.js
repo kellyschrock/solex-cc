@@ -647,7 +647,7 @@ function loadWorkerLibsIn(dir) {
 
             mWorkerLibraries[prop] = lib;
         } catch (ex) {
-            d(`load library module error - ${filename}: ${ex.message}`);
+            console.log(`load library module error - ${filename}: ${ex.message}`);
             mWorkerLibraries[prop] = {
                 error: ex.message
             };

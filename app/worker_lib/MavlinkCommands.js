@@ -24,7 +24,7 @@ function sendSetROI(sysid, compid, lat, lng, alt, callback) {
         0, 
         lat, 
         lng, 
-        alt
+        alt || 1
     );
 
     callback(msg);

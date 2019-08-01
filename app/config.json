@@ -1,11 +1,11 @@
 {
     "dispatcher": {
         "worker_roots": [
-            "/home/kellys/work/drone/projects/solex-cc/workers/smart-shots/shot_manager"
+            "/home/kellys/work/drone/projects/solex-cc/workers"
         ],
         "worker_lib_root": "worker_lib",
-        "sysid": 221,
-        "compid": 101,
+        "sysid": 1,
+        "compid": 1,
         "loop_time_ms": 1000,
         "udp_port": 14550
     }
