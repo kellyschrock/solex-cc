@@ -1097,10 +1097,7 @@ function installWorker(srcPath, target, callback) {
                 callback.onError("Failed to install worker with exit code " + rc, consoleOutput.trim());
             } else {
                 reload();
-                // loadWorkerRoot(target);
-
                 callback.onComplete();
-                // notifyRosterChanged();
             }
         });
     }
