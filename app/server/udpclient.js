@@ -6,6 +6,8 @@ var mClient;
 var mOptions = {};
 const mRInfo = {};
 
+const VERBOSE = false;
+
 // Callback should look like this:
 /*
 {
@@ -18,6 +20,10 @@ const mRInfo = {};
 
 function log(str) {
     logger.v("udpclient", str);
+}
+
+function d(str) {
+    if(VERBOSE) logger.v(`udpclient: ${str}`);
 }
 
 function bool(val) {
@@ -111,7 +117,7 @@ function sendMessage(packet) {
                 if (err) {
                     log(err);
                 } else {
-                    log(bytes + " bytes sent");
+                    d(`${bytes} bytes sent`);
                 }
             });
         } else {

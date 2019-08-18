@@ -182,11 +182,11 @@ function loadWorker(msg) {
                 }
 
             } catch(ex) {
-                loadAbort(100, { file: file, msg: `${workerId} onLoad(): ${ex.message}`, stack: ex.stack });
+                loadAbort(100, { file: file, msg: `${file} onLoad(): ${ex.message}`, stack: ex.stack });
             }
         }
     } catch (ex) {
-        loadAbort(100, { file: file, msg: `${workerId} onLoad(): ${ex.message}`, stack: ex.stack });
+        loadAbort(100, { file: file, msg: `${file} onLoad(): ${ex.message}`, stack: ex.stack });
     }
 }
 
@@ -615,6 +615,8 @@ function loadAbort(code, msg) {
         if(!msg.stack) msg.stack = "(none)";
         if(!msg.file) msg.file = mWorkerFile;
         if(!msg.msg) msg.msg = "(unknown)";
+
+        console.log(`loadAbort(): msg=${JSON.stringify(msg)}`);
 
         process.send({ id: "load_abort", msg: msg});
     }

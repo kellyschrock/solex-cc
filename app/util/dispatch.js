@@ -18,7 +18,8 @@ const mConfig = {
     compid: 101,
     udpPort: 14550,
     logWorkers: [],
-    workerRoots: []
+    workerRoots: [],
+    heartbeats: {send: false}
 };
 
 // Worker list/map
@@ -47,6 +48,11 @@ const mContentRequests = {};
 const mFeatureRequest = {};
 // Active payload
 var mActivePayload = null;
+// Heartbeats
+const HEARTBEAT_INTERVAL = 2000;
+const HEARTBEAT_TIMEOUT = 5000;
+var mHeartbeatTimer = null;
+var mHeartbeatTimeout = null;
 
 const mConnectionCallback = {
     onOpen: function (port) {
@@ -55,6 +61,12 @@ const mConnectionCallback = {
         // Start listening for mavlink packets.
         mMavlink = new MAVLink(null, mConfig.sysid, mConfig.compid);
         mMavlink.on("message", onReceivedMavlinkMessage);
+
+        if(mConfig.heartbeats && mConfig.heartbeats.send) {
+            startSendingHeartbeats();
+        } else {
+            mHeartbeatTimer = null;
+        }
     },
 
     onData: function (buffer) {
@@ -69,6 +81,8 @@ const mConnectionCallback = {
         // Connection closed
         trace("onClose()");
         mMavlink = null;
+
+        stopSendingHeartbeats();
     },
 
     onError: function (err) {
@@ -148,6 +162,29 @@ function onReceivedMavlinkMessage(msg) {
     // console.log("onReceivedMavlinkMessage(): msg.name=" + msg.name);
     // d(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
     // d(`onReceivedMavlinkMessage(${msg.name})`);
+
+    if(!msg.name) return;
+
+    switch(msg.name) {
+        case "HEARTBEAT": {
+            if(mConfig.heartbeats.send) {
+                // In case we timed out earlier and are now getting heartbeats again
+                if(mHeartbeatTimer == null) {
+                    d(`Restarting heartbeats`);
+                    startSendingHeartbeats();
+                }
+
+                // Reset the HB timeout
+                clearTimeout(mHeartbeatTimeout);
+                mHeartbeatTimeout = setTimeout(function () {
+                    d(`Heartbeat timed out, stopping heartbeat sender`);
+                    stopSendingHeartbeats();
+                }, HEARTBEAT_TIMEOUT);
+            }
+
+            break;
+        }
+    }
 
     for(let pid in mWorkers) {
         const worker = mWorkers[pid];
@@ -1064,6 +1101,18 @@ function setConfig(config) {
     mConfig.workerRoots = config.worker_roots || [];
     mConfig.workerLibs = config.worker_lib_dirs || [];
     mConfig.workerLibRoot = config.worker_lib_root;
+
+    if(config.heartbeats) {
+        mConfig.heartbeats = {
+            send: config.heartbeats.send || false,
+            sysid: config.heartbeats.sysid || mConfig.sysid,
+            compid: config.heartbeats.compid || mConfig.compid
+        }
+    } else {
+        mConfig.heartbeats = { send: false };
+    }
+
+    mConfig.sendHeartbeats = config.send_heartbeats || false;
 }
 
 function installWorker(srcPath, target, callback) {
@@ -1323,6 +1372,60 @@ function onPayloadStart(payload) {
         if (!worker.enabled) continue;
 
         worker.child.send({ id: "on_payload_start", msg: payload });
+    }
+}
+
+function startSendingHeartbeats() {
+    mHeartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+}
+
+function stopSendingHeartbeats() {
+    if(mHeartbeatTimer) {
+        clearInterval(mHeartbeatTimer);
+        mHeartbeatTimer = null;
+    }
+}
+
+function packHeartbeat(mav, msg, sysid, compid) {
+    const payload = jspack.Pack(msg.format, [msg.custom_mode, msg.type, msg.autopilot, msg.base_mode, msg.system_status, msg.mavlink_version]);
+    const crc_extra = msg.crc_extra;
+
+    msg.payload = payload;
+    msg.header = new mavlink.header(msg.id, payload.length, mav.seq, sysid, compid);
+    msg.msgbuf = msg.header.pack().concat(payload);
+    var crc = mavlink.x25Crc(msg.msgbuf.slice(1));
+
+    // For now, assume always using crc_extra = True.  TODO: check/fix this.
+    crc = mavlink.x25Crc([crc_extra], crc);
+    msg.msgbuf = msg.msgbuf.concat(jspack.Pack('<H', [crc]));
+    return msg.msgbuf;
+}
+
+function sendHeartbeat() {
+    d(`sendHeartbeat()`);
+
+    if (udpclient.isConnected()) {
+        try {
+            const msg = new mavlink.messages.heartbeat(
+                mavlink.MAV_TYPE_GCS, 
+                mavlink.MAV_AUTOPILOT_GENERIC, 
+                0, // base mode
+                0, // custom mode
+                0, // state
+                0, // mavlink version
+                );
+
+            const buf = packHeartbeat(
+                mMavlink, 
+                msg, 
+                mConfig.heartbeats.sysid, 
+                mConfig.heartbeats.compid
+                );
+
+            udpclient.sendMessage(Buffer.from(buf));
+        } catch (ex) {
+            e("Sending heartbeat", ex);
+        }
     }
 }
 
