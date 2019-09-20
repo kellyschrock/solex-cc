@@ -57,6 +57,7 @@ function getPauseModeFor(vehicleType) {
     }
 }
 
+exports.getState = getState;
 exports.getAirSpeed = getAirSpeed;
 exports.getGroundSpeed = getGroundSpeed;
 exports.getVerticalSpeed = getVerticalSpeed;
