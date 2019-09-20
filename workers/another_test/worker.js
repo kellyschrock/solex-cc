@@ -42,11 +42,6 @@ var loopIterations = 0;
 function loop() {
     if(++loopIterations > 5) {
 
-        const other = ATTRS.findWorkerById("test_worker");
-        if(other) {
-            d(`Found another worker: ${other.getAttributes().id}`);
-        }
-
         loopIterations = 0;
     }
 }

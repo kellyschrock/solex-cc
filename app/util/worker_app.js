@@ -209,6 +209,7 @@ function attachApisTo(attrs) {
 
     for (let prop in mWorkerLibraries) {
         attrs.api[prop] = mWorkerLibraries[prop].module;
+        d(`load API module ${prop} for ${attrs.id}`);
     }
 }
 
@@ -635,13 +636,15 @@ function loadWorkerLibsIn(dir) {
         const prop = path.basename(file, path.extname(file));
 
         try {
-            // d(`load library module: ${filename}`);
+            d(`load library module: ${filename}`);
             const module = require(filename);
 
             const lib = {
                 module: module,
                 cacheName: filename
             };
+
+            // d(`${filename} gives ${JSON.stringify(module)}`);
 
             if (!mWorkerLibraries) {
                 mWorkerLibraries = {};

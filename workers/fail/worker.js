@@ -1,6 +1,6 @@
 'use strict';
 
-// fail
+// fail intentionally
 require("hurp-durp");
 
 const ATTRS = {
