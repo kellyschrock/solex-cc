@@ -62,7 +62,7 @@ exports.getMavlinkMessages = getMavlinkMessages;
 exports.onMavlinkMessage = onMavlinkMessage;
 
 // Private functions
-const VERBOSE = true;
+const VERBOSE = false;
 function d(str) {
     if(VERBOSE) console.log(`RCInputs: ${str}`);
 }

@@ -6,4 +6,5 @@ workers/**/node_modules/
 test/**/test.zip
 solexcc-deploy.zip
 update/versions
+deploy/**.zip
 
