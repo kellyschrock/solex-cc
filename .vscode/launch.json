@@ -16,6 +16,14 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "Test Engine",
+            "program": "${workspaceFolder}/app/test_engine.js",
+            "cwd": "${workspaceFolder}/app",
+            "autoAttachChildProcesses": true
+        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "Dispatch test",
             "program": "${workspaceFolder}/app/util/dispatch.js",
             "cwd": "${workspaceFolder}/app"

@@ -13,12 +13,14 @@ const TYPE_PLANE = 1;
 const TYPE_COPTER = 2;
 const TYPE_ROVER = 3;
 
+const DEBUG = false;
+const TRACE = false;
 function d(str) { 
-    console.log("Vehicle(D): " + str); 
+    if(DEBUG) console.log("Vehicle(D): " + str); 
 }
 
 function t(str) {
-    console.log("Vehicle(T): " + str);
+    if(TRACE) console.log("Vehicle(T): " + str);
 }
 
 //
@@ -493,10 +495,19 @@ function processAttitude(msg) {
         pitch: Math.toDegrees(msg.pitch),
         pitchSpeed: Math.toDegrees(msg.pitchspeed),
         yaw: Math.toDegrees(msg.yaw),
+        heading: yawToHeading(Math.toDegrees(msg.yaw)),
         yawSpeed: Math.toDegrees(msg.yawspeed)
     };
 
     notifyEvent(VehicleEvents.ATTITUDE_UPDATED, { attitude: mState.attitude });
+}
+
+function yawToHeading(yaw) {
+    let output = yaw;
+
+    if(output < 0) output += 360;
+
+    return output;
 }
 
 function processBatteryUpdate(msg) {

@@ -94,6 +94,34 @@ function hypot(/* double */ altDelta, /* double */ distDelta) {
     return Math.hypot(altDelta, distDelta);
 }
 
+function /* Double */ metersTolat(/* double */ meters) {
+    return Math.toDegrees(meters / RADIUS_OF_EARTH_IN_METERS);
+}
+
+function /* Double */ latToMeters(/* double */ lat) {
+    return Math.toRadians(lat) * RADIUS_OF_EARTH_IN_METERS;
+}
+
+/**
+ * Offset a coordinate by a local distance
+ *
+ * @param origin  location in WGS84
+ * @param xMeters Offset distance in the east direction
+ * @param yMeters Offset distance in the north direction
+ * @return new coordinate with the offset
+ */
+function /* LatLong */ moveCoordinate(/* LatLong */ origin, /* double */ xMeters, /* double */ yMeters) {
+    const lon = origin.lng;
+    const lat = origin.lat;
+    const lon1 = Math.toRadians(lon);
+    const lat1 = Math.toRadians(lat);
+
+    const lon2 = lon1 + Math.toRadians(metersTolat(xMeters));
+    const lat2 = lat1 + Math.toRadians(metersTolat(yMeters));
+    return (newLatLong(Math.toDegrees(lat2), Math.toDegrees(lon2)));
+}
+
+
 function dcmFromEuler(/* double */ roll, /* double */ pitch, /* double */ yaw) {
     var dcm = [3][3];
     // double dcm[][] = new double[3][3];
@@ -340,6 +368,7 @@ function newLatLongAlt(lat, lng, alt) {
 exports.getDistance3D = getDistance3D;
 exports.getDistance2D = getDistance2D;
 exports.getArcInRadians = getArcInRadians;
+exports.moveCoordinate = moveCoordinate;
 exports.normalize = normalize;
 exports.constrain = constrain;
 exports.angleDiff = angleDiff;
