@@ -787,8 +787,6 @@ function loadWorkerRoot(basedir) {
         return;
     }
 
-    d("Loading workers from " + basedir);
-
     const files = findFiles(basedir, "worker.js");
 
     const manifests = findFiles(basedir, "manifest.json");
@@ -809,10 +807,11 @@ function loadWorkerRoot(basedir) {
 
     d(`manifests=${manifests}`);
 
+    let added = 0;
     for(let i = 0, size = files.length; i < size; ++i) {
         try {
             // Start a sub-process and tell it to load the specified worker.
-            const child = child_process.fork(path.join(__dirname, "worker_app.js"));
+            const child = child_process.fork(path.join(__dirname, "worker_app.js"), [files[i]]);
             // d(`Started ${child.pid}`);
 
             setupWorkerCallbacks(child);
@@ -835,6 +834,7 @@ function loadWorkerRoot(basedir) {
                 child.send({ id: "load_worker", msg: {file: files[i], enabledStates: mWorkerEnabledStates || {} } });
             }, 100 * i);
 
+            ++added;
         } catch(ex) {
             e(`Loading worker at ${files[i]}`, ex);
 
@@ -847,6 +847,8 @@ function loadWorkerRoot(basedir) {
             });
         }
     }
+
+    log(`Loaded ${added} workers from ${basedir}`);
 }
 
 function addGCSMessageListener(listener) {
