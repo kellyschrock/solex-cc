@@ -130,16 +130,24 @@ function findFiles(dir, filter) {
     }
 
     const files = fs.readdirSync(dir);
-    var manifest = null;
+    
+    let manifest = null;
 
-    for (let i = 0, size = files.length; i < size; i++) {
-        const filename = path.join(dir, files[i]);
-        const stat = fs.lstatSync(filename);
+    files.map((file) => {
+        let filename = path.join(dir, file);
+        let stat = fs.lstatSync(filename);
+
+        if (stat.isSymbolicLink()) {
+            const rp = fs.realpathSync(filename);
+            d(`Resolve ${filename} symlink to ${rp}`);
+            filename = rp;
+            stat = fs.lstatSync(filename);
+        }
 
         if (stat.isDirectory()) {
             const children = findFiles(filename, filter);
-            if(children) {
-                children.map(function(child) {
+            if (children) {
+                children.map(function (child) {
                     out.push(child);
                 });
             }
@@ -153,7 +161,7 @@ function findFiles(dir, filter) {
                 // log(`found ${filename}`);
             }
         }
-    }
+    });
 
     return out;
 }
