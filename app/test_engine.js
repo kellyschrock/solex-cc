@@ -3,6 +3,10 @@
 
 const mavlink = require("./util/mavlink.js");
 const udpclient = require("./server/udpclient.js");
+const fs = require("fs");
+const path = require("path");
+
+const mWorkerLibraries = {};
 
 function d(str) {
     console.log(`test_engine: ${str}`);
@@ -59,7 +63,7 @@ const testCallback = {
     },
 
     onRunComplete: function() {
-        d(`onComplete()`);
+        d(`onRunComplete()`);
         if(tester.teardown) tester.teardown();
         process.exit(0);
     },
@@ -85,6 +89,8 @@ if(args.length < 3) {
     process.exit(127);
 }
 
+loadWorkerLibsIn(require("path").join(__dirname, "worker_lib"));
+
 const tester = require(args[2]);
 d(`tester=${tester}`);
 
@@ -96,4 +102,31 @@ udpclient.connect({
     udp_port: mConfig.udpPort
 }, mConnectionCallback);
 
-tester.setup(testCallback);
+tester.setup(mWorkerLibraries, testCallback);
+
+function loadWorkerLibsIn(dir) {
+
+    if (!fs.existsSync(dir)) return;
+
+    const files = fs.readdirSync(dir);
+    files.map(function (file) {
+        const filename = path.join(dir, file);
+        const prop = path.basename(file, path.extname(file));
+
+        try {
+            // d(`load library module: ${filename}`);
+            const mod = require(filename);
+
+            if (!mWorkerLibraries) {
+                mWorkerLibraries = {};
+            }
+
+            mWorkerLibraries[prop] = mod;
+        } catch (ex) {
+            d(`load library module error - ${filename}: ${ex.message}`);
+            mWorkerLibraries[prop] = {
+                error: ex.message
+            };
+        }
+    });
+}
