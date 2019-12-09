@@ -20,7 +20,7 @@
             "program": "${workspaceFolder}/app/test_engine.js",
             "cwd": "${workspaceFolder}/app",
             "autoAttachChildProcesses": true,
-            "args": ["/home/kellys/work/drone/projects/mower/workers/path_gen/test/worker_tester.js"]
+            "args": ["/home/kellys/work/drone/projects/mower/workers/path_runner/test/worker_tester.js"]
         },
         {
             "type": "node",

@@ -712,7 +712,7 @@ function setupWorkerCallbacks(child) {
 
     // Worker responded to a GCS message.
     function onGCSMessageResponse(msg) {
-        d(`gcsMessageResponse(${JSON.stringify(msg)})`);
+        d(`onGCSMessageResponse(${JSON.stringify(msg)})`);
 
         if(mQueuedCallbacks[child.pid]) {
             d(`have callbacks for ${child.pid}`);
@@ -725,8 +725,15 @@ function setupWorkerCallbacks(child) {
                 if(mQueuedCallbacks[child.pid][workerId][msg.request.id]) {
                     d(`have callback for ${msg.request.id}`);
 
-                    // This ugly-ass code is the callback
-                    mQueuedCallbacks[child.pid][workerId][msg.request.id](null, msg.response);
+                    const result = {
+                        message: msg.request.id,
+                        source_id: msg.request.id,
+                        worker_id: workerId,
+                        content: msg.response
+                    };
+
+                    // mQueuedCallbacks[child.pid][workerId][msg.request.id](null, msg.response);
+                    mQueuedCallbacks[child.pid][workerId][msg.request.id](null, result);
                     delete mQueuedCallbacks[child.pid][workerId][msg.request.id];
 
                     if(mMonitors[workerId]) {
