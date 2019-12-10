@@ -49,6 +49,14 @@
             "name": "MathUtils test",
             "program": "${workspaceFolder}/app/util/MathUtils.js",
             "cwd": "${workspaceFolder}/app"
-        }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "GridTools test",
+            "program": "${workspaceFolder}/app/worker_lib/GridTools.js",
+            "cwd": "${workspaceFolder}/app/worker_lib",
+            "autoAttachChildProcesses": true
+        },
     ]
 }
