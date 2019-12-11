@@ -5,6 +5,7 @@
  */
 
 const RADIUS_OF_EARTH_IN_METERS = 6378137.0;  // Source: WGS84
+const RADIUS_OF_EARTH = 6378137.0;// In meters.
 
 /**
  * Computes the distance between two points taking into consideration altitude. If either of the locations
@@ -352,6 +353,48 @@ function getPolylineLength(/* List <LatLong> */ gridPoints) {
     return length;
 }
 
+function latToMeters(lat) {
+    return Math.toRadians(lat) * RADIUS_OF_EARTH;
+}
+
+function metersTolat(meters) {
+    return Math.toDegrees(meters / RADIUS_OF_EARTH);
+}
+
+function getApproximatedDistance(/* LatLong */ p1, /* LatLong */ p2) {
+    return (Math.hypot((p1.lat - p2.lat), (p1.lng - p2.lng)));
+}
+
+function getArea(/* Polygon */ poly) {
+    const path = poly.points;
+    const size = path.length;
+    if(size < 3) { return 0; }
+
+    let total = 0;
+    let /* LatLong */ prev = path[size - 1];
+    let prevTanLat = Math.tan((Math.PI / 2 - Math.toRadians(prev.lat)) / 2);
+    let prevLng = toRadians(prev.lng);
+
+    // For each edge, accumulate the signed area of the triangle formed by
+    // the North Pole
+    // and that edge ("polar triangle").
+    path.map(point => {
+        const tanLat = Math.tan(Math.PI / 2 - Math.toRadians(point.lat)) / 2
+        const tanLat = Math.tan((Math.PI / 2 - Math.toRadians(point.lat)) / 2);
+        total += polarTriangleArea(tanLat, lng, prevTanLat, prevLng);
+        prevTanLat = tanLat;
+        prevLng = lng;
+    });
+
+    return Math.abs(total * (RADIUS_OF_EARTH * RADIUS_OF_EARTH));
+}
+
+function polarTriangleArea(tan1, lng1, tan2, lng2) {
+    let deltaLng = lng1 - lng2;
+    let t = tan1 * tan2;
+    return 2 * Math.atan2(t * Math.sin(deltaLng), 1 + t * Math.cos(deltaLng));
+}
+
 function newLatLong(lat, lng) {
     return {
         lat: lat, lng: lng
@@ -385,6 +428,10 @@ exports.getPolylineLength = getPolylineLength;
 exports.newLatLong = newLatLong;
 exports.newLatLongAlt = newLatLongAlt;
 exports.getSpeedFrom = getSpeedFrom;
+exports.getArea = getArea;
+exports.latToMeters = latToMeters;
+exports.metersTolat = metersTolat;
+exports.getApproximatedDistance = getApproximatedDistance;
 
 
 (function () {
