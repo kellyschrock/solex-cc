@@ -7,7 +7,20 @@
         "sysid": 1,
         "compid": 1,
         "loop_time_ms": 1000,
-        "udp_port": 14550,
+        "udp": {
+            "port": 14550
+        },
+        "serial": {
+            "port": "/dev/ttyS0",
+            "baud_rate": 921600,
+            "udp_relay": {
+                "port": 14550,
+                "targets": [
+                    { "name": "to_gcs", "target_port": 14550, "bcast_ip": "192.168.4.255" },
+                    { "name": "to_one_client", "target_ip": "127.0.0.1", "target_port": 14757, "local_port": 14758, "ip": "192.168.4.255" }
+                ]
+            }
+        },
         "heartbeats": {
             "send": false,
             "sysid": 1,
