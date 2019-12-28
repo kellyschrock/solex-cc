@@ -7,7 +7,7 @@ const mRInfo = {};
 let mServerSocket = null;
 let mCallback = null;
 
-const VERBOSE = true;
+const VERBOSE = false;
 
 function log(str) { console.log(`udpserver: ${str}`); }
 function v(str) { if(VERBOSE) log(str); }

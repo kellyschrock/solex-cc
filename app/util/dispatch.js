@@ -18,7 +18,7 @@ const mavlink = (MAVLINK2)?
     require("./mav_v2.js"): 
     require("./mavlink.js");
 
-const VERBOSE = true;
+const VERBOSE = false;
 
 // Config
 const mConfig = {
