@@ -6,6 +6,8 @@ const mavlink = require("./mavlink.js");
 
 const LOOP_INTERVAL = 1000;
 
+const VERBOSE = global.logVerbose || false;
+
 // Worker "app" module. Each worker that's loaded is run by this module as a forked process.
 // All communication between this and the master is done via Node IPC mechanisms.
 var mWorker = null;
@@ -71,7 +73,6 @@ const mWorkerListener = {
     }
 };
 
-const VERBOSE = false;
 function d(str) {
     if(VERBOSE) console.log(`worker_app: ${str}`);
 }

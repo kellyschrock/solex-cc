@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const udpclient = require("../server/udpclient");
 const SerialPort = require("serialport");
-const logger = require("../util/logger");
+const logger = require("./logger");
 const child_process = require("child_process");
 
 const mavlinkLogger = null; // console; //winston.createLogger({transports:[new(winston.transports.File)({ filename:'mavlink.dev.log'})]});
@@ -23,7 +23,7 @@ let mMavlink = null;
 
 let mMavlinkProtocol = 1;
 
-const VERBOSE = false;
+const VERBOSE = global.logVerbose || false;
 
 // Config
 const mConfig = {

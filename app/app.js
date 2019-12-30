@@ -2,12 +2,27 @@
 
 global.appRoot = process.cwd();
 
+for (const elem in process.argv) {
+    console.log(`arg=${process.argv[elem]}`);
+}
+
+global.logVerbose = false;
+
+// Handle command-line args
+if(process.argv.length >= 3) {
+    for(let i = 2, size = process.argv.length; i < size; ++i) {
+        if(process.argv[i] === "verbose" || process.argv[i] === "-v") {
+            console.log("logging is verbose");
+            global.logVerbose = true;
+        }
+    }
+}
+
 const path = require("path");
 const fs = require("fs");
 const express = require('express');
 const http = require('http');
 const ws = require("ws");
-const Log = require("./util/logger");
 const config = require('./util/config');
 const compression = require("compression");
 const zlib = require("zlib");
@@ -18,7 +33,6 @@ const system = require("./routes/system");
 
 // Default, actually overridden in a config file if present.
 global.workerRoot = path.join(global.appRoot, "/workers");
-console.log("global.appRoot=" + global.appRoot);
 
 global.BIN_DIR = path.join(global.appRoot, "/bin");
 // global.PACKAGE_DOWNLOAD_DIR = global.appRoot + "/download";
