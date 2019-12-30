@@ -7,18 +7,20 @@ const SerialPort = require("serialport");
 const logger = require("../util/logger");
 const child_process = require("child_process");
 
+const mavlinkLogger = null;//console; //winston.createLogger({transports:[new(winston.transports.File)({ filename:'mavlink.dev.log'})]});
+
 require("jspack");
 
 let UDPServer = null;
 
-const MAV_PROTOCOL = "1.0";
-const MAVLINK2 = (MAV_PROTOCOL === "2.0");
+const mavlink1 = require("./mavlink.js");
+const mavlink2 = require("./mav_v2.js");
 
-const mavlink = (MAVLINK2)? 
-    require("./mav_v2.js"): 
-    require("./mavlink.js");
+// Message parsers
+let mMavlink1Parser = null;
+let mMavlink2Parser = null;
 
-const VERBOSE = false;
+const VERBOSE = true;
 
 // Config
 const mConfig = {
@@ -49,8 +51,6 @@ const mMonitors = {};
 const mQueuedCallbacks = {};
 // Worker enabled states
 var mWorkerEnabledStates = {};
-// Mavlink message parser
-var mMavlink;
 // Screen-enter requests
 const mScreenEnterRequests = {};
 // Screen-exit requests
@@ -100,12 +100,12 @@ const mConnectionCallback = {
     onOpen: function (port) {
         // Connection opened
         d("onOpen()");
-        // Start listening for mavlink packets.
-        mMavlink = (MAVLINK2)?
-            new MAVLinkProcessor2(null, mConfig.sysid, mConfig.compid):
-            new MAVLink(null, mConfig.sysid, mConfig.compid);
 
-        mMavlink.on("message", onReceivedMavlinkMessage);
+        mMavlink1Parser = new MAVLink(mavlinkLogger, mConfig.sysid, mConfig.compid);
+        mMavlink2Parser = new MAVLink20Processor(mavlinkLogger, mConfig.sysid, mConfig.compid);
+
+        mMavlink1Parser.on("message", onReceivedMavlinkMessage);
+        mMavlink2Parser.on("message", onReceivedMavlinkMessage);
 
         if(mConfig.heartbeats && mConfig.heartbeats.send) {
             startSendingHeartbeats();
@@ -120,8 +120,13 @@ const mConnectionCallback = {
 
         // Incoming buffer. Parse into Mavlink until a message is parsed, which will
         // trigger onReceivedMavlinkMessage().
-        if (mMavlink != null) {
-            mMavlink.parseBuffer(buffer);
+
+        const bytes = Uint8Array.from(buffer);
+
+        if(bytes[0] == mMavlink1Parser.protocol_marker) {
+            mMavlink1Parser.parseBuffer(bytes);
+        } else if(bytes[0] == mMavlink2Parser.protocol_marker) {
+            mMavlink2Parser.parseBuffer(bytes);
         }
 
         if(mSerialPort) {
