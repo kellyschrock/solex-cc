@@ -6,22 +6,11 @@ const udpclient = require("../server/udpclient");
 const SerialPort = require("serialport");
 const logger = require("./logger");
 const child_process = require("child_process");
-
-const mavlinkLogger = null; // console; //winston.createLogger({transports:[new(winston.transports.File)({ filename:'mavlink.dev.log'})]});
+const mavlink_shell = require("./mavlink_shell");
 
 require("jspack");
 
-let UDPServer = null;
-
-const mavlink1 = require("./mavlink.js");
-const mavlink2 = require("./mav_v2.js");
-
-// Message parsers
-let mMavlink1Parser = null;
-let mMavlink2Parser = null;
-let mMavlink = null;
-
-let mMavlinkProtocol = 1;
+let udpServer = null;
 
 const VERBOSE = global.logVerbose || false;
 
@@ -104,11 +93,7 @@ const mConnectionCallback = {
         // Connection opened
         d("onOpen()");
 
-        mMavlink1Parser = new MAVLink(mavlinkLogger, mConfig.sysid, mConfig.compid);
-        mMavlink2Parser = new MAVLink20Processor(mavlinkLogger, mConfig.sysid, mConfig.compid);
-
-        mMavlink1Parser.on("message", onReceivedMavlinkMessage);
-        mMavlink2Parser.on("message", onReceivedMavlinkMessage);
+        mavlink_shell.onOpen(mConfig.sysid, mConfig.compid, onReceivedMavlinkMessage);
 
         if(mConfig.heartbeats && mConfig.heartbeats.send) {
             startSendingHeartbeats();
@@ -124,22 +109,12 @@ const mConnectionCallback = {
         // Incoming buffer. Parse into Mavlink until a message is parsed, which will
         // trigger onReceivedMavlinkMessage().
 
-        const bytes = Uint8Array.from(buffer);
-
-        if(bytes[0] === mMavlink1Parser.protocol_marker) {
-            mMavlink1Parser.parseBuffer(bytes);
-            mMavlink = mMavlink1Parser;
-        } else if(bytes[0] === mMavlink2Parser.protocol_marker) {
-            mMavlink2Parser.parseBuffer(bytes);
-            mMavlink = mMavlink2Parser;
-        }
-
-        mMavlinkProtocol = bytes[0];
+        mavlink_shell.parseBuffer(buffer);
 
         if(mSerialPort) {
             // This came from the serial port. Send it to UDP
-            if(UDPServer) {
-                UDPServer.sendMessage(buffer);
+            if(udpServer) {
+                udpServer.sendMessage(buffer);
             }
         }
     },
@@ -147,7 +122,7 @@ const mConnectionCallback = {
     onClose: function () {
         // Connection closed
         trace("onClose()");
-        mMavlink = null;
+        mavlink_shell.onClose();
 
         stopSendingHeartbeats();
     },
@@ -308,12 +283,12 @@ function start() {
             if(relay.port) {
                 d(`Set up UDP relay on ${relay.port}`);
 
-                UDPServer = require("./udpserver.js");
-                UDPServer.start({port: relay.port}, mUDPCallback);
+                udpServer = require("./udpserver.js");
+                udpServer.start({port: relay.port}, mUDPCallback);
             } else {
                 d("No UDP relay port specified in udp_relay");
 
-                UDPServer = null;
+                udpServer = null;
             }
         }
 
@@ -403,7 +378,7 @@ function reload() {
 }
 
 function mavlinkMessageFor(msg) {
-    d(`mavlinkMessageFor(): ${JSON.stringify(msg)}`);
+    // d(`mavlinkMessageFor(): ${JSON.stringify(msg)}`);
 
     if(!msg.name) return null;
 
@@ -412,17 +387,17 @@ function mavlinkMessageFor(msg) {
 
     if(!ctor) return null;
 
-    d(`ctor: ${ctor}`);
+    // d(`ctor: ${ctor}`);
 
     const args = [];
     msg.fieldnames.map(function(field) {
         args.push(msg[field]);
     });
 
-    d(`args=${JSON.stringify(args)}`);
+    // d(`args=${JSON.stringify(args)}`);
 
     const output = Reflect.construct(ctor, args);
-    d(`output=${JSON.stringify(output)}`);
+    // d(`output=${JSON.stringify(output)}`);
 
     return output;
 }
@@ -797,19 +772,23 @@ function setupWorkerCallbacks(child) {
         if (msg.mavlinkMessage) {
             const mav = mavlinkMessageFor(msg.mavlinkMessage);
 
-            if(mav && mMavlink) {
-                const packet = Buffer.from(mav.pack(mMavlink));
+            if(mav) {
+                const packet = mavlink_shell.pack(mav);
 
-                if(udpclient.isConnected()) {
-                    udpclient.sendMessage(packet);
-                } else if(mSerialPort) {
-                    mSerialPort.write(packet, function(err) {
-                        if(err) {
-                            d(`Error writing to serial port: ${err}`);
-                        }
-                    });
-                } else { 
-                    e("No connection to send data on");
+                if(packet) {
+                    if (udpclient.isConnected()) {
+                        udpclient.sendMessage(packet);
+                    } else if (mSerialPort) {
+                        mSerialPort.write(packet, function (err) {
+                            if (err) {
+                                d(`Error writing to serial port: ${err}`);
+                            }
+                        });
+                    } else {
+                        e("No connection to send data on");
+                    }
+                } else {
+                    e(`No packet made for ${mav.name}`);
                 }
             } else {
                 d(`No mavlink message found for ${msg.mavlinkMessage.name}`);
@@ -1581,7 +1560,7 @@ function sendHeartbeat() {
     );
 
     const buf = packHeartbeat(
-        mMavlink,
+        mavlink_shell.getMavlinkProcessor(),
         msg,
         mConfig.heartbeats.sysid,
         mConfig.heartbeats.compid
