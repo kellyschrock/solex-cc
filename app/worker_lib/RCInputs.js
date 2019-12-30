@@ -62,6 +62,7 @@ exports.getMavlinkMessages = getMavlinkMessages;
 exports.onMavlinkMessage = onMavlinkMessage;
 
 // Private functions
+// Don't go verbose according to configuration, it causes too much noise.
 const VERBOSE = false;
 function d(str) {
     if(VERBOSE) console.log(`RCInputs: ${str}`);
