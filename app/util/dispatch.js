@@ -19,6 +19,9 @@ const mavlink2 = require("./mav_v2.js");
 // Message parsers
 let mMavlink1Parser = null;
 let mMavlink2Parser = null;
+let mMavlink = null;
+
+let mMavlinkProtocol = 1;
 
 const VERBOSE = false;
 
@@ -123,11 +126,15 @@ const mConnectionCallback = {
 
         const bytes = Uint8Array.from(buffer);
 
-        if(bytes[0] == mMavlink1Parser.protocol_marker) {
+        if(bytes[0] === mMavlink1Parser.protocol_marker) {
             mMavlink1Parser.parseBuffer(bytes);
-        } else if(bytes[0] == mMavlink2Parser.protocol_marker) {
+            mMavlink = mMavlink1Parser;
+        } else if(bytes[0] === mMavlink2Parser.protocol_marker) {
             mMavlink2Parser.parseBuffer(bytes);
+            mMavlink = mMavlink2Parser;
         }
+
+        mMavlinkProtocol = bytes[0];
 
         if(mSerialPort) {
             // This came from the serial port. Send it to UDP
@@ -790,7 +797,7 @@ function setupWorkerCallbacks(child) {
         if (msg.mavlinkMessage) {
             const mav = mavlinkMessageFor(msg.mavlinkMessage);
 
-            if(mav) {
+            if(mav && mMavlink) {
                 const packet = Buffer.from(mav.pack(mMavlink));
 
                 if(udpclient.isConnected()) {
@@ -807,25 +814,6 @@ function setupWorkerCallbacks(child) {
             } else {
                 d(`No mavlink message found for ${msg.mavlinkMessage.name}`);
             }
-
-            // if (udpclient.isConnected()) {
-            //     try {
-            //         const mav = mavlinkMessageFor(msg.mavlinkMessage);
-
-            //         if(mav) {
-            //             const packet = Buffer.from(mav.pack(mMavlink));
-            //             udpclient.sendMessage(packet);
-            //         } else {
-            //             log(`No mavlink message found for ${msg.mavlinkMessage.name}`);
-            //         }
-            //     } catch (ex) {
-            //         e("Sending mavlink message from worker", ex);
-            //     }
-            // } else if(mSerialPort) {
-            //     mSerialPort.write();
-            // } else {
-            //     d("No connection to write to");
-            // }
         } else {
             d("WARNING: No message");
         }
