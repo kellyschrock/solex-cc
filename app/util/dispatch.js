@@ -7,7 +7,7 @@ const SerialPort = require("serialport");
 const logger = require("../util/logger");
 const child_process = require("child_process");
 
-const mavlinkLogger = null;//console; //winston.createLogger({transports:[new(winston.transports.File)({ filename:'mavlink.dev.log'})]});
+const mavlinkLogger = null; // console; //winston.createLogger({transports:[new(winston.transports.File)({ filename:'mavlink.dev.log'})]});
 
 require("jspack");
 
@@ -20,7 +20,7 @@ const mavlink2 = require("./mav_v2.js");
 let mMavlink1Parser = null;
 let mMavlink2Parser = null;
 
-const VERBOSE = true;
+const VERBOSE = false;
 
 // Config
 const mConfig = {
