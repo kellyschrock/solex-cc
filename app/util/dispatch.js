@@ -357,6 +357,10 @@ function unloadWorkers() {
     mWorkers = {};
 }
 
+function shutdown() {
+    unloadWorkers();
+}
+
 function reload() {
     unloadWorkers();
 
@@ -1617,6 +1621,7 @@ exports.start = start;
 exports.stop = stop;
 exports.running = running;
 exports.reload = reload;
+exports.shutdown = shutdown;
 exports.addGCSMessageListener = addGCSMessageListener;
 exports.removeGCSMessageListener = removeGCSMessageListener;
 exports.monitorWorker = monitorWorker;

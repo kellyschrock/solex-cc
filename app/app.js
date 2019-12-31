@@ -219,7 +219,7 @@ function setupApp() {
         app.get("/ui/image/:worker_id/:name", dispatcher.imageDownload);
 
         app.get("/sys/version", dispatcher.sysVersion);
-        app.get("/sys/restart", dispatcher.restartSystem);
+        app.get("/sys/restart", restartSystem);
         app.post("/sys/update/upload", dispatcher.uploadSystemUpdate);
         app.post("/sys/update/install", dispatcher.installSystemUpdate);
 
@@ -497,5 +497,26 @@ function setupApp() {
     server.listen(app.get('port'), function () {
         log('Express server listening on port ' + app.get('port'));
     });
+}
+
+function restartSystem(req, res) {
+    function doRestartSystem() {
+        const child_process = require("child_process");
+
+        const cmdline = process.argv.join(" ");
+        const cwd = process.cwd();
+        log(`${cmdline}, cwd=${cwd}`);
+
+        child_process.exec(cmdline, {
+            cwd: cwd
+        });
+
+        process.exit();
+    }
+
+    dispatcher.shutdown(req, res);
+    res.json({message: "Restarting"});
+
+    setTimeout(doRestartSystem, 1000);
 }
 
