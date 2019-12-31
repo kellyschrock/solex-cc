@@ -353,12 +353,8 @@ function getFeatures(req, res) {
     });
 }
 
-function restartSystem(req, res) {
-    res.json({message: "Restarting"});
-
-    setTimeout(function() {
-        process.send({id: "restart_system" });
-    }, 1000);
+function shutdown(req, res) {
+    dispatch.shutdown();
 }
 
 function reloadDirect() {
@@ -435,7 +431,7 @@ exports.getWorkers = getWorkers;
 exports.getWorkerDetails = getWorkerDetails;
 exports.monitorWorker = monitorWorker;
 exports.setConfig = setConfig;
-exports.restartSystem = restartSystem;
+exports.shutdown = shutdown;
 exports.getFeatures = getFeatures;
 exports.onPayloadStart = onPayloadStart;
 exports.onPayloadCheck = onPayloadCheck;
