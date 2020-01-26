@@ -212,7 +212,7 @@ function onReceivedMavlinkMessage(msg) {
     // d(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
     // d(`onReceivedMavlinkMessage(${msg.name})`);
 
-    if(!msg.name) return;
+    if(!msg.name) return log(`receive mavlink: No message name`);
 
     switch(msg.name) {
         case "HEARTBEAT": {
