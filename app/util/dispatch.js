@@ -194,10 +194,14 @@ function findFiles(dir, filter) {
                 });
             }
         } else {
+            // log(`filename=${filename}`);
+
             if (filter) {
-                if (filename.indexOf(filter) >= 0) {
+                const basename = path.basename(filename)
+                // if (filename.indexOf(filter) >= 0) {
+                if (basename == filter) {
                     out.push(filename);
-                    // log(`found ${filename}`);
+                    log(`found ${filename}`);
                 }
             } else {
                 // log(`found ${filename}`);
@@ -209,7 +213,7 @@ function findFiles(dir, filter) {
 }
 
 function onReceivedMavlinkMessage(msg) {
-    // d(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
+    // log(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
     // d(`onReceivedMavlinkMessage(${msg.name})`);
 
     if(!msg.name) return log(`receive mavlink: No message name`);
