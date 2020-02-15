@@ -351,10 +351,11 @@ function setupApp() {
 
         // got a message from the client
         client.on('message', function (data) {
-            log(`received message ${JSON.stringify(data)}`);
+            // log(`received message ${data}`);
 
             try {
                 const jo = JSON.parse(data);
+                // log(JSON.stringify(jo));
 
                 if (jo.type) {
                     switch (jo.type) {
@@ -379,6 +380,8 @@ function setupApp() {
                         }
 
                         case "subscribe-gcs": {
+                            log(`received message ${data}`);
+
                             if (mGCSSubscribers.indexOf(client) == -1) {
                                 client.compressData = jo.compress;
                                 mGCSSubscribers.push(client);
@@ -388,6 +391,8 @@ function setupApp() {
                         }
 
                         case "unsubscribe-gcs": {
+                            log(`received message ${data}`);
+
                             const idx = mGCSSubscribers.indexOf(client);
                             if (idx >= 0) {
                                 mGCSSubscribers.splice(idx, 1);
@@ -397,6 +402,8 @@ function setupApp() {
                         }
 
                         case "subscribe-monitor": {
+                            log(`received message ${data}`);
+
                             if(mMonitors.indexOf(client) === -1) {
                                 mMonitors.push(client);
                                 client.send(JSON.stringify({event: "monitor-status", status: "subscribed"}));
@@ -405,6 +412,8 @@ function setupApp() {
                         }
 
                         case "unsubscribe-monitor": {
+                            log(`received message ${data}`);
+
                             const idx = mMonitors.indexOf(client);
                             if(idx >= 0) {
                                 mMonitors.splice(idx, 1);
@@ -414,6 +423,8 @@ function setupApp() {
                         }
 
                         case "subscribe-log": {
+                            log(`received message ${data}`);
+
                             if (mLogSubscribers.indexOf(client) == -1) {
                                 mLogSubscribers.push(client);
                             }
@@ -421,6 +432,8 @@ function setupApp() {
                         }
 
                         case "unsubscribe-log": {
+                            log(`received message ${data}`);
+
                             const idx = mLogSubscribers.indexOf(client);
                             if(idx >= 0) {
                                 mLogSubscribers.splice(idx, 1);
@@ -429,6 +442,8 @@ function setupApp() {
                         }
 
                         case "ping": {
+                            log(`received message ${data}`);
+                            
                             sendWSMessage(client, { message: "ok" });
                             break;
                         }
