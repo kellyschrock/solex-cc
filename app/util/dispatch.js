@@ -860,8 +860,6 @@ function setupWorkerCallbacks(child) {
                         ok: msg.response.ok
                     };
 
-                    console.log(`MOTHER FUCKER!!! ${JSON.stringify(result)}`);
-
                     // mQueuedCallbacks[child.pid][workerId][msg.request.id](null, msg.response);
                     mQueuedCallbacks[child.pid][workerId][msg.request.id](null, result);
                     delete mQueuedCallbacks[child.pid][workerId][msg.request.id];
