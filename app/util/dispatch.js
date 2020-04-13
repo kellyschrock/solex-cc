@@ -216,7 +216,11 @@ function onReceivedMavlinkMessage(msg) {
     // log(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
     // d(`onReceivedMavlinkMessage(${msg.name})`);
 
-    if(!msg.name) return log(`receive mavlink: No message name`);
+    if(!msg.name) {
+        return log(JSON.stringify(msg));
+    }
+
+    d(msg.name);
 
     switch(msg.name) {
         case "HEARTBEAT": {
@@ -844,12 +848,19 @@ function setupWorkerCallbacks(child) {
                 if(mQueuedCallbacks[child.pid][workerId][msg.request.id]) {
                     d(`have callback for ${msg.request.id}`);
 
+                    if(!msg.response) { 
+                        msg.response = {}; 
+                    }
+
                     const result = {
-                        message: msg.request.id,
+                        message: msg.response.message || msg.request.id,
                         source_id: msg.request.id,
                         worker_id: workerId,
-                        content: msg.response
+                        content: msg.response,
+                        ok: msg.response.ok
                     };
+
+                    console.log(`MOTHER FUCKER!!! ${JSON.stringify(result)}`);
 
                     // mQueuedCallbacks[child.pid][workerId][msg.request.id](null, msg.response);
                     mQueuedCallbacks[child.pid][workerId][msg.request.id](null, result);

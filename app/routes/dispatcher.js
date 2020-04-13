@@ -105,6 +105,7 @@ function workerMessage(req, res) {
             }
 
             if (result) {
+                console.log(`HEY STUPID! result looks like this: ${JSON.stringify(result)}`);
                 if (!result.hasOwnProperty("ok")) result.ok = true;
             }
 

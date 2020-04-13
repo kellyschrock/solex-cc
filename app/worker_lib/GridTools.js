@@ -7,9 +7,20 @@ function LineLatLong(start, end) {
     this.end = end;
 
     this.getHeading = function() { return MathUtils.getHeadingFromCoordinates(this.start, this.end); }
+    this.length = function() { return MathUtils.getDistance2D(this.start, this.end); }
+    
+    this.reversePoints = function() {
+        const start = this.start;
+        const end = this.end;
+        this.start = {lat: end.lat, lng: end.lng};
+        this.end = {lat: start.lat, lng: start.lng };
+    }
 
     this.getStart = function () { return this.start; }
     this.getEnd = function () { return this.end; }
+    this.getMiddle = function() {
+        return MathUtils.newCoordFromBearingAndDistance(this.start, this.getHeading(), this.length() / 2);
+    }
 
     this.getDistanceToEnd = function (where) {
         return MathUtils.getDistance2D(where, this.end);
@@ -34,6 +45,12 @@ function LineLatLong(start, end) {
             return this.end;
         }
     };
+
+    this.midPoint = function() {
+        const dist = MathUtils.getDistance2D(this.start, this.end);
+        const head = this.getHeading();
+        return MathUtils.newCoordFromBearingAndDistance(this.start, head, dist / 2);
+    };
 }
 
 exports.LineLatLong = LineLatLong;
@@ -48,10 +65,12 @@ function Polygon() {
 
     this.addPoint = function(p) {
         this.points.push(p);
+        return this;
     }
 
     this.clearPolygon = function() {
         this.points.splice(0, this.points.length);
+        return this;
     }
 
     this.getPoints = function() { return this.points; }
@@ -70,6 +89,7 @@ function Polygon() {
     this.movePoint = function(coord, number) {
         this.points[number].lat = coord.lat;
         this.points[number].lng = coord.lng;
+        return this;
     }
 
     this.getArea = function() {
@@ -78,6 +98,7 @@ function Polygon() {
 
     this.checkIfValid = function() {
         if(this.points.length < 3) throw Error("Need at least 3 points");
+        return this;
     }
 
     this.reversePoints = function() {

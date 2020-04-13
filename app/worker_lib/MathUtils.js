@@ -373,17 +373,16 @@ function getArea(/* Polygon */ poly) {
     let total = 0;
     let /* LatLong */ prev = path[size - 1];
     let prevTanLat = Math.tan((Math.PI / 2 - Math.toRadians(prev.lat)) / 2);
-    let prevLng = toRadians(prev.lng);
+    let prevLng = Math.toRadians(prev.lng);
 
     // For each edge, accumulate the signed area of the triangle formed by
     // the North Pole
     // and that edge ("polar triangle").
     path.map(point => {
         const tanLat = Math.tan(Math.PI / 2 - Math.toRadians(point.lat)) / 2
-        const tanLat = Math.tan((Math.PI / 2 - Math.toRadians(point.lat)) / 2);
-        total += polarTriangleArea(tanLat, lng, prevTanLat, prevLng);
+        total += polarTriangleArea(tanLat, point.lng, prevTanLat, prevLng);
         prevTanLat = tanLat;
-        prevLng = lng;
+        prevLng = point.lng;
     });
 
     return Math.abs(total * (RADIUS_OF_EARTH * RADIUS_OF_EARTH));
