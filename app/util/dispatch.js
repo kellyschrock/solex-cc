@@ -860,6 +860,12 @@ function setupWorkerCallbacks(child) {
                         ok: msg.response.ok
                     };
 
+                    // Cover cases where a worker didn't include an "ok" property
+                    // in the response. Assume ok unless otherwise specified, etc
+                    if(!result.hasOwnProperty("ok")) {
+                        result.ok = true;
+                    }
+
                     // mQueuedCallbacks[child.pid][workerId][msg.request.id](null, msg.response);
                     mQueuedCallbacks[child.pid][workerId][msg.request.id](null, result);
                     delete mQueuedCallbacks[child.pid][workerId][msg.request.id];
