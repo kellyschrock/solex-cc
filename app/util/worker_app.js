@@ -37,7 +37,7 @@ const mWorkerListener = {
 
     /** Gets a message from the specified worker, sends it to all other workers in the system */
     onBroadcastMessage: function (workerId, msg) {
-        console.log(`Broadcast from ${workerId}: ${JSON.stringify(msg)}`);
+        d(`Broadcast from ${workerId}: ${JSON.stringify(msg)}`);
         // Forward to parent
         process.send({ id: "worker_broadcast", msg: { worker_id: workerId, message: msg } });
     },
