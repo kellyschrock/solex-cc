@@ -895,11 +895,19 @@ function setupWorkerCallbacks(child) {
 
     // A worker broadcast a message for other workers.
     function onWorkerBroadcast(msg) {
+        // function d(str) { console.log(`dispatch: ${str}`)}
+
+        d(`onWorkerBroadcast(): msg=${JSON.stringify(msg)}`);
+
+        const sender_worker_id = msg.worker_id;
+
         if (mWorkers) {
             for (let pid in mWorkers) {
                 const worker = mWorkers[pid];
-                if(worker && worker.child) {
-                    worker.child.send({id: "gcs_msg", msg: { worker_id: worker.worker_id, msg: msg}});
+
+                if(worker && worker.child && msg.message && worker.worker_id !== sender_worker_id) {
+                    d(`send to ${worker.worker_id}`);
+                    worker.child.send({id: "gcs_msg", msg: { worker_id: worker.worker_id, message: msg.message}});
                 }
             }
         }

@@ -37,9 +37,9 @@ const mWorkerListener = {
 
     /** Gets a message from the specified worker, sends it to all other workers in the system */
     onBroadcastMessage: function (workerId, msg) {
-        d("Broadcast message from " + workerId + ": " + msg);
+        console.log(`Broadcast from ${workerId}: ${JSON.stringify(msg)}`);
         // Forward to parent
-        process.send({ id: "worker_broadcast", msg: { worker_id: workerId, msg: msg } });
+        process.send({ id: "worker_broadcast", msg: { worker_id: workerId, message: msg } });
     },
 
     /** Called by a worker to get a list of the other workers on the system */
@@ -241,14 +241,25 @@ function onMavlinkMessage(msg) {
 }
 
 function onGCSMessage(msg) {
-    d(`onGCSMessage(${JSON.stringify(msg)})`);
+    d(`worker_app: onGCSMessage(msg=${JSON.stringify(msg)})`);
     // Message for a worker. msg.worker_id and msg.msg are the attributes.
     const target = mWorker;
 
     if(target && target.onGCSMessage) {
-        const response = target.onGCSMessage(msg.message) || { ok: true, source_id: msg.id };
-        d(`response=${JSON.stringify(response)}`);
-        process.send({id: "gcs_msg_response", msg: { worker_id: mWorkerId, request: msg.message, response: response }});
+        if(msg.message) {
+            const send = {};
+            for(let prop in msg.message) {
+                send[prop] = msg.message[prop];
+            }
+
+            d(`send=${JSON.stringify(send)}`);
+
+            const response = target.onGCSMessage(send) || { ok: true, source_id: msg.message.id };
+            process.send({id: "gcs_msg_response", msg: { worker_id: mWorkerId, request: msg.message, response: response }});
+        } else {
+            d(`No message in msg`);
+            process.send({id: "gcs_msg_response", msg: { worker_id: mWorkerId, request: {}, response: { ok: false, message: "No message body" } }});
+        }
     }
 }
 
