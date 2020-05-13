@@ -7,12 +7,12 @@
         "sysid": 1,
         "compid": 1,
         "loop_time_ms": 1000,
-        "udp": {
+        "not_udp": {
             "port": 14550
         },
         "serial": {
-            "port": "/dev/ttyS0",
-            "baud_rate": 921600,
+            "port": "/dev/ttyACM0",
+            "baud_rate": 57600,
             "udp_relay": {
                 "port": 14550,
                 "targets": [

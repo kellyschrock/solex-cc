@@ -58,6 +58,11 @@ function getMavlinkProcessor() {
     return mMavlink;
 }
 
+exports.isProtocolMarker = (byte) => {
+    return (mMavlink)?
+        (byte == mMavlink.protocol_marker): (byte == 254 || byte == 253);
+}
+
 exports.onOpen = onOpen;
 exports.onClose = onClose;
 exports.parseBuffer = parseBuffer;

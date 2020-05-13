@@ -61,6 +61,9 @@ const HEARTBEAT_TIMEOUT = 5000;
 var mHeartbeatTimer = null;
 var mHeartbeatTimeout = null;
 
+const mBuffers = [];
+let mCurrBuffer = null;
+
 const mUDPCallback = {
     onData: function(packet) {
         // d(`UDP server got data: ${packet}`);
@@ -103,13 +106,27 @@ const mConnectionCallback = {
     },
 
     onData: function (buffer) {
-        // d(`onData(): ${JSON.stringify(buffer.toJSON())}`);
-        // d(`onData(): type=${typeof(buffer)}`);
+        // The mavlink parser is dumb AF. Collect buffers into buffers that
+        // start with the protocol marker before passing them to it.
+        for (const b of buffer) {
+            if (mavlink_shell.isProtocolMarker(b)) {
+                if (mCurrBuffer) {
+                    mBuffers.push(mCurrBuffer);
+                }
 
-        // Incoming buffer. Parse into Mavlink until a message is parsed, which will
-        // trigger onReceivedMavlinkMessage().
+                mCurrBuffer = [b];
+            } else {
+                if (mCurrBuffer) {
+                    mCurrBuffer.push(b);
+                }
+            }
+        }
 
-        mavlink_shell.parseBuffer(buffer);
+        for (const buf of mBuffers) {
+            mavlink_shell.parseBuffer(Buffer.from(buf));
+        }
+
+        mBuffers.splice(0, mBuffers.length);
 
         if(mSerialPort) {
             // This came from the serial port. Send it to UDP
@@ -219,8 +236,6 @@ function onReceivedMavlinkMessage(msg) {
     if(!msg.name) {
         return log(JSON.stringify(msg));
     }
-
-    d(msg.name);
 
     switch(msg.name) {
         case "HEARTBEAT": {
