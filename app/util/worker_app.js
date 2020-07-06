@@ -378,11 +378,11 @@ function onLoadLibraries(msg) {
 
 // msg.screen_name
 function onScreenEnter(msg) {
-    // d(`onScreenEnter(): screen_name=${msg.screen_name}`);
+    // d(`onScreenEnter(): screen_name=${msg.screen_name} screen_type=${msg.screen_type}`);
 
     const response = {screen_name: msg.screen_name, pid: process.pid};
     if(mWorker && mWorker.onScreenEnter) {
-        const item = mWorker.onScreenEnter(msg.screen_name);
+        const item = mWorker.onScreenEnter(msg.screen_name, msg.screen_type || "default");
         if(item) response.data = item;
     }
 

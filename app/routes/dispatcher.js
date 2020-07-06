@@ -64,7 +64,9 @@ function workerDownload(req, res) {
 
 function screenEnter(req, res) {
     const name = req.params.screen;
-    dispatch.handleScreenEnter(name, function(err, output) {
+    const type = (req.query && req.query.type); // optional
+
+    dispatch.handleScreenEnter(name, type, function(err, output) {
         if(err) {
             return res.status(500).json({message: err.message});
         }
