@@ -1042,7 +1042,7 @@ function removeGCSMessageListener(listener) {
     return (idx >= 0);
 }
 
-function handleScreenEnter(screenName, callback) {
+function handleScreenEnter(screenName, type, callback) {
 
     // Need to make a list of PIDs I've requested data from so I can wait until they've all answered.
     mScreenEnterRequests[screenName] = {
@@ -1059,7 +1059,7 @@ function handleScreenEnter(screenName, callback) {
         if(!worker.child) continue;
         queue.pids.push(worker.child.pid);
         
-        worker.child.send({id: "screen_enter", msg: {screen_name: screenName}});
+        worker.child.send({id: "screen_enter", msg: {screen_name: screenName, screen_type: type }});
     }
 
     d(`Sent request to ${queue.pids.length} processes`);
