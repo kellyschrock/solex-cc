@@ -1317,7 +1317,11 @@ function installWorker(srcPath, target, callback) {
     }
 
     if (!fs.existsSync(target)) {
-        fs.mkdir(target); // Returns undefined, so check if it worked
+        try {
+            fs.mkdirSync(target); // Returns undefined, so check if it worked
+        } catch(ex) {
+            return callback.onError(ex.message);
+        }
     }
 
     function installSingleWorkerTo(target) {
