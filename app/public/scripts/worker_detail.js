@@ -18,6 +18,8 @@ function WorkerDetailPage(workerId) {
     let tblLogOutput = $("#tbl_log_output");
     let btnLogClear = $("#btn_log_clear");
     let chkMonitor = $("#chk_monitor_post");
+    let btnConfigPanel = $("#btn_config_panel");
+    let tblConfig = $("#tbl_config");
 
     function formatJson(jo) {
         return JSON.stringify(jo, null, 4);
@@ -95,10 +97,107 @@ function WorkerDetailPage(workerId) {
     });
 
     function loadWorker(workerId) {
+        const config = {};
+
+        function saveRowEdit(id, edit) {
+            const value = edit.val();
+
+            $(`tr#${id} td.value`).html(value);
+            config[id] = value;
+        }
+
+        function cancelEditRow(id, value) {
+            $(`tr#${id} td.value`).html(value);
+        }
+
+        function bindDeleteButtons() {
+            $(`button.del`).unbind().click(function () {
+                const id = $(this).attr("pid");
+
+                if (confirm(`Delete property ${id}?`)) {
+                    delete config[id];
+                    $(`tr#${id}`).remove();
+                }
+            });
+        }
+
+        function editRowAt(id, value) {
+            $(`tr#${id} td.value`).html("").append(`<input type="text" id="edit_${id}" class="row_edit" value="${value}">`);
+            $(`#edit_${id}`).focus().on("keydown", (e) => {
+                console.log(e.which);
+                switch (e.which) {
+                    case 13: saveRowEdit(id, $(`#edit_${id}`)); break;
+                    case 27: cancelEditRow(id, value); break;
+                }
+            });
+
+            $(`#edit_${id}`).select();
+        }
+
+        $("#btn_add_property").click(function() {
+            const prop = prompt(`Enter a property name.`);
+            if(prop) {
+                if(prop.indexOf(" ") >= 0) {
+                    return alert("Need to use a name without spaces in it.");
+                }
+                
+                const row = `<tr id="${prop}">
+                        <th class="nr">${prop}</th>
+                        <td class="value">Edit this value</td>
+                        <td>
+                            <button pid="${prop}" class="del btn btn-danger btn-sm">Delete</button>
+                        </td>
+                        </tr>`
+                        ;
+                $("#tbl_config tr:last").after(row);
+
+                bindDeleteButtons();
+                editRowAt(prop, "New value");
+            }
+        });
+
+        $("#btn_save_config").click(function() {
+            postJSON(`/worker/config/${workerId}`, JSON.stringify(config), 
+                function(response) {
+
+                }, 
+                function(response) {
+                    alert(`Unable to save properties: ${JSON.stringify(response)}`);
+                });
+        });
+
+        // Turns out the () => style of functions doesn't work. $(this) is invalid. 
+        $("#tbl_config").on("dblclick", "tr", function () {
+            const id = $(this).attr("id");
+            const value = $(`tr#${id} td.value`).html();
+            editRowAt(id, value);
+        });
+
         $.getJSON(`/worker/details/${workerId}`, function (data) {
             // d(JSON.stringify(data));
             workerTitle.text(data.name);
             workerDesc.text(data.description);
+
+            if(data.config) {
+                Object.assign(config, data.config);
+
+                $("#tbl_config").find().remove();
+
+                for(let prop in config) {
+                    const row = `<tr id="${prop}">
+                        <th class="nr">${prop}</th>
+                        <td class="value">${config[prop]}</td>
+                        <td>
+                            <button pid="${prop}" class="del btn btn-danger btn-sm">Delete</button>&nbsp;
+                        </td>
+                        </tr>`
+                        ;
+
+                    $("#tbl_config tr:last").after(row);
+                }
+            }
+
+            bindDeleteButtons();
         });
     }
 
@@ -107,6 +206,16 @@ function WorkerDetailPage(workerId) {
     subscribeWsLogMessages();
     subscribeMonitor();
     loadWorker(workerId);
+
+    btnConfigPanel.click(function() {
+        if(tblConfig.is(":visible")) {
+            tblConfig.hide();
+            btnConfigPanel.text("Expand");
+        } else {
+            tblConfig.show();
+            btnConfigPanel.text("Collapse");
+        }
+    });
 
     btnMsgPanel.click(function() {
         if(tblMessages.is(":visible")) {

@@ -1,0 +1,13 @@
+{
+    "camera": {
+        "some_property": "Some value",
+        "some_other_property": "Some other value",
+        "new_thing": "New value"
+    },
+    "picamera": {
+        "media_path": "/home/kellys/Videos/copter"
+    },
+    "leds": {
+        "my_prop": "my value"
+    }
+}

@@ -5,6 +5,33 @@
     <span id="worker_desc"></span>
     <br />
 
+    <div id="config_area" class="bordered_group padded">
+        <b class="big">Configuration</b>
+        <a id="btn_config_panel" href="#btn_msg_panel" style="float:right">Collapse</a>
+
+        <table>
+            <tr>
+                <td>
+                    View and change this worker's configuration.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <table id="tbl_config"  class="bordered_group table table-condensed table-striped table-bordered table-hover"> 
+                        <tr>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <button id="btn_add_property" class="btn btn-success btn-sm">Add Property</button>&nbsp;
+                    <button id="btn_save_config" class="btn btn-success btn-sm">Save Config</button>&nbsp;
+                </td>
+            </tr>
+        </table>
+    </div>
+
     <div id="post_area" class="bordered_group padded">
         <b class="big">Messages</b>
         &nbsp;&nbsp;<input type="checkbox" id="chk_monitor_post">Monitor</input>

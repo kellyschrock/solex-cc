@@ -231,6 +231,8 @@ function setupApp() {
         app.get("/worker/reload/:worker_id", dispatcher.reloadWorker);
         app.get("/worker/details/:worker_id", dispatcher.getWorkerDetails);
         app.get("/worker/monitor/:worker_id/:monitor", dispatcher.monitorWorker);
+        app.get("/worker/config/:worker_id", dispatcher.getWorkerConfig);
+        app.post("/worker/config/:worker_id", dispatcher.setWorkerConfig);
         app.delete("/worker/:worker_id", dispatcher.removeWorker);
         app.delete("/package/:package_id", dispatcher.removePackage);
         // POST a message to a worker
@@ -499,10 +501,27 @@ function setupApp() {
                 }
             }
 
-            dispatcher.setConfig(configData.dispatcher);
-            dispatcher.addGCSListener(mGCSMessageListener);
-            dispatcher.reloadDirect();
-            dispatcher.startDirect();
+            config.readWorkerConfig(global.appRoot, (workerConfig) => {
+                log("Read worker config");
+
+                if(workerConfig) {
+                    dispatcher.onLoadWorkerConfig(workerConfig, (changedConfig) => {
+                        log(`Config changed`);
+                        config.saveWorkerConfig(global.appRoot, changedConfig, (err) => {
+                            if(err) {
+                                console.error(err);
+                            }
+                        });
+                    });
+                } else {
+                    log(`No worker config data`);
+                }
+
+                dispatcher.setConfig(configData.dispatcher);
+                dispatcher.addGCSListener(mGCSMessageListener);
+                dispatcher.reloadDirect();
+                dispatcher.startDirect();
+            });
         }
     });
 
