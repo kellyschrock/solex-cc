@@ -29,6 +29,9 @@ const mConfig = {
     heartbeats: {send: false}
 };
 
+const mWorkerConfig = {};
+let mConfigChangeCallback = null;
+
 var mSerialPort = null;
 
 // Worker list/map
@@ -55,6 +58,11 @@ const mContentRequests = {};
 const mFeatureRequest = {};
 // Active payload
 var mActivePayload = null;
+// Generalized callbacks
+const mResponseCallbacks = {
+    get_worker_config: {},
+    set_worker_config: {}
+};
 // Heartbeats
 const HEARTBEAT_INTERVAL = 2000;
 const HEARTBEAT_TIMEOUT = 5000;
@@ -450,7 +458,9 @@ function setupWorkerCallbacks(child) {
         "on_payload_start_response": onPayloadStartResponse,
         "on_payload_ping_response": onPayloadPingResponse,
         "on_payload_stop_response": onPayloadStopResponse,
-        "on_worker_roster_response": onWorkerRosterResponse
+        "on_worker_roster_response": onWorkerRosterResponse,
+        "on_worker_get_config_response": onGetWorkerConfigResponse,
+        "on_worker_set_config_response": onSetWorkerConfigResponse
     };
 
     // Finished loading a worker.
@@ -619,6 +629,26 @@ function setupWorkerCallbacks(child) {
 
     function onWorkerRosterResponse(msg) {
         d(`onWorkerRosterResponse(): ${JSON.stringify(msg)}`);
+    }
+
+    function onGetWorkerConfigResponse(msg) {
+        d(`onGetWorkerConfigResponse(): ${JSON.stringify(msg)}`);
+
+        const cb = mResponseCallbacks.get_worker_config[msg.worker_id];
+        d(`cb=${cb}`);
+        if(cb && cb.callback) {
+            cb.callback(msg.msg);
+        }
+        delete mResponseCallbacks.get_worker_config[msg.worker_id];
+    }
+
+    function onSetWorkerConfigResponse(msg) {
+        d(`onSetWorkerConfigResponse(): ${JSON.stringify(msg)}`);
+        const cb = mResponseCallbacks.set_worker_config[msg.worker_id];
+        if(cb && cb.callback) {
+            cb.callback(msg.msg);
+        }
+        delete mResponseCallbacks.set_worker_config[msg.worker_id];
     }
 
     // Handle screen-enter responses from workers
@@ -1000,8 +1030,9 @@ function loadWorkerRoot(basedir) {
             });
 
             child.send({ id: "config", msg: { config: mConfig } });
+            child.send({ id: "load_worker_config", msg: { config: mWorkerConfig }});
             child.send({ id: "load_libraries", msg: { path: mConfig.workerLibRoot }});
-
+            
             setTimeout(function () {
                 child.send({ id: "load_worker", msg: {file: files[i], enabledStates: mWorkerEnabledStates || {} } });
             }, 100 * i);
@@ -1261,10 +1292,53 @@ function getWorkerDetails(workerId) {
     if(worker) {
         const val = worker.attributes;
         val.enabled = worker.enabled;
+        val.config = mWorkerConfig[workerId];
         return val;
     }
 
     return null;
+}
+
+// This returns the config for a worker, NOT the overall config
+function getWorkerConfig(workerId, cb) {
+    d(`getWorkerConfig(): ${workerId}`);
+
+    const worker = findWorkerById(workerId);
+    if(worker) {
+        // Set up the response callback.
+        mResponseCallbacks.get_worker_config[workerId] = { callback: cb };
+
+        const child = worker.child;
+        child.send({ id: "get_worker_config", msg: { worker_id: workerId } });
+    } else {
+        if(cb) cb(null);
+    }
+}
+
+function setWorkerConfig(workerId, config, cb) {
+    d(`setWorkerConfig(): ${workerId}`);
+
+    const worker = findWorkerById(workerId);
+    if(worker) {
+        mWorkerConfig[workerId] = config;
+
+        // Set up the response callback.
+        mResponseCallbacks.set_worker_config[workerId] = { callback: cb };
+
+        const child = worker.child;
+        child.send({ id: "set_worker_config", msg: { worker_id: workerId, msg: config } });
+
+        if(mConfigChangeCallback) {
+            mConfigChangeCallback(mWorkerConfig);
+        }
+    }
+}
+
+function onLoadWorkerConfig(workerConfig, changeCallback) {
+    d(`onLoadWorkerConfig()`);
+
+    Object.assign(mWorkerConfig, workerConfig);
+    mConfigChangeCallback = changeCallback;
 }
 
 function setConfig(config) {
@@ -1317,7 +1391,11 @@ function installWorker(srcPath, target, callback) {
     }
 
     if (!fs.existsSync(target)) {
-        fs.mkdir(target); // Returns undefined, so check if it worked
+        try {
+            fs.mkdirSync(target); // Returns undefined, so check if it worked
+        } catch(ex) {
+            return callback.onError(ex.message);
+        }
     }
 
     function installSingleWorkerTo(target) {
@@ -1674,6 +1752,9 @@ exports.imageDownload = imageDownload;
 exports.handleWorkerDownload = handleWorkerDownload;
 exports.getWorkers = getWorkers;
 exports.getWorkerDetails = getWorkerDetails;
+exports.getWorkerConfig = getWorkerConfig;
+exports.setWorkerConfig = setWorkerConfig;
+exports.onLoadWorkerConfig = onLoadWorkerConfig;
 exports.setConfig = setConfig;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;

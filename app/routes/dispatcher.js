@@ -47,6 +47,27 @@ function getWorkerDetails(req, res) {
     }
 }
 
+function getWorkerConfig(req, res) {
+    d(`getWorkerConfig()`);
+
+    dispatch.getWorkerConfig(req.params.worker_id, (config) => {
+        res.json(config || {});
+    });
+}
+
+function setWorkerConfig(req, res) {
+    d(`setWorkerConfig()`);
+
+    dispatch.setWorkerConfig(req.params.worker_id, req.body, (result) => {
+        res.json({ result: result });
+    });
+}
+
+function onLoadWorkerConfig(workerConfig, changeCallback) {
+    d(`onLoadWorkerConfig(): ${JSON.stringify(workerConfig)}`);
+    dispatch.onLoadWorkerConfig(workerConfig, changeCallback);
+}
+
 function monitorWorker(req, res) {
     dispatch.monitorWorker(req.params.worker_id, req.params.monitor);
     res.json({monitor: req.params.monitor});
@@ -431,6 +452,9 @@ exports.removeGCSListener = removeGCSListener;
 exports.handleGCSMessage = handleGCSMessage;
 exports.getWorkers = getWorkers;
 exports.getWorkerDetails = getWorkerDetails;
+exports.getWorkerConfig = getWorkerConfig;
+exports.setWorkerConfig = setWorkerConfig;
+exports.onLoadWorkerConfig = onLoadWorkerConfig;
 exports.monitorWorker = monitorWorker;
 exports.setConfig = setConfig;
 exports.shutdown = shutdown;

@@ -6,19 +6,20 @@ const mavlink = require("./mavlink.js");
 
 const LOOP_INTERVAL = 1000;
 
-const VERBOSE = global.logVerbose || false;
+const VERBOSE = true; // global.logVerbose || false;
 
 // Worker "app" module. Each worker that's loaded is run by this module as a forked process.
 // All communication between this and the master is done via Node IPC mechanisms.
-var mWorker = null;
-var mWorkerAttributes = null;
-var mWorkerId = null;
-var mWorkerFile = null;
-var mMavlinkNames = [];
-var mWorkerRoster = null;
-var mConfig = null;
-var mWorkerLibraries = {};
-var mLoopTimer = null;
+let mWorker = null;
+let mWorkerAttributes = null;
+let mWorkerId = null;
+let mWorkerFile = null;
+let mMavlinkNames = [];
+let mWorkerRoster = null;
+let mConfig = null;
+let mWorkerLibraries = {};
+let mLoopTimer = null;
+const mWorkerConfig = {};
 
 const mWorkerListener = {
     /** Gets a Mavlink message from the specified worker, sends it to the Mavlink output */
@@ -110,8 +111,7 @@ function loadWorker(msg) {
     const enabledStates = msg.enabledStates;
     const file = msg.file;
     if(!file) {
-        loadAbort(100, { file: null, msg: `No file specified` });
-        return;
+        return loadAbort(100, { file: null, msg: `No file specified` });
     }
 
     mWorkerFile = file;
@@ -123,16 +123,16 @@ function loadWorker(msg) {
         // const attrs = worker.getAttributes() || { name: "No name", looper: false };
         const attrs = (worker.getAttributes) ? worker.getAttributes(): null;
         if (!attrs) {
-            loadAbort(100, { file: file, msg: `Worker has no attributes`});
-            return;
+            return loadAbort(100, { file: file, msg: `Worker has no attributes`});
         }
 
         if (!attrs.id) {
-            loadAbort(100, { file: file, msg: `Worker ${attrs.id} in ${file} has no id, not loading`});
-            return;
+            return loadAbort(100, { file: file, msg: `Worker ${attrs.id} in ${file} has no id, not loading`});
         }
 
         const workerId = attrs.id;
+        const workerConfig = mWorkerConfig[workerId];
+
         let workerEnabled = true;
 
         if(enabledStates.hasOwnProperty(workerId)) {
@@ -182,6 +182,11 @@ function loadWorker(msg) {
                     setTimeout(loopCaller, LOOP_INTERVAL);
                 }
 
+                if(workerConfig && worker.setConfig) {
+                    d(`Setting ${workerId}'s config to ${JSON.stringify(workerConfig)}`);
+                    worker.setConfig(workerConfig);
+                }
+
             } catch(ex) {
                 loadAbort(100, { file: file, msg: `${file} onLoad(): ${ex.message}`, stack: ex.stack });
             }
@@ -210,7 +215,7 @@ function attachApisTo(attrs) {
 
     for (let prop in mWorkerLibraries) {
         attrs.api[prop] = mWorkerLibraries[prop].module;
-        d(`load API module ${prop} for ${attrs.id}`);
+        // d(`load API module ${prop} for ${attrs.id}`);
     }
 }
 
@@ -544,6 +549,68 @@ function onPayloadPingRequest(msg) {
     }
 }
 
+function onLoadWorkerConfig(msg) {
+    d(`onLoadWorkerConfig(): ${JSON.stringify(msg)}`);
+    if(msg && msg.config) {
+        Object.assign(mWorkerConfig, msg.config);
+    }
+}
+
+function onGetWorkerConfigRequest(msg) {
+    d(`onGetWorkerConfigRequest(): ${JSON.stringify(msg)}`);
+
+    const response = {
+        id: "on_worker_get_config_response",
+        msg: { 
+            worker_id: msg.worker_id 
+        } 
+    };
+
+    if (mWorker && mWorker.getConfig) {
+        try {
+            const content = mWorker.getConfig();
+            if (content) {
+                response.msg.msg = content;
+            }
+        } catch (ex) {
+            e(ex.message);
+            response.msg.error = ex.message;
+        }
+    }
+
+    d(`Send the response: ${JSON.stringify(response)}`);
+    process.send(response);
+}
+
+function onSetWorkerConfigRequest(msg) {
+    d(`onSetworkerConfigRequest(): ${JSON.stringify(msg)}`);
+
+    // msg.worker_id, msg.content_id, msg.msg_id
+    const response = {
+        id: "on_worker_set_config_response",
+        msg: {
+            worker_id: msg.worker_id
+        }
+    };
+
+    if (msg.worker_id && mWorker && mWorker.setConfig) {
+        const workerConfig = msg.msg;
+
+        mWorkerConfig[msg.worker_id] = workerConfig;
+
+        try {
+            mWorker.setConfig(workerConfig);
+        } catch (ex) {
+            e(ex.message);
+            response.msg.error = ex.message;
+        }
+    } else {
+        response.msg.error = `${msg.worker_id} has no setConfig() method`;
+    }
+
+    process.send(response);
+}
+
 function onPayloadStopRequest(msg) {
     log(`onPayloadStopRequest(${JSON.stringify(msg)})`);
 
@@ -608,7 +675,10 @@ const mFunctionMap = {
     "worker_enable": onWorkerEnable,
     "on_payload_start": onPayloadStart,
     "on_payload_ping": onPayloadPingRequest,
-    "on_payload_stop": onPayloadStopRequest
+    "on_payload_stop": onPayloadStopRequest,
+    "load_worker_config": onLoadWorkerConfig,
+    "get_worker_config": onGetWorkerConfigRequest,
+    "set_worker_config": onSetWorkerConfigRequest
 };
 
 // Incoming messages from the parent process
@@ -648,7 +718,7 @@ function loadWorkerLibsIn(dir) {
         const prop = path.basename(file, path.extname(file));
 
         try {
-            d(`load library module: ${filename}`);
+            // d(`load library module: ${filename}`);
             const module = require(filename);
 
             const lib = {
