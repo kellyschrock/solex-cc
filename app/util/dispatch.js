@@ -166,7 +166,8 @@ function e(s, err) {
     log(`${s}: ${err.message}`);
 
     if(err) {
-        log(err.stack);
+        console.trace();
+        // log(err.stack);
     } 
 }
 
@@ -243,6 +244,10 @@ function onReceivedMavlinkMessage(msg) {
 
     if(!msg.name) {
         return log(JSON.stringify(msg));
+    }
+
+    if(msg.name.includes("DIGICAM")) {
+        log(msg.name);
     }
 
     switch(msg.name) {
@@ -424,6 +429,20 @@ function mavlinkMessageFor(msg) {
 
     // d(`ctor: ${ctor}`);
 
+    let fakeMessage = false;
+    if(!msg.fieldnames) {
+        fakeMessage = true;
+        // log(`Try to make a mavlink message out of ${JSON.stringify(msg)}`);
+        msg.fieldnames = [];
+
+        for(let prop in msg) {
+            if(prop !== "header") {
+                msg.fieldnames.push(msg[prop]);
+            }
+        }
+    }
+
+
     const args = [];
     msg.fieldnames.map(function(field) {
         args.push(msg[field]);
@@ -432,6 +451,7 @@ function mavlinkMessageFor(msg) {
     // d(`args=${JSON.stringify(args)}`);
 
     const output = Reflect.construct(ctor, args);
+
     // d(`output=${JSON.stringify(output)}`);
 
     return output;

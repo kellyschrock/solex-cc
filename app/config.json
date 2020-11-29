@@ -1,6 +1,7 @@
 {
     "dispatcher": {
         "worker_roots": [
+            "/home/kellys/work/drone/projects/copter/code/workers/picamera",
             "/home/kellys/work/drone/projects/mower/workers",
             "/home/kellys/work/drone/projects/solex-cc/workers/examples/ui"
         ],
@@ -8,7 +9,7 @@
         "sysid": 1,
         "compid": 1,
         "loop_time_ms": 1000,
-        "not_udp": {
+        "udp": {
             "port": 14550
         },
         "not_serial": {
