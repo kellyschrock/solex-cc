@@ -833,7 +833,8 @@ function setupWorkerCallbacks(child) {
     function onWorkerLog(msg) {
         // msg.worker_id, msg.msg (text to log)
         const filter = mConfig.logWorkers || [];
-
+        const workerId = msg.worker_id || "";
+        
         if (filter.length === 0 || filter.indexOf(workerId) >= 0) {
             console.log(`${msg.worker_id}: ${msg.msg}`);
 
