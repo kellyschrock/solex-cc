@@ -388,33 +388,64 @@ For sending GCS messages, you can just send them from your worker, and it's up t
 ## Installation
 
 Solex CC is a Node JS app, so you need Node JS installed on your companion computer. Then you need to ensure it gets launched when the 
-companion computer boots. Here is an example of setting things up on a Raspberry Pi running `apsync` to launch Solex CC at boot time.
+companion computer boots. Here is an example of setting things up on a Raspberry Pi to launch Solex CC at boot time.
 
 ### Install NodeJS
 
-Use the package manager to install the latest version of Node JS, or install a copy of NodeJS in the `/home/apsync/solexcc` directory. The included `*start_solexcc.sh` scripts assume you've done the latter, but it's not required.
+Use the package manager to install the latest version of Node JS:
 
-### Install the app
+```
+$ sudo apt-get install nodejs
+```
 
-This is mainly a matter of copying the relevant files to the right directories. 
+### Install `cmavnode`
 
-The best thing to do is to start with the `deploy` directory. Copy that to the `/home/apsync` directory on the Pi so you end up with `/home/apsync/solexcc`. Edit the `start_solex.cc` and `autostart_solexcc.sh` files so they point to the appropriate `node` executable and directories. In the example scripts, Node is installed under `/home/apsync/solexcc` and symlinked to `node`.
+If you're running an `apsync` installation, cmavnode is probably already installed and you can skip this step. If not (`apsync` is not required),
+you can install `cmavnode` by copying the contents of `deploy/cmavnode` to the Pi so that you end up with `$HOME/cmavnode` on the target device. Once there, 
+locate and edit `$HOME/cmavnode/cmavnode.service` and ensure the paths specified in it are correct. Then run these commands:
 
-Test the installation by `cd`ing to `/home/apsync/solexcc` and running `./start_solexcc.sh`. If you see output showing a successful startup, then it works.
+```
+$ sudo ln -s $HOME/cmavnode/cmavnode.service /etc/systemd/system/cmavnode.service
+$ sudo systemctl start cmavnode
+```
+
+If no errors appear, cmavnode is working. Make it start at boot time by running `sudo systemctl enable cmavnode`.
+
+### Install SolexCC
+
+Start with the `deploy` directory. Copy that to the appropriate `$HOME` directory on the Pi so you end up with `$HOME/solexcc`. Edit the `start_solex.cc` and `autostart_solexcc.sh` files so they point to the appropriate `node` executable and directories. 
+
+Test the installation by `cd`ing to `$HOME/solexcc` and running `./start_solexcc.sh`. If you see output showing a successful startup, then it works.
 
 ### Make it start on boot
 
+There are two ways to do this. 
+
+#### `rc.local`
 Edit `/etc/rc.local` and add this line at the bottom of the file:
 
 `/bin/bash -c '~apsync/solexcc/autostart_solexcc.sh'`
 
-### Solex CC and apweb
+#### Systemd
 
-APSync already has a web server that runs on port 80. If you don't need that, you can comment out the line that starts it in `/etc/rc.local` and set the `PORT` directive in `start_solexcc.sh` to 80. Otherwise, you can pick a different port for Solex CC (e.g. 8080), and run both web servers at the same time.
+You can install SolexCC as a systemd service, which is easier to manage than the `rc.local` approach in some cases.
+
+Find and edit `$HOME/solexcc/solexcc.service` and make sure the paths it references are correct. Then run the following commands:
+
+```
+$ sudo ln -s $HOME/solexcc/solexcc.service /etc/systemd/system/solexcc.service
+$ sudo systemctl start solexcc
+```
+
+If no errors appear, then SolexCC can be started as a service. Stop the service with `sudo systemctl stop solexcc`.
+
+To make SolexCC start at boot tme, run `sudo systemctl enable solexcc`.
+
+Note that the output of both `solexcc` and `cmavnode` as systemd services will appear in `/var/log/syslog`.
 
 ### Make worker root(s)
 
-You'll need a place to put workers, so create a worker directory at `/home/apsync/cc-workers`. (You can add more of these, depending on how you prefer to organize things.) Each worker will appear in its own directory under this one.
+You'll need a place to put workers, so create a worker directory at `/home/pi/cc-workers`. (You can add more of these, depending on how you prefer to organize things.) Each worker will appear in its own directory under this one.
 
 Edit the `$APP_HOME/config.json` file to include your worker directory.
 

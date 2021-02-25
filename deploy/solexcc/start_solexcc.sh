@@ -3,8 +3,8 @@
 set -e
 set -x
 
-SOLEXCC_HOME=/home/apsync/solexcc
-NODE_EXE=$SOLEXCC_HOME/node/bin/node
+SOLEXCC_HOME=$HOME/solexcc
+NODE_EXE=$(which nodejs)
 APP_HOME=$SOLEXCC_HOME/app
 
 pushd $APP_HOME
