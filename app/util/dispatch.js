@@ -1791,12 +1791,4 @@ exports.getActivePayload = getActivePayload;
 exports.onPayloadStop = onPayloadStop;
 exports.pingWorkerRoster = pingWorkerRoster;
 
-function testReload() {
-    mConfig.workerRoots = [
-        "/home/kellys/work/drone/projects/solex-cc/workers"
-    ];
-
-    reload();
-    start();
-}
 
