@@ -163,11 +163,10 @@ function v(str) { if (VERBOSE) log(str); }
 function trace(s) { if (global.TRACE) { logger.v(__filename + "(trace)", s); } }
 
 function e(s, err) { 
-    log(`${s}: ${err.message}`);
+    log(`${path.basename(__filename, ".js")}: ${s} - ${err && err.message || s}`);
 
     if(err) {
         console.trace();
-        // log(err.stack);
     } 
 }
 
