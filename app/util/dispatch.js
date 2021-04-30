@@ -7,6 +7,7 @@ const SerialPort = require("serialport");
 const logger = require("./logger");
 const child_process = require("child_process");
 const mavlink_shell = require("./mavlink_shell");
+const VehicleTopics = require("../topic/VehicleTopics");
 
 require("jspack");
 
@@ -245,9 +246,7 @@ function onReceivedMavlinkMessage(msg) {
         return log(JSON.stringify(msg));
     }
 
-    if(msg.name.includes("DIGICAM")) {
-        log(msg.name);
-    }
+    VehicleTopics.onMavlinkMessage(msg);
 
     switch(msg.name) {
         case "HEARTBEAT": {

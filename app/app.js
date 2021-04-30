@@ -27,6 +27,7 @@ const config = require('./util/config');
 const compression = require("compression");
 const zlib = require("zlib");
 
+const VehicleTopics = require("./topic/VehicleTopics");
 const routes = require('./routes');
 const dispatcher = require("./routes/dispatcher");
 const system = require("./routes/system");
@@ -399,6 +400,22 @@ function setupApp() {
                             if (idx >= 0) {
                                 mGCSSubscribers.splice(idx, 1);
                                 client.send(JSON.stringify({ event: "subscribe-status", status: "unsubscribed" }));
+                            }
+                            break;
+                        }
+
+                        case "subscribe-topic": {
+                            if(jo.topic) {
+                                VehicleTopics.addSubscriber(jo.topic, client);
+                                client.send(JSON.stringify({event: "topic-status", status: "subscribed", topic: jo.topic }));
+                            }
+                            break;
+                        }
+
+                        case "unsubscribe-topic": {
+                            if(jo.topic) {
+                                VehicleTopics.removeSubscriber(jo.topic, client);
+                                client.send(JSON.stringify({event: "topic-status", status: "unsubscribed", topic: jo.topic }));
                             }
                             break;
                         }
