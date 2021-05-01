@@ -252,6 +252,23 @@ function setYaw(sysid, compid, targetAngle, yawRate, clockwise, relative, callba
     callback(msg);
 }
 
+function sendSetYaw(sysid, compid, angle, direction, callback) {
+    const msg = new mavlink.messages.command_long(
+        sysid, compid,
+        mavlink.MAV_CMD_CONDITION_YAW,
+        0, // confirmation,
+        angle,
+        10, // deg/s
+        direction, // -1 ccw, 1 cw
+        0, // absolute
+        0,
+        0,
+        0
+    );
+
+    callback(msg);
+}
+
 function sendTakeoff(sysid, compid, alt, callback) {
     const msg = new mavlink.messages.command_long(
         sysid, compid, mavlink.MAV_CMD_NAV_TAKEOFF,
@@ -339,6 +356,7 @@ exports.sendVelocityInLocalFrame = sendVelocityInLocalFrame;
 exports.sendGuidedPosAndVelocity = sendGuidedPosAndVelocity;
 exports.changeVehicleMode = changeVehicleMode;
 exports.setYaw = setYaw;
+exports.sendSetYaw = sendSetYaw;
 exports.sendTakeoff = sendTakeoff;
 exports.sendLand = sendLand;
 exports.sendArm = sendArm;

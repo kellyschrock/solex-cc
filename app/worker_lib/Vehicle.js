@@ -602,6 +602,15 @@ function setROI(point) {
     }
 }
 
+function setYaw(angle, direction) {
+    if (direction == undefined) {
+        const heading = mState && mState.attitude && mState.attitude.yaw;
+        direction = (yawToHeading(heading) > angle) ? -1 : 1;
+    }
+
+    MavlinkCommands.sendSetYaw(mSysId, mCompId, angle, direction, mavlinkCallback);
+}
+
 function clearROI() {
     MavlinkCommands.sendClearROI(mSysId, mCompId, mavlinkCallback);
 }
@@ -646,6 +655,7 @@ module.exports.gotoPoint = gotoPoint;
 module.exports.setSpeed = setSpeed;
 module.exports.sendGuidedVelocity = sendGuidedVelocity;
 module.exports.setROI = setROI;
+module.exports.setYaw = setYaw;
 module.exports.clearROI = clearROI;
 module.exports.sendVelocityLocalNed = sendVelocityLocalNed;
 
