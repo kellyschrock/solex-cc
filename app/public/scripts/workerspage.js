@@ -232,10 +232,10 @@ function WorkersPage() {
     }
 
     function promptToInstall(workerData) {
-        var str = "Install " + workerData.name + ", " + workerData.size + " bytes?";
+        const str = `Install ${workerData.name}, ${workerData.size} bytes?`;
 
         if(confirm(str)) {
-            var body = {
+            const body = {
                 name: workerData.name,
                 path: workerData.path,
                 target: workerData.target
@@ -245,18 +245,18 @@ function WorkersPage() {
                 if(data.success) {
                     setTimeout(function () {
                         loadWorkers();
-                    }, 2000);
+                    }, 6000);
                 } else {
                     alert(data.message + "\nCommand output:\n" + data.command_output);
                 }
             }, function(err) {
-                alert("Unable to install the worker.");
+                alert(`Unable to install the worker, message is ${err.message}`);
             })
         }
     }
 
     function initFileUpload() {
-        var url = "/worker/upload";
+        const url = "/worker/upload";
 
         console.log(fileUpload);
 
