@@ -12,6 +12,7 @@ const Topics = Object.freeze({
 ,   ALTITUDE: "altitude"
 ,   ATTITUDE: "attitude"
 ,   BATTERY: "battery"
+,   SPEED: "speed"
 });
 
 const VERBOSE = false;
@@ -46,7 +47,8 @@ const mState = {
     compid: 0,
     location: { lat: 0, lng: 0, altAGL: 0, valid: false },
     vehicle_type: 0,
-    vehicle_mode: 0
+    vehicle_mode: 0,
+    battery: {}
 };
 
 const messageMap = {
@@ -71,28 +73,35 @@ exports.addSubscriber = function addSubscriber(topic, client) {
 
     let list = subscribers[topic];
     if(!list) {
-        subscribers[topic] = (list = []);
+		list = [];
+		subscribers[topic] = list;
     }
 
     list.push(client);
 }
 
 exports.removeSubscriber = function removeSubscriber(topic, client) {
-    d(`removeSubscriber(${topic})`);
+    d(`removeSubscriber(${topic}, ${client})`);
 
     const list = subscribers[topic];
     if(list) {
+		d(`found ${list.length} subscribers on ${topic}`);
+
         const idx = list.indexOf(client);
         if(idx >= 0) {
             d(`Remove client at index ${idx}`);
             list.splice(idx, 1);
-        }
+        } else {
+			d(`Found no client for ${topic}`);
+		}
 
         if(list.length === 0) {
             d(`No listeners left on topic ${topic}`);
             delete subscribers[topic];
         }
-    }
+    } else {
+		d(`No clients on topic ${topic}`);
+	}
 }
 
 exports.listTopics = function listTopics() {
@@ -182,17 +191,17 @@ function processAttitude(msg) {
 function processBatteryStatus(msg) {
     if (mState.battery) {
         if (mState.battery.voltage !== msg.voltage ||
-            mState.battery.remaining !== msg.remaining ||
-            mState.battery.current !== msg.current) {
-            mState.battery.current = msg.current;
+            mState.battery.remaining !== msg.battery_remaining ||
+            mState.battery.current !== msg.current_battery) {
+            mState.battery.current = msg.current_battery;
             mState.battery.voltage = msg.voltage;
-            mState.battery.remaining = remaining;
+            mState.battery.remaining = msg.battery_remaining;
         }
     } else {
         mState.battery = {
             voltage: msg.voltage,
-            current: msg.current,
-            remaining: msg.remaining
+            current: msg.current_battery,
+            remaining: msg.battery_remaining
         };
     }
 
@@ -224,7 +233,7 @@ function processVfrHud(msg) {
 }
 
 function publish(topic, msg) {
-    d(`${topic}: ${JSON.stringify(msg)}`);
+//    d(`${topic}: ${JSON.stringify(msg)}`);
 
     const list = subscribers[topic];
     if(list) {
