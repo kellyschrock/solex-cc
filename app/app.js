@@ -248,6 +248,11 @@ function setupApp() {
         app.get("/payload/check", dispatcher.onPayloadCheck);
         app.get("/payload/stop", dispatcher.onPayloadStop);
 
+        // Topics
+        app.get("/topics", (req, res) => {
+            res.json(VehicleTopics.listTopics());
+        });
+
         // Trace
         app.get("/trace/:on_or_off", function (req, res, next) {
             global.TRACE = (req.params.on_or_off === "on");

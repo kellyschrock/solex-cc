@@ -95,6 +95,10 @@ exports.removeSubscriber = function removeSubscriber(topic, client) {
     }
 }
 
+exports.listTopics = function listTopics() {
+    return Object.values(Topics);
+}
+
 function processHeartbeat(msg) {
     // d(dump(msg.header));
 
