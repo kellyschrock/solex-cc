@@ -47,7 +47,7 @@ const mState = {
     compid: 0,
     location: { lat: 0, lng: 0, altAGL: 0, valid: false },
     vehicle_type: 0,
-    vehicle_mode: 0,
+    mode_number: 0,
     battery: {}
 };
 
@@ -55,6 +55,7 @@ const messageMap = {
     "HEARTBEAT": processHeartbeat,
     "GLOBAL_POSITION_INT": processGlobalPositionInt,
     "ATTITUDE": processAttitude,
+    "SYS_STATUS": processSysStatus,
     "BATTERY_STATUS": processBatteryStatus,
     "VFR_HUD": processVfrHud
 };
@@ -123,7 +124,7 @@ function processHeartbeat(msg) {
     if(mState.mode_number !== msg.custom_mode) {
         mState.mode_number = msg.custom_mode;
 
-        publish(Topics.MODE, mState);
+        publish(Topics.MODE, mState, 10);
     }
 
     const status = msg.system_status;
@@ -136,16 +137,16 @@ function processHeartbeat(msg) {
 
     if(flying !== mState.flying) {
         mState.flying = flying;
-        publish(Topics.FLYING, mState);
+        publish(Topics.FLYING, mState, 10);
     }
 
     if(armed !== mState.armed) {
         mState.armed = armed;
-        publish(Topics.ARMED, mState);
+        publish(Topics.ARMED, mState, 10);
     }
 
     if(failsafe) {
-        publish(Topics.FAILSAFE, mState);
+        publish(Topics.FAILSAFE, mState, 10);
     }
 }
 
@@ -170,7 +171,7 @@ function processGlobalPositionInt(msg) {
     mState.location.valid = true;
 
     if (whereChanged) {
-        publish(Topics.LOCATION, mState.location);
+        publish(Topics.LOCATION, mState.location, 10);
     }
 }
 
@@ -185,10 +186,16 @@ function processAttitude(msg) {
         yawSpeed: Math.toDegrees(msg.yawspeed)
     };
 
-    publish(Topics.ATTITUDE, mState.attitude);
+    publish(Topics.ATTITUDE, mState.attitude, 1000);
 }
 
-function processBatteryStatus(msg) {
+function processSysStatus(msg) {
+    msg.voltage = msg.voltage_battery / 1000;
+    msg.current_battery = msg.current_battery / 100;
+    processBatteryStatus(msg, true);
+}
+
+function processBatteryStatus(msg, fromSysStatus) {
     if (mState.battery) {
         if (mState.battery.voltage !== msg.voltage ||
             mState.battery.remaining !== msg.battery_remaining ||
@@ -205,7 +212,9 @@ function processBatteryStatus(msg) {
         };
     }
 
-    publish(Topics.BATTERY, mState.battery);
+    if(!fromSysStatus) {
+        publish(Topics.BATTERY, mState.battery, 10000);
+    }
 }
 
 function processVfrHud(msg) {
@@ -220,37 +229,49 @@ function processVfrHud(msg) {
         };
 
         mState.speed = speed;
-        publish(Topics.SPEED, mState.speed);
+        publish(Topics.SPEED, mState.speed, 5000);
     } else {
         if (speed.groundSpeed !== msg.groundspeed || speed.airSpeed !== msg.airspeed || speed.verticalSpeed !== msg.climb) {
             speed.groundSpeed = msg.groundspeed;
             speed.airSpeed = msg.airspeed;
             speed.verticalSpeed = msg.climb;
 
-            publish(Topics.SPEED, mState.speed);
+            publish(Topics.SPEED, mState.speed, 5000);
         }
     }
 }
 
-function publish(topic, msg) {
-//    d(`${topic}: ${JSON.stringify(msg)}`);
+const pubTimes = {};
+const PUBLISH_INTERVAL = 1000;
 
-    const list = subscribers[topic];
-    if(list) {
-        const str = JSON.stringify({
-            event: "topic",
-            topic: topic, 
-            message: msg
-        });
+function publish(topic, msg, interval = PUBLISH_INTERVAL) {
+    const now = Date.now();
+    const lastPubTime = pubTimes[topic] || 0;
+    const diff = (now - lastPubTime);
 
-        list.forEach((client) => { 
-            try {
-                client.send(str)
-            } catch(ex) {
-                e(ex.message);
-                exports.removeSubscriber(topic, client);
-            }
-        });
+    if(diff > interval) {
+        // d(`${topic}: ${JSON.stringify(msg)}`);
+        pubTimes[topic] = now;
+
+        const list = subscribers[topic];
+        if (list) {
+			d(`publish on topic to ${list.length} listener(s)`);
+
+            const str = JSON.stringify({
+                event: "topic",
+                topic: topic,
+                message: msg
+            });
+
+            list.forEach((client) => {
+                try {
+                    client.send(str)
+                } catch (ex) {
+                    e(ex.message);
+                    exports.removeSubscriber(topic, client);
+                }
+            });
+        }
     }
 }
 
