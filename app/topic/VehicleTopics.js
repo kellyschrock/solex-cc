@@ -16,7 +16,9 @@ const Topics = Object.freeze({
 });
 
 const VERBOSE = false;
+const DEF_PUBLISH_INTERVAL = 1000;
 const subscribers = {};
+const pubTimes = {};
 
 function d(str) {
     if(VERBOSE) console.log(`${path.basename(__filename, ".js")}: ${str}`);
@@ -241,10 +243,7 @@ function processVfrHud(msg) {
     }
 }
 
-const pubTimes = {};
-const PUBLISH_INTERVAL = 1000;
-
-function publish(topic, msg, interval = PUBLISH_INTERVAL) {
+function publish(topic, msg, interval = DEF_PUBLISH_INTERVAL) {
     const now = Date.now();
     const lastPubTime = pubTimes[topic] || 0;
     const diff = (now - lastPubTime);
