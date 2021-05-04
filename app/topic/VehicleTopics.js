@@ -13,6 +13,7 @@ const Topics = Object.freeze({
 ,   ATTITUDE: "attitude"
 ,   BATTERY: "battery"
 ,   SPEED: "speed"
+,   MISSION: "mission"
 });
 
 const VERBOSE = false;
@@ -50,7 +51,8 @@ const mState = {
     location: { lat: 0, lng: 0, altAGL: 0, valid: false },
     vehicle_type: 0,
     mode_number: 0,
-    battery: {}
+    battery: {},
+    missionState: { current_item: -1, reached_item: -1, count: 0 }
 };
 
 const messageMap = {
@@ -59,7 +61,10 @@ const messageMap = {
     "ATTITUDE": processAttitude,
     "SYS_STATUS": processSysStatus,
     "BATTERY_STATUS": processBatteryStatus,
-    "VFR_HUD": processVfrHud
+    "VFR_HUD": processVfrHud,
+    "MISSION_COUNT": processMissionCount,
+    "MISSION_CURRENT": processMissionCurrent,
+    "MISSION_ITEM_REACHED": processMissionItemReached
 };
 
 exports.onMavlinkMessage = function onMavlinkMessage(msg) {
@@ -241,6 +246,21 @@ function processVfrHud(msg) {
             publish(Topics.SPEED, mState.speed, 5000);
         }
     }
+}
+
+function processMissionCount(msg) {
+    mState.missionState.count = msg.count;
+    publish(Topics.MISSION, mState.missionState, 100);
+}
+
+function processMissionCurrent(msg) {
+    mState.missionState.current_item = msg.seq;
+    publish(Topics.MISSION, mState.missionState, 100);
+}
+
+function processMissionItemReached(msg) {
+    mState.missionState.reached_item = msg.seq;
+    publish(Topics.MISSION, mState.missionState, 100);
 }
 
 function publish(topic, msg, interval = DEF_PUBLISH_INTERVAL) {
