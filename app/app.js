@@ -31,6 +31,7 @@ const VehicleTopics = require("./topic/VehicleTopics");
 const routes = require('./routes');
 const dispatcher = require("./routes/dispatcher");
 const system = require("./routes/system");
+const { MAV_AUTOPILOT_PPZ, MAG_CAL_RUNNING_STEP_ONE } = require("./util/mavlink");
 
 // Default, actually overridden in a config file if present.
 global.workerRoot = path.join(global.appRoot, "/workers");
@@ -555,6 +556,33 @@ function setupApp() {
     });
 }
 
+function getMyIP() {
+    const { networkInterfaces } = require("os");
+
+    const nets = networkInterfaces();
+    const results = {};
+
+    for (const name of Object.keys(nets)) {
+        for (const net of nets[name]) {
+            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+            if (net.family === 'IPv4' && !net.internal) {
+                if (!results[name]) {
+                    results[name] = [];
+                }
+                results[name].push(net.address);
+            }
+        }
+    }
+
+    for(let prop in results) {
+        if(results[prop].length > 0) {
+            return results[prop][0];
+        }
+    }
+
+    return null;
+}
+
 function restartSystem(req, res) {
     function doRestartSystem() {
         const child_process = require("child_process");
@@ -576,3 +604,112 @@ function restartSystem(req, res) {
     setTimeout(doRestartSystem, 1000);
 }
 
+// IVC stuff
+const IVC_PEER_CHECK_INTERVAL = 5000;
+const PEER_TIMEOUT = 15000;
+const mIVCPeers = {};
+
+function startIVC() {
+    const myIP = getMyIP();
+    if (!myIP) return log(`Unable to get my own IP!`);
+    const PORT = 5150;
+    const dgram = require('dgram');
+
+    function startIVCPinger() {
+        const broadcastAddress = `${myIP.substring(0, myIP.lastIndexOf("."))}.255`;
+        log(`Broadcast address is ${broadcastAddress}`);
+
+        const server = dgram.createSocket("udp4");
+
+        server.bind(function () {
+            server.setBroadcast(true);
+            setInterval(broadcastNew, 10000);
+        });
+
+        broadcastNew();
+
+        function broadcastNew() {
+            const message = JSON.stringify({
+                address: myIP, 
+                port: process.env.port || 3000
+            });
+
+            server.send(message, 0, message.length, PORT, broadcastAddress, function () {
+                trace(`Sent "${message}"`);
+            });
+        }
+    }
+
+    function startIVCListener() {
+        var client = dgram.createSocket('udp4');
+
+        function checkPeers() {
+            const dispatch = require("./util/dispatch");
+
+            const now = Date.now();
+
+            for(let ip in mIVCPeers) {
+                const peer = mIVCPeers[ip];
+                if(peer) {
+                    const diff = (now - peer.lastPing);
+                    if(diff > PEER_TIMEOUT) {
+                        log(`Have not heard from peer at ${ip} in ${diff}ms, dropping`);
+                        delete mIVCPeers[ip];
+                        // Notify dispatch the IVC peer has dropped off.
+                        dispatch.onIVCPeerDropped(peer);
+                    }
+                } else {
+                    delete mIVCPeers[ip];
+                }
+            }
+
+            trace(`${Object.keys(mIVCPeers).length} peer(s) on the network`);
+        }
+
+        client.on('listening', function () {
+            var address = client.address();
+            log(`IVC listening on ${address.address}:${address.port}`);
+            client.setBroadcast(true);
+        });
+
+        client.on('message', function (message, rinfo) {
+            if(rinfo.address != myIP) {
+                trace(`Message from ${rinfo.address}:${rinfo.port}: ${message}`);
+                const now = Date.now();
+
+                const ip = rinfo.address;
+
+                const other = mIVCPeers[ip];
+
+                if(other) {
+                    other.lastPing = now;
+                } else {
+                    try {
+                        const peer = JSON.parse(message);
+                        peer.lastPing = now;
+
+                        mIVCPeers[ip] = peer;
+                        log(`Added peer at ${rinfo.address}`);
+                        // Notify dispatch that a new peer has been added.
+                        require("./util/dispatch").onIVCPeerAdded(peer);
+                    } catch(ex) {
+                        log(`Error adding peer: ${ex.message}`);
+                    }
+                }
+            }
+        });
+
+        try {
+            client.bind(PORT);
+        } catch(ex) {
+            return log(`Error binding to ${PORT} for IVC: ${ex.message}`);
+        }
+
+        setInterval(checkPeers, IVC_PEER_CHECK_INTERVAL);
+    }
+
+    startIVCListener();
+    startIVCPinger();
+}
+
+startIVC();

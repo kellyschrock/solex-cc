@@ -611,6 +611,22 @@ function onSetWorkerConfigRequest(msg) {
     process.send(response);
 }
 
+function onIVCPeerAdded(peer) {
+    log(`onIVCPeerAdded(): ${JSON.stringify(peer)}`);
+
+    if(mWorker && mWorker.onIVCPeerAdded) {
+        mWorker.onIVCPeerAdded(peer);
+    }
+}
+
+function onIVCPeerDropped(peer) {
+    log(`onIVCPeerDropped(): ${JSON.stringify(peer)}`);
+
+    if(mWorker && mWorker.onIVCPeerDropped) {
+        mWorker.onIVCPeerDropped(peer);
+    }
+}
+
 function onPayloadStopRequest(msg) {
     log(`onPayloadStopRequest(${JSON.stringify(msg)})`);
 
@@ -678,7 +694,9 @@ const mFunctionMap = {
     "on_payload_stop": onPayloadStopRequest,
     "load_worker_config": onLoadWorkerConfig,
     "get_worker_config": onGetWorkerConfigRequest,
-    "set_worker_config": onSetWorkerConfigRequest
+    "set_worker_config": onSetWorkerConfigRequest,
+    "ivc_peer_add": onIVCPeerAdded,
+    "ivc_peer_drop": onIVCPeerDropped
 };
 
 // Incoming messages from the parent process
