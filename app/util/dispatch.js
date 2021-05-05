@@ -1756,6 +1756,24 @@ function pingWorkerRoster() {
     return { ping_count: count };
 }
 
+function onIVCPeerAdded(peer) {
+    for (let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if (worker && worker.child && worker.enabled) {
+            worker.child.send({ id: "ivc_peer_add", msg: peer });
+        }
+    }
+}
+
+function onIVCPeerDropped(peer) {
+    for (let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if (worker && worker.child && worker.enabled) {
+            worker.child.send({ id: "ivc_peer_drop", msg: peer });
+        }
+    }
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.running = running;
@@ -1788,5 +1806,6 @@ exports.onPayloadStart = onPayloadStart;
 exports.getActivePayload = getActivePayload;
 exports.onPayloadStop = onPayloadStop;
 exports.pingWorkerRoster = pingWorkerRoster;
-
+exports.onIVCPeerAdded = onIVCPeerAdded;
+exports.onIVCPeerDropped = onIVCPeerDropped;
 
