@@ -18,6 +18,8 @@ if(process.argv.length >= 3) {
     }
 }
 
+const DEFAULT_CC_PORT = 3000;
+
 const path = require("path");
 const fs = require("fs");
 const express = require('express');
@@ -77,7 +79,7 @@ function setupApp() {
     // console.log("db=" + db);
     const app = express();
     // all environments
-    app.set('port', process.env.PORT || 3000);
+    app.set('port', process.env.PORT || DEFAULT_CC_PORT);
     app.set('views', path.join(global.appRoot, 'public'));
     app.engine('html', require('ejs').renderFile);
     app.set('view engine', 'html');
@@ -615,6 +617,8 @@ function startIVC() {
     const PORT = 5150;
     const dgram = require('dgram');
 
+    VehicleTopics.setSenderInfo({ address: myIP, port: process.env.PORT || DEFAULT_CC_PORT });
+
     function startIVCPinger() {
         const broadcastAddress = `${myIP.substring(0, myIP.lastIndexOf("."))}.255`;
         log(`Broadcast address is ${broadcastAddress}`);
@@ -631,7 +635,7 @@ function startIVC() {
         function broadcastNew() {
             const message = JSON.stringify({
                 address: myIP, 
-                port: process.env.port || 3000
+                port: process.env.PORT || DEFAULT_CC_PORT
             });
 
             server.send(message, 0, message.length, PORT, broadcastAddress, function () {

@@ -20,6 +20,7 @@ const VERBOSE = false;
 const DEF_PUBLISH_INTERVAL = 1000;
 const subscribers = {};
 const pubTimes = {};
+const senderInfo = {};
 
 function d(str) {
     if(VERBOSE) console.log(`${path.basename(__filename, ".js")}: ${str}`);
@@ -66,6 +67,10 @@ const messageMap = {
     "MISSION_CURRENT": processMissionCurrent,
     "MISSION_ITEM_REACHED": processMissionItemReached
 };
+
+exports.setSenderInfo = function setSenderInfo(sender) {
+    Object.assign(senderInfo, sender);
+}
 
 exports.onMavlinkMessage = function onMavlinkMessage(msg) {
     if(!msg) return;
@@ -249,18 +254,24 @@ function processVfrHud(msg) {
 }
 
 function processMissionCount(msg) {
-    mState.missionState.count = msg.count;
-    publish(Topics.MISSION, mState.missionState, 100);
+    if(mState.missionState.count != msg.count) {
+        mState.missionState.count = msg.count;
+        publish(Topics.MISSION, mState.missionState, 100);
+    }
 }
 
 function processMissionCurrent(msg) {
-    mState.missionState.current_item = msg.seq;
-    publish(Topics.MISSION, mState.missionState, 100);
+    if(mState.missionState.current_item != msg.seq) {
+        mState.missionState.current_item = msg.seq;
+        publish(Topics.MISSION, mState.missionState, 100);
+    }
 }
 
 function processMissionItemReached(msg) {
-    mState.missionState.reached_item = msg.seq;
-    publish(Topics.MISSION, mState.missionState, 100);
+    if(mState.missionState.reached_item != msg.seq) {
+        mState.missionState.reached_item = msg.seq;
+        publish(Topics.MISSION, mState.missionState, 100);
+    }
 }
 
 function publish(topic, msg, interval = DEF_PUBLISH_INTERVAL) {
@@ -279,6 +290,7 @@ function publish(topic, msg, interval = DEF_PUBLISH_INTERVAL) {
             const str = JSON.stringify({
                 event: "topic",
                 topic: topic,
+                sender: senderInfo,
                 message: msg
             });
 

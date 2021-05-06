@@ -612,7 +612,7 @@ function onSetWorkerConfigRequest(msg) {
 }
 
 function onIVCPeerAdded(peer) {
-    log(`onIVCPeerAdded(): ${JSON.stringify(peer)}`);
+    d(`onIVCPeerAdded(): ${JSON.stringify(peer)}`);
 
     if(mWorker && mWorker.onIVCPeerAdded) {
         mWorker.onIVCPeerAdded(peer);
@@ -620,7 +620,7 @@ function onIVCPeerAdded(peer) {
 }
 
 function onIVCPeerDropped(peer) {
-    log(`onIVCPeerDropped(): ${JSON.stringify(peer)}`);
+    d(`onIVCPeerDropped(): ${JSON.stringify(peer)}`);
 
     if(mWorker && mWorker.onIVCPeerDropped) {
         mWorker.onIVCPeerDropped(peer);
