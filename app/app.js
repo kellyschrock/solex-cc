@@ -256,6 +256,9 @@ function setupApp() {
             res.json(VehicleTopics.listTopics());
         });
 
+        // IVC
+        app.get("/ivc/peers", listPeers);
+
         // Trace
         app.get("/trace/:on_or_off", function (req, res, next) {
             global.TRACE = (req.params.on_or_off === "on");
@@ -610,6 +613,10 @@ function restartSystem(req, res) {
 const IVC_PEER_CHECK_INTERVAL = 5000;
 const PEER_TIMEOUT = 15000;
 const mIVCPeers = {};
+
+function listPeers(req, res) {
+    res.json(mIVCPeers);
+}
 
 function startIVC() {
     const myIP = getMyIP();
