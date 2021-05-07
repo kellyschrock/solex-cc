@@ -611,7 +611,8 @@ function restartSystem(req, res) {
 
 // IVC stuff
 const IVC_PEER_CHECK_INTERVAL = 5000;
-const PEER_TIMEOUT = 15000;
+const IVC_BROADCAST_INTERVAL = 8000;
+const PEER_TIMEOUT = 30000;
 const mIVCPeers = {};
 
 function listPeers(req, res) {
@@ -634,7 +635,8 @@ function startIVC() {
 
         server.bind(function () {
             server.setBroadcast(true);
-            setInterval(broadcastNew, 10000);
+            server.setMulticastTTL(128);
+            setInterval(broadcastNew, IVC_BROADCAST_INTERVAL);
         });
 
         broadcastNew();
@@ -642,8 +644,12 @@ function startIVC() {
         function broadcastNew() {
             const message = JSON.stringify({
                 address: myIP, 
-                port: process.env.PORT || DEFAULT_CC_PORT
+                port: process.env.PORT || DEFAULT_CC_PORT,
+                hostname: require("os").hostname(),
+                uptime: require("os").uptime()
             });
+
+            trace(`IVC: Send ${message}`);
 
             server.send(message, 0, message.length, PORT, broadcastAddress, function () {
                 trace(`Sent "${message}"`);
