@@ -21,10 +21,20 @@ let mWorkerLibraries = {};
 let mLoopTimer = null;
 const mWorkerConfig = {};
 
+function dump(msg) {
+    const out = {};
+
+    if(msg.fieldnames) {
+        msg.fieldnames.forEach((f) => { out[f] = msg[f] });
+    }
+
+    return JSON.stringify(out);
+}
+
 const mWorkerListener = {
     /** Gets a Mavlink message from the specified worker, sends it to the Mavlink output */
     onMavlinkMessage: function (workerId, msg) {
-        d("onMavlinkMessage(): workerId=" + workerId + " msg=" + msg);
+        d("onMavlinkMessage(): workerId=" + workerId + " msg=" + dump(msg));
         // Worker sent a Mavlink message. Forward to the parent process.
         process.send({ id: "worker_mavlink", msg: { worker_id: workerId, mavlinkMessage: msg } });
     },

@@ -57,12 +57,25 @@ function getPauseModeFor(vehicleType) {
     }
 }
 
+function getAutoModeFor(vehicleType) {
+    if(Vehicle.isCopter(vehicleType)) {
+        return Vehicle.Mode.COPTER_AUTO;
+    } else if(Vehicle.isPlane(vehicleType)) {
+        return Vehicle.Mode.PLANE_AUTO;
+    } else if(Vehicle.isRover(vehicleType)) {
+        return Vehicle.Mode.ROVER_AUTO;
+    } else {
+        return Vehicle.Mode.UNKNOWN;
+    }
+}
+
 exports.getState = getState;
 exports.getAirSpeed = getAirSpeed;
 exports.getGroundSpeed = getGroundSpeed;
 exports.getVerticalSpeed = getVerticalSpeed;
 exports.getGuidedModeFor = getGuidedModeFor;
 exports.getPauseModeFor = getPauseModeFor;
+exports.getAutoModeFor = getAutoModeFor;
 
 function test() {
     getAirSpeed();

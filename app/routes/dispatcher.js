@@ -121,7 +121,7 @@ function workerMessage(req, res) {
     if(body) {
         dispatch.handleGCSMessage(req.params.worker_id, body, function(err, result) {
             if(err) {
-                return res.json({
+                return res.status(400).json({
                     ok: false,
                     message: err.message
                 });

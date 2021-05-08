@@ -33,7 +33,7 @@ const VehicleTopics = require("./topic/VehicleTopics");
 const routes = require('./routes');
 const dispatcher = require("./routes/dispatcher");
 const system = require("./routes/system");
-const { MAV_AUTOPILOT_PPZ, MAG_CAL_RUNNING_STEP_ONE } = require("./util/mavlink");
+const dispatch = require("./util/dispatch");
 
 // Default, actually overridden in a config file if present.
 global.workerRoot = path.join(global.appRoot, "/workers");
@@ -134,7 +134,7 @@ function setupApp() {
         },
 
         onGCSMessage: function (workerId, msg) {
-            trace(`onGCSMessage(): workerId=${workerId} msg=` + JSON.stringify(msg));
+            trace(`onGCSMessage(): workerId=${workerId} msg=${JSON.stringify(msg)}`);
 
             mGCSSubscribers.map(function(client) {
                 trace(`send to ${client}`);
@@ -545,6 +545,13 @@ function setupApp() {
                     log(`No worker config data`);
                 }
 
+                dispatch.setLoadCompleteCallback(() => {
+                    log("dispatch loaded");
+                    if(!mIVCStarted) {
+                        startIVC();
+                    }
+                });
+
                 dispatcher.setConfig(configData.dispatcher);
                 dispatcher.addGCSListener(mGCSMessageListener);
                 dispatcher.reloadDirect();
@@ -612,8 +619,9 @@ function restartSystem(req, res) {
 // IVC stuff
 const IVC_PEER_CHECK_INTERVAL = 5000;
 const IVC_BROADCAST_INTERVAL = 8000;
-const PEER_TIMEOUT = 30000;
+const IVC_PEER_TIMEOUT = 15000;
 const mIVCPeers = {};
+let mIVCStarted = false;
 
 function listPeers(req, res) {
     res.json(mIVCPeers);
@@ -661,15 +669,13 @@ function startIVC() {
         var client = dgram.createSocket('udp4');
 
         function checkPeers() {
-            const dispatch = require("./util/dispatch");
-
             const now = Date.now();
 
             for(let ip in mIVCPeers) {
                 const peer = mIVCPeers[ip];
                 if(peer) {
                     const diff = (now - peer.lastPing);
-                    if(diff > PEER_TIMEOUT) {
+                    if(diff > IVC_PEER_TIMEOUT) {
                         log(`Have not heard from peer at ${ip} in ${diff}ms, dropping`);
                         delete mIVCPeers[ip];
                         // Notify dispatch the IVC peer has dropped off.
@@ -727,6 +733,6 @@ function startIVC() {
 
     startIVCListener();
     startIVCPinger();
+    mIVCStarted = true;
 }
 
-startIVC();

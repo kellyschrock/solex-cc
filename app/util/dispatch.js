@@ -238,6 +238,23 @@ function findFiles(dir, filter) {
     return out;
 }
 
+function isVehicleType(type) {
+    switch(type) {
+        case mavlink.MAV_TYPE_ANTENNA_TRACKER:
+        case mavlink.MAV_TYPE_GCS:
+        case mavlink.MAV_TYPE_ONBOARD_CONTROLLER:
+        case mavlink.MAV_TYPE_GIMBAL:
+        case mavlink.MAV_TYPE_ADSB:
+        case mavlink.MAV_TYPE_CAMERA:
+        case mavlink.MAV_TYPE_CHARGING_STATION:
+        case mavlink.MAV_TYPE_FLARM:
+        case mavlink.MAV_TYPE_SERVO:
+            return false;
+        default:
+            return true;
+    }
+}
+
 function onReceivedMavlinkMessage(msg) {
     // log(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
     // d(`onReceivedMavlinkMessage(${msg.name})`);
@@ -250,6 +267,12 @@ function onReceivedMavlinkMessage(msg) {
 
     switch(msg.name) {
         case "HEARTBEAT": {
+            if(isVehicleType(msg.type) && msg.header) {
+                mConfig.sysid = msg.header.srcSystem;
+                mConfig.compid = msg.header.srcComponent;
+                VehicleTopics.setSysIdCompId(mConfig.sysid, mConfig.compid);
+            }
+
             if(mConfig.heartbeats.send) {
                 // In case we timed out earlier and are now getting heartbeats again
                 if(mHeartbeatTimer == null) {
@@ -276,6 +299,34 @@ function onReceivedMavlinkMessage(msg) {
         }
     }
 }
+
+VehicleTopics.setMavlinkSendCallback((msg) => {
+    if (!msg) return e(`No message to send`);
+
+    // log(`send from VehicleTopics: ${msg.name}`);
+
+    try {
+        const packet = mavlink_shell.pack(msg);
+        if (packet) {
+            if (udpclient.isConnected()) {
+                udpclient.sendMessage(packet);
+            } else if (mSerialPort) {
+                mSerialPort.write(packet, function (err) {
+                    if (err) {
+                        e(`Error writing to serial port: ${err}`);
+                    }
+                });
+            } else {
+                e("No connection to send data on");
+            }
+        } else {
+            e(`No packet made for ${msg.name}`);
+        }
+    } catch (ex) {
+        e(`send mavlink: ${ex.message}`, ex);
+    }
+});
+
 
 //
 // Public interface
@@ -395,6 +446,12 @@ function shutdown() {
     unloadWorkers();
 }
 
+let mLoadCompleteCallback = null;
+
+exports.setLoadCompleteCallback = (cb) => {
+    mLoadCompleteCallback = cb;
+}
+
 function reload() {
     unloadWorkers();
 
@@ -413,6 +470,10 @@ function reload() {
     }
 
     v(mWorkers);
+
+    if(mLoadCompleteCallback) {
+        setTimeout(mLoadCompleteCallback, (Object.keys(mWorkers).length * 2000));
+    }
 }
 
 function mavlinkMessageFor(msg) {
@@ -867,10 +928,10 @@ function setupWorkerCallbacks(child) {
                     e(`No packet made for ${mav.name}`);
                 }
             } else {
-                d(`No mavlink message found for ${msg.mavlinkMessage.name}`);
+                e(`No mavlink message found for ${msg.mavlinkMessage.name}`);
             }
         } else {
-            d("WARNING: No message");
+            e("WARNING: No message");
         }
     }
 

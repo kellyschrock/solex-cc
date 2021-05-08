@@ -13,14 +13,18 @@ const Topics = Object.freeze({
 ,   ATTITUDE: "attitude"
 ,   BATTERY: "battery"
 ,   SPEED: "speed"
-,   MISSION: "mission"
+,   MISSION_STATE: "mission_state"
+,   MISSION_CONTENT: "mission_content"
 });
 
-const VERBOSE = false;
+const VERBOSE = true;
 const DEF_PUBLISH_INTERVAL = 1000;
 const subscribers = {};
 const pubTimes = {};
 const senderInfo = {};
+let mavlinkSendCallback = null;
+let sysid = 0;
+let compid = 0;
 
 function d(str) {
     if(VERBOSE) console.log(`${path.basename(__filename, ".js")}: ${str}`);
@@ -53,7 +57,11 @@ const mState = {
     vehicle_type: 0,
     mode_number: 0,
     battery: {},
-    missionState: { current_item: -1, reached_item: -1, count: 0 }
+    missionState: { current_item: -1, reached_item: -1, count: 0 },
+    mission: {
+        items: [],
+        count: 0
+    }
 };
 
 const messageMap = {
@@ -65,11 +73,29 @@ const messageMap = {
     "VFR_HUD": processVfrHud,
     "MISSION_COUNT": processMissionCount,
     "MISSION_CURRENT": processMissionCurrent,
+    "MISSION_ITEM": processMissionItem,
     "MISSION_ITEM_REACHED": processMissionItemReached
 };
 
+function sendMavlink(msg) {
+    if(mavlinkSendCallback) {
+        mavlinkSendCallback(msg);
+    } else {
+        d(`No mavlinkSendCallback. msg.name=${msg.name}`);
+    }
+}
+
 exports.setSenderInfo = function setSenderInfo(sender) {
     Object.assign(senderInfo, sender);
+}
+
+exports.setMavlinkSendCallback = (cb) => {
+    mavlinkSendCallback = cb;
+}
+
+exports.setSysIdCompId = (sid, cid) => {
+    sysid = sid;
+    compid = cid;
 }
 
 exports.onMavlinkMessage = function onMavlinkMessage(msg) {
@@ -136,7 +162,7 @@ function processHeartbeat(msg) {
     if(mState.mode_number !== msg.custom_mode) {
         mState.mode_number = msg.custom_mode;
 
-        publish(Topics.MODE, mState, 10);
+        publish(Topics.MODE, { mode: mState.mode_number, vehicle_type: mState.vehicle_type }, 10);
     }
 
     const status = msg.system_status;
@@ -149,16 +175,24 @@ function processHeartbeat(msg) {
 
     if(flying !== mState.flying) {
         mState.flying = flying;
-        publish(Topics.FLYING, mState, 10);
+        publish(Topics.FLYING, { flying: mState.flying }, 10);
     }
 
     if(armed !== mState.armed) {
         mState.armed = armed;
-        publish(Topics.ARMED, mState, 10);
+        publish(Topics.ARMED, { armed: mState.armed }, 10);
+
+        if(armed) {
+            d(`Armed, request mission`);
+
+            mState.requesting_mission = true;
+            mState.mission_seq = 0;
+            sendMavlink(new mavlink.messages.mission_request_list(sysid, compid));
+        }
     }
 
     if(failsafe) {
-        publish(Topics.FAILSAFE, mState, 10);
+        publish(Topics.FAILSAFE, { failsafe: failsafe }, 10);
     }
 }
 
@@ -256,21 +290,65 @@ function processVfrHud(msg) {
 function processMissionCount(msg) {
     if(mState.missionState.count != msg.count) {
         mState.missionState.count = msg.count;
-        publish(Topics.MISSION, mState.missionState, 100);
+        publish(Topics.MISSION_STATE, mState.missionState, 100);
+
+        mState.mission = {
+            count: msg.count,
+            items: []
+        };
+
+        if(mState.requesting_mission) {
+            mState.mission_seq = 0;
+            sendMavlink(new mavlink.messages.mission_request(sysid, compid, mState.mission_seq));
+        }
+    }
+}
+
+function processMissionItem(msg) {
+    function shave(msg) {
+        const out = {};
+
+        if(msg.fieldnames) {
+            msg.fieldnames.forEach((f) => { out[f] = msg[f] });
+        } else {
+            return null;
+        }
+
+        return out;
+    }
+
+    if(mState.mission) {
+        if(!mState.mission.items) mState.mission.items = [];
+        const shaved = shave(msg);
+        if(shaved) {
+            mState.mission.items.push(shaved);
+        }
+
+        if(mState.mission.items.length == mState.mission.count) {
+            d(`Got ${mState.mission.items.length} mission items`);
+            publish(Topics.MISSION_CONTENT, mState.mission, 10);
+
+            delete mState.requesting_mission;
+            delete mState.mission_seq;
+        } else {
+            if(mState.requesting_mission) {
+                sendMavlink(new mavlink.messages.mission_request(sysid, compid, ++mState.mission_seq));
+            }
+        }
     }
 }
 
 function processMissionCurrent(msg) {
     if(mState.missionState.current_item != msg.seq) {
         mState.missionState.current_item = msg.seq;
-        publish(Topics.MISSION, mState.missionState, 100);
+        publish(Topics.MISSION_STATE, mState.missionState, 1);
     }
 }
 
 function processMissionItemReached(msg) {
     if(mState.missionState.reached_item != msg.seq) {
         mState.missionState.reached_item = msg.seq;
-        publish(Topics.MISSION, mState.missionState, 100);
+        publish(Topics.MISSION_STATE, mState.missionState, 1);
     }
 }
 
@@ -280,12 +358,13 @@ function publish(topic, msg, interval = DEF_PUBLISH_INTERVAL) {
     const diff = (now - lastPubTime);
 
     if(diff > interval) {
-        // d(`${topic}: ${JSON.stringify(msg)}`);
+        if(topic == "mission") d(`${topic}: ${JSON.stringify(msg)}`);
+
         pubTimes[topic] = now;
 
         const list = subscribers[topic];
         if (list) {
-			d(`publish on topic to ${list.length} listener(s)`);
+			d(`publish on ${topic} to ${list.length} listener(s)`);
 
             const str = JSON.stringify({
                 event: "topic",
