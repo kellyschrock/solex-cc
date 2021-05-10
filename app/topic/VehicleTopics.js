@@ -108,7 +108,7 @@ exports.onMavlinkMessage = function onMavlinkMessage(msg) {
 }
 
 exports.addSubscriber = function addSubscriber(topic, client) {
-    d(`addSubscriber(${topic}, ${client})`);
+    d(`addSubscriber(${topic}, ${client.ip_address})`);
 
     let list = subscribers[topic];
     if(!list) {
@@ -120,7 +120,7 @@ exports.addSubscriber = function addSubscriber(topic, client) {
 }
 
 exports.removeSubscriber = function removeSubscriber(topic, client) {
-    d(`removeSubscriber(${topic}, ${client})`);
+    d(`removeSubscriber(${topic}, ${client.ip_address})`);
 
     const list = subscribers[topic];
     if(list) {
@@ -145,6 +145,26 @@ exports.removeSubscriber = function removeSubscriber(topic, client) {
 
 exports.listTopics = function listTopics() {
     return Object.values(Topics);
+}
+
+exports.getSubscriptionsForIP = function getSubscriptionsForIP(ip) {
+    d(`getSubscriptionsForIP(${ip})`);
+
+    const out = [];
+
+    Object.values(Topics).forEach((topic) => {
+        const subs = subscribers[topic];
+        if(subs && subs.length) {
+            subs.forEach((client) => {
+                // d(`Check ${client.ip_address} for ${topic}`);
+                if(client.ip_address == ip) {
+                    out.push(topic);
+                }
+            });
+        }
+    });
+
+    return out;
 }
 
 function processHeartbeat(msg) {

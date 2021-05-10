@@ -251,13 +251,11 @@ function setupApp() {
         app.get("/payload/check", dispatcher.onPayloadCheck);
         app.get("/payload/stop", dispatcher.onPayloadStop);
 
-        // Topics
-        app.get("/topics", (req, res) => {
-            res.json(VehicleTopics.listTopics());
-        });
-
         // IVC
         app.get("/ivc/peers", listPeers);
+        app.get("/ivc/topics", (req, res) => {
+            res.json(VehicleTopics.listTopics());
+        });
 
         // Trace
         app.get("/trace/:on_or_off", function (req, res, next) {
@@ -351,8 +349,29 @@ function setupApp() {
         log(`WS error: ${error.message}`);
     });
 
-    webSocketServer.on('connection', function (client) {
+    webSocketServer.on('connection', function (client, req) {
         log("Connected from client");
+
+        function toIPv4(ip) {
+            if(!ip) return null;
+
+            switch(ip) {
+                case "::1": return "127.0.0.1";
+                case "::0": return "All";
+                default: {
+                    const index = ip.lastIndexOf(":");
+                    return(index >= 0)?
+                        ip.substring(index + 1): ip;
+                }
+            }
+        }
+
+        if(client._socket && client._socket.remoteAddress) {
+            // ::1 is the local loopback address in ipv6, same as 127.0.0.1
+            // log(`Client IP is ${client._socket.remoteAddress}`);
+            client.ip_address = toIPv4(client._socket.remoteAddress);
+            log(`Client IP is ${client.ip_address}`);
+        }
 
         // If we have queued messages waiting, send them now and clear them.
         if(mQueuedWorkerMessages && mQueuedWorkerMessages.length > 0) {
@@ -624,6 +643,13 @@ const mIVCPeers = {};
 let mIVCStarted = false;
 
 function listPeers(req, res) {
+    for(let ip in mIVCPeers) {
+        const topics = VehicleTopics.getSubscriptionsForIP(ip);
+        if(topics) {
+            mIVCPeers[ip].subscriptions = topics;
+        }
+    }
+
     res.json(mIVCPeers);
 }
 
