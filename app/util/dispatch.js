@@ -1115,7 +1115,7 @@ function loadWorkerRoot(basedir) {
             
             setTimeout(function () {
                 child.send({ id: "load_worker", msg: {file: files[i], enabledStates: mWorkerEnabledStates || {} } });
-            }, 100 * i);
+            }, 10 * i);
 
             ++added;
         } catch(ex) {
@@ -1827,6 +1827,8 @@ function onIVCPeerAdded(peer) {
 }
 
 function onIVCPeerDropped(peer) {
+    VehicleTopics.removeSubscribersWithIPAddress(peer.address);
+    
     for (let pid in mWorkers) {
         const worker = mWorkers[pid];
         if (worker && worker.child && worker.enabled) {

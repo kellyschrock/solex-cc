@@ -17,7 +17,7 @@ const Topics = Object.freeze({
 ,   MISSION_CONTENT: "mission_content"
 });
 
-const VERBOSE = true;
+const VERBOSE = false;
 const DEF_PUBLISH_INTERVAL = 1000;
 const subscribers = {};
 const pubTimes = {};
@@ -116,7 +116,43 @@ exports.addSubscriber = function addSubscriber(topic, client) {
 		subscribers[topic] = list;
     }
 
+    const toRemove = [];
+    for(const c of list) {
+        if(c.ip_address == client.ip_address) {
+            toRemove.push(c);
+        }
+    }
+
+    for(const c of toRemove) {
+        const idx = list.indexOf(c);
+        if(idx >= 0) {
+            d(`Remove redundant client at ${idx}`);
+            list.splice(idx, 1);
+        }
+    }
+
     list.push(client);
+}
+
+exports.removeSubscribersWithIPAddress = function removeSubscribersWithIPAddress(ip) {
+    d(`removeSubscribersWithIPAddress(${ip})`);
+
+    // Takes care of keeping the topic list clean if a client dies suddenly 
+    // and doesn't unsubscribe first.
+    Object.values(Topics).forEach((topic) => {
+        const list = subscribers[topic];
+        if(list && list.length) {
+            for(const client of list) {
+                if(client.ip_address == ip) {
+                    const idx = list.indexOf(client)
+                    if(idx >= 0) {
+                        d(`Unsubscribe ${ip} from ${topic}`);
+                        list.splice(idx, 1);
+                    }
+                }
+            }
+        }
+    });
 }
 
 exports.removeSubscriber = function removeSubscriber(topic, client) {
