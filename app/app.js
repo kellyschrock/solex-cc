@@ -20,6 +20,7 @@ if(process.argv.length >= 3) {
 
 const DEFAULT_CC_PORT = 3000;
 
+const net = require("net");
 const path = require("path");
 const fs = require("fs");
 const express = require('express');
@@ -514,15 +515,15 @@ function setupApp() {
                 log(err);
                 sendWSMessage(client, "error in " + data);
             }
-        });
-
-        client.on('close', function () {
+        }).on('close', function () {
             log(`Connection to client ${client.ip_address} closed`);
 
             var idx = mGCSSubscribers.indexOf(client);
             if (idx >= 0) {
                 mGCSSubscribers.splice(idx, 1);
             }
+        }).on("error", (ex) => {
+            log(`Websocket client error: ${ex.message}`);
         });
 
         // Send a connected message back to the client
@@ -677,33 +678,11 @@ function startIVC() {
     class IVCClient {
         constructor(peer) {
             this.peer = peer;
-            this.client = dgram.createSocket("udp4");
+            this.client = new net.Socket();
             this.myLastPing = Date.now();
             this.pingHandle = null;
             this.pingInterval = IVC_CLIENT_PING_TIME;
-
-            const self = this;
-            this.client.on("message", (msg, info) => {
-                const now = Date.now();
-                const jo = JSON.parse(msg);
-                const diffTime = (now - jo.ping_time);
-
-                // d(`IVC client got ${jo.response} response from ${info.address} in ${diffTime}ms`);
-                self.myLastPing = now;
-                // Ping again and check for dropped peer
-                clearTimeout(self.pingHandle);
-                self.pingHandle = setTimeout(self.doPing.bind(self), self.pingInterval);
-
-                clearTimeout(this.timeoutHandle);
-                this.timeoutHandle = null;
-                this.timeoutHandle = setTimeout(this.onTimeout.bind(this), IVC_CLIENT_TIMEOUT);
-            }).on("error", (ex) => {
-                d(`IVC Client error: ${ex.message}`);
-                this.stop();
-            }).on("listening", () => {
-                const address = self.client.address();
-                d(`IVC Client listening on ${address.address}:${address.port}`);
-            });
+            this.setupClient();
         }
 
         doPing() {
@@ -716,13 +695,7 @@ function startIVC() {
             }
 
             // d(`Client send to ${this.peer.address}`);
-            this.client.send(JSON.stringify(me), IVC_DIRECT_PORT, this.peer.address, (err, bytes) => {
-                if (err) {
-                    this.client.close();
-                    e(`Error pinging ${this.peer.address}: ${ex.message}`);
-                    if (this.pingHandle) clearTimeout(this.pingHandle);
-                }
-            })
+            this.client.write(JSON.stringify(me));
         }
 
         onTimeout() {
@@ -743,13 +716,48 @@ function startIVC() {
             }
         }
 
+        setupClient() {
+            const self = this;
+            this.client.on("data", (msg) => {
+                // d(`IVCClient got data: ${msg}`);
+
+                const now = Date.now();
+                const jo = JSON.parse(msg);
+                const diffTime = (now - jo.ping_time);
+
+                // d(`IVC client got ${jo.response} response from ${info.address} in ${diffTime}ms`);
+                self.myLastPing = now;
+                // Ping again and check for dropped peer
+                clearTimeout(self.pingHandle);
+                self.pingHandle = setTimeout(self.doPing.bind(self), self.pingInterval);
+
+                clearTimeout(this.timeoutHandle);
+                this.timeoutHandle = null;
+                this.timeoutHandle = setTimeout(this.onTimeout.bind(this), IVC_CLIENT_TIMEOUT);
+            }).on("error", (ex) => {
+                d(`IVC Client error: ${ex.message}`);
+                this.stop();
+            }).on("close", () => {
+                d(`IVC client connection closed`)
+            });
+        }
+
         start() {
             d(`IVCClient::start()`);
 
-            // start this client
-            this.newStart = true;
-            this.myLastPing = Date.now();
-            this.doPing();
+            try {
+                d(`Connect to ${this.peer.address}:${IVC_DIRECT_PORT}`);
+                this.client.connect(IVC_DIRECT_PORT, this.peer.address, () => {
+                    d(`IVCClient connected to ${this.peer.address}`);
+
+                    // start this client
+                    this.newStart = true;
+                    this.myLastPing = Date.now();
+                    this.doPing();
+                });
+            } catch(ex) {
+                e(`Error in IVCClient::start(): ${ex.message}`);
+            }
 
             return this;
         }
@@ -811,71 +819,100 @@ function startIVC() {
     }
 
     function startIVCServer() {
-        const server = dgram.createSocket("udp4");
+        const server = net.createServer();
+        const clientSockets = {};
 
-        server.on("message", (msg, info) => {
-            // d(`From client ${info.address}: ${msg}`);
-            const joPeer = JSON.parse(msg);
-
-            if(joPeer.new_start) {
-                // This is for cases when the peer drops us for some reason and then recovers.
-                // In that case, any subscriptions, etc are dropped by the peer and need to be
-                // re-established. So we kill the old peer here and let it be re-made.
-                // Sucks, but it beats not having any subscriptions.
-                d(`NEW START`);
-                if(mIVCPeers[joPeer.address]) {
-                    d(`Removing old peer at ${joPeer.address}`);
-                    require("./util/dispatch").onIVCPeerDropped(joPeer);
-                    delete mIVCPeers[joPeer.address];
-                }
-
-                delete joPeer.new_start;
-            }
-
-            // We want these machines to be both clients and servers
-            if(!mIVCClients[info.address]) {
-                d(`Start a client connection to ${info.address}`);
-                startIVCClient(joPeer);
-            }
-
-            const response = { ping_time: joPeer.ping_time };
-            let peer = mIVCPeers[info.address];
-            if(peer) {
-                peer.lastPing = Date.now();
-                response.response = "ping";
-            } else {
-                // We're getting messages from a peer, but didn't get it by the normal broadcast route.
-                // This is most likely because it still thinks we're available. Just register it as an IVC peer.
-                d(`Adding new IVC peer for ${info.address}`);
-                peer = JSON.parse(msg);
-                peer.lastPing = Date.now();
-                mIVCPeers[info.address] = peer;
-                response.response = "add";
-                d(`SERVER: Add IVC peer ${peer.address}`);
-                peer.added_at = Date();
-                require("./util/dispatch").onIVCPeerAdded(peer);
-            }
-
-            // This is what tells the client this peer is still alive.
-            server.send(JSON.stringify(response), info.port, info.address, (err, written) => {
-                if(err) {
-                    e(`Error sending IVC response: ${ex.message}`);
-                }
-            });
-
-        }).on("error", (ex) => {
-            d(`Server error: ${ex.message}`);
-        }).on("end", () => {
-            d(`A CLIENT LEFT THE CONNECTION`);
-        }).on("listening", () => {
-            const address = server.address();
-            d(`IVC server listening at ${address.port}`);
+        server.listen(IVC_DIRECT_PORT, myIP, () => {
+            d(`IVC server listening on ${IVC_DIRECT_PORT}`);
         });
 
-        server.bind(IVC_DIRECT_PORT);
+        server.on("connection", (socket) => {
+            d(`Client connected from ${socket.remoteAddress}:${socket.remotePort}`);
+            if(!socket.remoteAddress) {
+                return d(`No remote address on new client socket`);
+            }
+
+            const info = {
+                address: socket.remoteAddress,
+                port: socket.remotePort
+            };
+
+            socket.on("data", (msg) => {
+                // d(`TCP socket data: ${msg}`);
+
+                const joPeer = JSON.parse(msg);
+
+                if (joPeer.new_start) {
+                    // This is for cases when the peer drops us for some reason and then recovers.
+                    // In that case, any subscriptions, etc are dropped by the peer and need to be
+                    // re-established. So we kill the old peer here and let it be re-made.
+                    // Sucks, but it beats not having any subscriptions.
+                    d(`NEW START`);
+                    if (mIVCPeers[joPeer.address]) {
+                        d(`Removing old peer at ${joPeer.address}`);
+                        require("./util/dispatch").onIVCPeerDropped(joPeer);
+                        delete mIVCPeers[joPeer.address];
+                    }
+
+                    delete joPeer.new_start;
+                }
+
+                // We want these machines to be both clients and servers
+                if (!mIVCClients[info.address]) {
+                    d(`Start a client connection to ${info.address}`);
+                    startIVCClient(joPeer);
+                }
+
+                const response = { ping_time: joPeer.ping_time };
+                let peer = mIVCPeers[info.address];
+                if (peer) {
+                    peer.lastPing = Date.now();
+                    response.response = "ping";
+                } else {
+                    // We're getting messages from a peer, but didn't get it by the normal broadcast route.
+                    // This is most likely because it still thinks we're available. Just register it as an IVC peer.
+                    d(`Adding new IVC peer for ${info.address}`);
+                    peer = JSON.parse(msg);
+                    peer.lastPing = Date.now();
+                    mIVCPeers[info.address] = peer;
+                    response.response = "add";
+                    d(`SERVER: Add IVC peer ${peer.address}`);
+                    peer.added_at = Date();
+                    require("./util/dispatch").onIVCPeerAdded(peer);
+                }
+
+                // This is what tells the client this peer is still alive.
+                socket.write(JSON.stringify(response), (err) => {
+                    if(err) {
+                        e(`Error writing to socket: ${ex.message}`)
+                    }
+                })
+
+            }).on("error", (ex) => {
+                e(`Error in client socket at ${socket.remoteAddress}: ${ex.message}`);
+            }).on("close", () => {
+                d(`Socket at ${socket.remoteAddress}:${socket.remotePort} closed`);
+
+                const ivcClient = mIVCClients[socket.remoteAddress];
+                if(ivcClient) {
+                    d(`IVC Server closing client at for ${socket.remoteAddress}`);
+                    ivcClient.stop();
+                    delete mIVCClients[socket.remoteAddress];
+                }
+
+                delete clientSockets[socket.remoteAddress];
+            });
+
+            if(socket.remoteAddress) {
+                clientSockets[socket.remoteAddress] = socket;
+            }
+        })
+        .on("error", (ex) => {
+            e(`Error in TCP server: ${ex.message}`);
+        });
     }
 
-    // NOTE: There will be a separate IVC client for each peer, so this needs to be isolated per peer address.
+    // Start an IVCClient for this peer connection.
     function startIVCClient(peer) {
         d(`startIVCClient()`);
         

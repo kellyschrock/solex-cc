@@ -259,6 +259,10 @@ function onReceivedMavlinkMessage(msg) {
     // log(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
     // d(`onReceivedMavlinkMessage(${msg.name})`);
 
+    const sysid = msg && msg.header && msg.header.srcSystem || 0;
+    // This came over UDP from some other machine and it wasn't the GCS. Ignore it!
+    if (sysid != 255 && sysid != mConfig.sysid) return;
+
     if(!msg.name) {
         return log(JSON.stringify(msg));
     }
@@ -268,9 +272,7 @@ function onReceivedMavlinkMessage(msg) {
     switch(msg.name) {
         case "HEARTBEAT": {
             if(isVehicleType(msg.type) && msg.header) {
-                mConfig.sysid = msg.header.srcSystem;
-                mConfig.compid = msg.header.srcComponent;
-                VehicleTopics.setSysIdCompId(mConfig.sysid, mConfig.compid);
+                VehicleTopics.setSysIdCompId(msg.header.srcSystem, msg.header.srcComponent);
             }
 
             if(mConfig.heartbeats.send) {

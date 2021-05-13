@@ -17,7 +17,9 @@ const Topics = Object.freeze({
 ,   MISSION_CONTENT: "mission_content"
 });
 
-const VERBOSE = false;
+const VERBOSE = true;
+const TRACE = true;
+
 const DEF_PUBLISH_INTERVAL = 1000;
 const subscribers = {};
 const pubTimes = {};
@@ -25,6 +27,10 @@ const senderInfo = {};
 let mavlinkSendCallback = null;
 let sysid = 0;
 let compid = 0;
+
+function trace(str) {
+    if (TRACE) console.log(`${path.basename(__filename, ".js")}: ${str}`);
+}
 
 function d(str) {
     if(VERBOSE) console.log(`${path.basename(__filename, ".js")}: ${str}`);
@@ -58,6 +64,7 @@ const mState = {
     mode_number: 0,
     battery: {},
     missionState: { current_item: -1, reached_item: -1, count: 0 },
+    internal_mission_count: 0,
     mission: {
         items: [],
         count: 0
@@ -243,6 +250,7 @@ function processHeartbeat(msg) {
 
             mState.requesting_mission = true;
             mState.mission_seq = 0;
+            mState.internal_mission_count = 0;
             sendMavlink(new mavlink.messages.mission_request_list(sysid, compid));
         }
     }
@@ -344,8 +352,10 @@ function processVfrHud(msg) {
 }
 
 function processMissionCount(msg) {
-    if(mState.missionState.count != msg.count) {
+    if(mState.internal_mission_count != msg.count) {
+        mState.internal_mission_count = msg.count;
         mState.missionState.count = msg.count;
+
         publish(Topics.MISSION_STATE, mState.missionState, 100);
 
         mState.mission = {
@@ -386,6 +396,7 @@ function processMissionItem(msg) {
 
             delete mState.requesting_mission;
             delete mState.mission_seq;
+            mState.internal_mission_count = 0;
         } else {
             if(mState.requesting_mission) {
                 sendMavlink(new mavlink.messages.mission_request(sysid, compid, ++mState.mission_seq));
@@ -414,9 +425,9 @@ function publish(topic, msg, interval = DEF_PUBLISH_INTERVAL) {
     const diff = (now - lastPubTime);
 
     if(diff > interval) {
-        if(topic == "mission") d(`${topic}: ${JSON.stringify(msg)}`);
-
         pubTimes[topic] = now;
+
+        if(topic == Topics.MISSION_CONTENT) trace(`publish(${topic})`);
 
         const list = subscribers[topic];
         if (list) {
@@ -430,6 +441,8 @@ function publish(topic, msg, interval = DEF_PUBLISH_INTERVAL) {
             });
 
             list.forEach((client) => {
+                d(`\tpublish to ${client.ip_address}`);
+
                 try {
                     client.send(str)
                 } catch (ex) {
