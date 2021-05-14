@@ -9,28 +9,24 @@ The idea is that you write workers as NodeJS modules, and they're loaded into me
 *   Listen to and respond to Mavlink messages
 *   Respond to messages direct from a GCS (if it's sending messages to solex-cc workers)
 *   Send Mavlink messages to the vehicle
-*   Send messages to a GCS through a WebSockets interface.
+*   Receive commands from a GCS to do various things with attached devices
+*   Send messages to a GCS through a WebSockets interface
 
 Solex CC handles the loading and configuration of workers, along with a consistent interface to implement for creating your own workers.
 
 ## What's it for?
 
-Suppose you have a camera connected to a USB port the companion computer that you want to control via Mavlink messages like `DO_DIGICAM_CONFIGURE` and `DO_DIGICAM_CONTROL`, and report camera status. You can write a worker that communicates with the camera through the USB port, and subscribes to the above Mavlink messages. When a `DO_DIGICAM_CONTROL` message arrives, you can do whatever's needed on the USB port to tell the camera to take a picture, start video recording, etc. You can also make it send `CAMERA_STATUS` and `CAMERA_FEEDBACK` messages as appropriate to report status.
+Anything where you want to conveniently add functionality to a vehicle. For example, there are workers for controlling an onboard camera, providing access 
+to a GCS to pictures taken by the camera, controlling on-board LEDs, "Smart Shots" (made popular by the 3DR Solo), and workers that allow multiple vehicles
+to communicate with each other and coordinate their activities (see *IVC* below).
 
-Or suppose you have some kind of sensor on the vehicle that isn't something ArduPilot typically knows about, but a typical Linux machine _can_ make use of. Suppose also that you want to start reading and logging data from this sensor as soon as a running mission reaches the first waypoint in a survey area, and stop logging after the _last_ waypoint. To do this, you could write whatever scripts and programs you need in order to interact with the sensor and call them from a worker. Or (even better), you could implement all of that as a worker. Install it on the companion computer on the vehicle, load it, and run your mission.
-
-Or, suppose you want to control the vehicle directly in a specific way in response to a command sent from a GCS (similar to the way Smart Shots work on a 3DR Solo), and report status back to the GCS.
-
-Or, suppose you've developed a vehicle that has pluggable payloads (cameras, sensors, etc) controlled by their own onboard computers. 
-You can define a common interface via workers on Solex CC and have it expose that interface to a GCS, handling the differences
-between the various payloads onboard the vehicle (or the case of there being no installed payload at all).
-
-These are the sorts of things of thing workers, and this interface in general, are intended to address. 
+Essentially, anything a small on-board computer (e.g. Raspberry Pi, Jetson Nano, etc) can do with either the flight controller directly, or any other on-board device,
+SolexCC workers can do.
 
 ## Why Node JS?
 
-Basically, because it's easy and performs well. Part of what this does is allows workers to be installed and removed on the fly,
-and basing it on Node JS works well with that too. Also, `npm`. Seriously, there's basically every possible thing in `npm`. 
+The point here is convenience. You can create and upload workers and install and remove them dynamically, and part of the whole "convenience" thing is to use a language
+that's easy and approachable. Also, `npm`. There is a _ton_ of functionality available already in the form of plugins via `npm`.
 
 ## Dispatcher
 
@@ -55,35 +51,31 @@ looks like this:
         "sysid": 221,
         "compid": 101,
         "loop_time_ms": 1000,
-        "udp_port": 14550
+    },
+    "udp": {
+        "port": 14557
+    },
+    "ivc": {
+        "client_ping_time": 3000,
+        "broadcast_interval": 5000,
+        "client_timeout": 10000,
+        "disabled": false
     }
 ```
 
 *   `worker_roots` is an array of paths where workers can be found.
 *   `worker_lib_root` is a path under SolexCC's `app` directory where optional worker libraries can be found.
-*   `sysid` and `compid` are the sysid/compid that will be used on Mavlink messages going to the vehicle (where applicable).
+*   `sysid` and `compid` are the sysid/compid that will be used on Mavlink messages going to the vehicle (where applicable). This _must_ match the sysid of the vehicle.
 *   `loop_time_ms` is how long the interval is between runs of the `loop()` function in the dispatcher. Any workers reporting that they wish to loop will have their `loop()` functions executed at this time.
 *   `udp_port` specifies the port the dispatcher listens on for incoming Mavlink messages. On an `apsync` implementation, `cmavnode` is used to forward Mavlink messages from `/dev/ttyS0` to UDP. So the dispatcher can use the normal value of `14550` here to listen to the UDP broadcasts that go out, or use an alternate port and configure `cmavnode` to send UDP packets to it directly.
+*   `ivc` refers to IVC configuration, and is optional. If `disabled` is set to `true`, IVC will not run. (See "IVC" below.)
+
 
 You can see the current configuration at runtime by hitting the `/config` endpoint once Solex CC is up and running.
 
-### Dispatcher Messages
-
-The main job of the dispatcher is to pass Mavlink and GCS messages back and forth between their source and workers. 
-
-#### Mavlink Messages
-
-The dispatcher listens on the specified UDP port for incoming Mavlink messages. Each time one is received, it passes that message to any workers that have registered to receive it, and passes it to them via their `onMavlinkMessage()` function if it exists.
-
-#### GCS Messages
-
-The point of this feature is to allow the passing of messages between the GCS and a worker, and have those messages not have to be Mavlink messages, or for them to flow through the Mavlink connection. Solex CC exposes a set of endpoints for sending messages and a WebSockets interface for a client to receive messages. The term "GCS message" is a generic concept referring to whatever is being passed back and forth. It's typically something like a JSON object.
-
 ## Workers
 
-Workers, unsurprisingly, are where the work gets done in Solex CC. They're the scripts you write yourself to do whatever thing you're interested in doing on the companion computer. They're loaded into memory by the **dispatcher**, which interacts with them in various ways.
-
-### Retrieving a list of workers
+_Workers_ are scripts you write and install on a SolexCC instance to define features a given vehicle has. 
 
 To get a list of workers currently loaded on the system, call the `/workers` endpoint, which returns a list of the loaded workers.
 
@@ -470,4 +462,21 @@ Where `:worker_ids` is a comma-delimited list of the worker ids you want to see 
 
 You can also specify these filters in the "Logging" page on the UI in case you want to view log output there.
 
+## IVC
+
+Stands for "Inter-Vehicle Communication", a lofty-sounding term describing the ability of vehicles on a given network to discover and communicate with each other, coordinating 
+their activities.
+
+### How it works
+At startup, SolexCC loads all of its installed workers. Once they're all loaded (thus providing a set of "features" for a SolexCC instance), IVC starts and sends a periodic UDP broadcast to advertise its presence on the network.
+
+Another SolexCC instance gets this broadcast, and starts a direct connection between itself and the broadcaster. It notifies all installed workers that a "peer" has appeared on the network. If any worker is interested in specific functions a peer might provide, it interrogates the new peer to find out what functionality it offers. If interested, the worker
+can subscribe to topics provided by the new peer, which essentially gives a vehicle the ability to monitor the state of other vehicles. The two vehicles can then coordinate their
+work.
+
+For example, the `mission_split` worker can be installed on 2 or more copters. The same mission can then be uploaded to both or all of them. Then the vehicles can be armed and launched to a hover, one by one. As each vehicle launches, it will communicate with the other vehicles that have already launched and have the same mission loaded. It will split the overall mission into segments and coordinate with the other vehicles to split the overall mission up. Each vehicle will fly a portion of the mission based on how many vehicles are going to fly it at the same time (e.g. half each for 2 copters, 1/3 each for 3 copters, etc). 
+
+The `follow_other` worker monitors a target vehicle's location and can be instructed by the GCS to fly in formation with it, to follow the same path as the target vehicle, to orbit the target vehicle, etc.
+
+A worker could be created to basically ensure a minimum distance between vehicles as they fly. Up to you... Just whatever you want to do.
 
