@@ -15,10 +15,11 @@ const Topics = Object.freeze({
 ,   SPEED: "speed"
 ,   MISSION_STATE: "mission_state"
 ,   MISSION_CONTENT: "mission_content"
+,   ERROR: "error"
 });
 
-const VERBOSE = true;
-const TRACE = true;
+const VERBOSE = false;
+const TRACE = false;
 
 const DEF_PUBLISH_INTERVAL = 1000;
 const subscribers = {};
@@ -351,6 +352,28 @@ function processVfrHud(msg) {
     }
 }
 
+const TIMEOUT_MISSION_GET = 2000;
+let missionItemGetRetries = 0;
+let missionTimeoutHandle = null;
+function onMissionGetItemTimeout() {
+    d(`onMissionGetItemTimeout()`);
+
+    sendMavlink(new mavlink.messages.mission_request(sysid, compid, mState.mission_seq));
+    if(++missionItemGetRetries < 5) {
+        missionTimeoutHandle = setTimeout(onMissionGetItemTimeout, TIMEOUT_MISSION_GET);
+    } else {
+        const msg = `Unable to get the mission, tried ${missionItemGetRetries} times.`;
+        publish(Topics.ERROR, { message: msg }, 10);
+        d(msg);
+    }
+}
+
+function resetTimeout() {
+    missionItemGetRetries = 0;
+    clearTimeout(missionTimeoutHandle);
+    missionTimeoutHandle = setTimeout(onMissionGetItemTimeout, TIMEOUT_MISSION_GET);
+}
+
 function processMissionCount(msg) {
     if(mState.internal_mission_count != msg.count) {
         mState.internal_mission_count = msg.count;
@@ -366,6 +389,7 @@ function processMissionCount(msg) {
         if(mState.requesting_mission) {
             mState.mission_seq = 0;
             sendMavlink(new mavlink.messages.mission_request(sysid, compid, mState.mission_seq));
+            resetTimeout();
         }
     }
 }
@@ -383,6 +407,8 @@ function processMissionItem(msg) {
         return out;
     }
 
+    clearTimeout(missionTimeoutHandle);
+
     if(mState.mission) {
         if(!mState.mission.items) mState.mission.items = [];
         const shaved = shave(msg);
@@ -399,6 +425,8 @@ function processMissionItem(msg) {
             mState.internal_mission_count = 0;
         } else {
             if(mState.requesting_mission) {
+                resetTimeout();
+
                 sendMavlink(new mavlink.messages.mission_request(sysid, compid, ++mState.mission_seq));
             }
         }
