@@ -66,6 +66,7 @@ const mState = {
     battery: {},
     missionState: { current_item: -1, reached_item: -1, count: 0 },
     internal_mission_count: 0,
+    asked_stream_rates: false,
     mission: {
         items: [],
         count: 0
@@ -258,6 +259,11 @@ function processHeartbeat(msg) {
 
     if(failsafe) {
         publish(Topics.FAILSAFE, { failsafe: failsafe }, 10);
+    }
+
+    if(!mState.asked_stream_rates) {
+        setTimeout(setStreamRates, 3000);
+        mState.asked_stream_rates = true;
     }
 }
 
@@ -502,4 +508,35 @@ function yawToHeading(yaw) {
     if (output < 0) output += 360;
 
     return output;
+}
+
+function setStreamRates() {
+    d(`setStreamRates()`);
+    if(!mavlinkSendCallback) return e(`setStreamRates(): No mavlink send callback`);
+
+    function requestDataStream(streamId, rate) {
+        d(`requestDataStream(${streamId}, ${rate})`);
+        const msg = new mavlink.messages.request_data_stream(sysid, compid, streamId, rate, (rate > 0) ? 1 : 0);
+        mavlinkSendCallback(msg);
+    }
+
+    const rates = {
+        rawSensors: 6,
+        extStatus: 2,
+        rcChannels: 4,
+        rawController: 6,
+        position: 2,
+        extra1: 8,
+        extra2: 8,
+        extra3: 8
+    };
+
+    requestDataStream(mavlink.MAV_DATA_STREAM_RAW_SENSORS, rates.rawSensors);
+    requestDataStream(mavlink.MAV_DATA_STREAM_EXTENDED_STATUS, rates.extStatus);
+    requestDataStream(mavlink.MAV_DATA_STREAM_RC_CHANNELS, rates.rcChannels);
+    requestDataStream(mavlink.MAV_DATA_STREAM_RAW_CONTROLLER, rates.rawController);
+    requestDataStream(mavlink.MAV_DATA_STREAM_POSITION, rates.position);
+    requestDataStream(mavlink.MAV_DATA_STREAM_EXTRA1, rates.extra1);
+    requestDataStream(mavlink.MAV_DATA_STREAM_EXTRA2, rates.extra1);
+    requestDataStream(mavlink.MAV_DATA_STREAM_EXTRA3, rates.extra1);
 }

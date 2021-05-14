@@ -707,7 +707,6 @@ function startIVC() {
             if(diffTime > IVC_CLIENT_TIMEOUT) {
                 d(`Failed to get a response from ${this.peer.address} for ${diffTime}ms, must have dropped`);
                 this.stop();
-                require("./util/dispatch").onIVCPeerDropped(this.peer);
             } else {
                 // THEN WHAT THE HELL ARE WE DOING HERE?
                 // setTimeout() is grossly inaccurate, less so if you use longer times.
@@ -738,7 +737,8 @@ function startIVC() {
                 d(`IVC Client error: ${ex.message}`);
                 this.stop();
             }).on("close", () => {
-                d(`IVC client connection closed`)
+                d(`IVC client connection closed`);
+                this.stop();
             });
         }
 
@@ -772,6 +772,7 @@ function startIVC() {
             if(this.peer) {
                 delete mIVCClients[this.peer.address];
                 delete mIVCPeers[this.peer.address];
+                require("./util/dispatch").onIVCPeerDropped(this.peer);
             }
 
             try {

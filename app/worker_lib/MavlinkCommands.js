@@ -343,6 +343,23 @@ function requestParamRead(sysid, compid, paramid, callback) {
     callback(msg);
 }
 
+exports.setStreamRates = (sysid, compid, rates, sendCallback) => {
+    function requestDataStream(streamId, rate) {
+        // d(`requestDataStream(${streamId}, ${rate})`);
+        const msg = new mavlink.messages.request_data_stream(sysid, compid, streamId, rate, (rate > 0) ? 1 : 0);
+        sendCallback(msg);
+    }
+
+    requestDataStream(mavlink.MAV_DATA_STREAM_RAW_SENSORS, rates.rawSensors);
+    requestDataStream(mavlink.MAV_DATA_STREAM_EXTENDED_STATUS, rates.extStatus);
+    requestDataStream(mavlink.MAV_DATA_STREAM_RC_CHANNELS, rates.rcChannels);
+    requestDataStream(mavlink.MAV_DATA_STREAM_RAW_CONTROLLER, rates.rawController);
+    requestDataStream(mavlink.MAV_DATA_STREAM_POSITION, rates.position);
+    requestDataStream(mavlink.MAV_DATA_STREAM_EXTRA1, rates.extra1);
+    requestDataStream(mavlink.MAV_DATA_STREAM_EXTRA2, rates.extra1);
+    requestDataStream(mavlink.MAV_DATA_STREAM_EXTRA3, rates.extra1);
+}
+
 // exports
 exports.sendSetROI = sendSetROI;
 exports.sendClearROI = sendClearROI;
