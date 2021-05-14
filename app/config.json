@@ -26,5 +26,10 @@
             "sysid": 1,
             "compid": 20
         }
+    },
+    "ivc": {
+        "broadcast_interval": 5000,
+        "client_ping_time": 5000,
+        "client_timeout": 10000
     }
 }

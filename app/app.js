@@ -540,7 +540,7 @@ function setupApp() {
                 res.json(configData);
             });
 
-            log(JSON.stringify(configData));
+            log(JSON.stringify(configData, null, 2));
 
             global.workerConfig = configData;
 
@@ -579,7 +579,7 @@ function setupApp() {
                 dispatch.setLoadCompleteCallback(() => {
                     log("dispatch loaded");
                     if(!mIVCStarted) {
-                        startIVC();
+                        startIVC(global.workerConfig.ivc);
                     }
                 });
 
@@ -648,9 +648,9 @@ function restartSystem(req, res) {
 }
 
 // IVC stuff
-const IVC_BROADCAST_INTERVAL = 10000;
-const IVC_CLIENT_PING_TIME = 3000;
-const IVC_CLIENT_TIMEOUT = IVC_CLIENT_PING_TIME * 2;
+const DEF_IVC_BROADCAST_INTERVAL = 10000;
+const DEF_IVC_CLIENT_PING_TIME = 3000;
+const DEF_IVC_CLIENT_TIMEOUT = DEF_IVC_CLIENT_PING_TIME * 2;
 const IVC_BCAST_PORT = 5150;
 const IVC_DIRECT_PORT = 6505;
 const mIVCPeers = {};
@@ -668,10 +668,20 @@ function listPeers(req, res) {
     res.json(mIVCPeers);
 }
 
-function startIVC() {
+function startIVC(config) {
+    if (config && config.disabled) {
+        return log(`startIVC(): IVC configured NOT to run`);
+    }
+
     const myIP = getMyIP();
     if (!myIP) return log(`Unable to get my own IP!`);
     const dgram = require('dgram');
+
+    const IVC_BROADCAST_INTERVAL = config && config.broadcast_interval || DEF_IVC_BROADCAST_INTERVAL;
+    const IVC_CLIENT_PING_TIME = config && config.client_ping_time || DEF_IVC_CLIENT_PING_TIME;
+    const IVC_CLIENT_TIMEOUT = config && config.client_timeout || DEF_IVC_CLIENT_TIMEOUT;
+
+    if(config) log(`startIVC(): Starting with ${(config)? JSON.stringify(config, null, 2): "default config"}`);
 
     VehicleTopics.setSenderInfo({ address: myIP, port: parseInt(process.env.PORT || DEFAULT_CC_PORT) });
 
