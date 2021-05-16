@@ -212,6 +212,17 @@ exports.getSubscriptionsForIP = function getSubscriptionsForIP(ip) {
     return out;
 }
 
+exports.requestVehicleMission = doRequestVehicleMission;
+
+function doRequestVehicleMission() {
+    d(`doRequestVehicleMission()`);
+
+    mState.requesting_mission = true;
+    mState.mission_seq = 0;
+    mState.internal_mission_count = 0;
+    sendMavlink(new mavlink.messages.mission_request_list(sysid, compid));
+}
+
 function processHeartbeat(msg) {
     // d(dump(msg.header));
 
@@ -249,11 +260,7 @@ function processHeartbeat(msg) {
 
         if(armed) {
             d(`Armed, request mission`);
-
-            mState.requesting_mission = true;
-            mState.mission_seq = 0;
-            mState.internal_mission_count = 0;
-            sendMavlink(new mavlink.messages.mission_request_list(sysid, compid));
+            doRequestVehicleMission();
         }
     }
 
