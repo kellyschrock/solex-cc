@@ -18,7 +18,7 @@ const Topics = Object.freeze({
 ,   ERROR: "error"
 });
 
-const VERBOSE = true;
+const VERBOSE = false;
 const TRACE = false;
 
 const DEF_PUBLISH_INTERVAL = 1000;
