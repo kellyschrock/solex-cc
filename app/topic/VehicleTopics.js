@@ -18,7 +18,7 @@ const Topics = Object.freeze({
 ,   ERROR: "error"
 });
 
-const VERBOSE = false;
+const VERBOSE = true;
 const TRACE = false;
 
 const DEF_PUBLISH_INTERVAL = 1000;
@@ -424,13 +424,19 @@ function processMissionItem(msg) {
 
     if(mState.mission) {
         if(!mState.mission.items) mState.mission.items = [];
-        const shaved = shave(msg);
-        if(shaved) {
-            mState.mission.items.push(shaved);
+
+        const already = mState.mission.items.find((item) => item.seq == msg.seq);
+        if(!already) {
+            const shaved = shave(msg);
+            if (shaved) {
+                mState.mission.items.push(shaved);
+            }
         }
 
         if(mState.mission.items.length == mState.mission.count) {
             d(`Got ${mState.mission.items.length} mission items`);
+
+            mState.mission.items.sort((a, b) => a.seq - b.seq)
             publish(Topics.MISSION_CONTENT, mState.mission, 10);
 
             delete mState.requesting_mission;

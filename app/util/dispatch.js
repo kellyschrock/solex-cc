@@ -257,7 +257,7 @@ function isVehicleType(type) {
 
 function onReceivedMavlinkMessage(msg) {
     // log(`onReceivedMavlinkMessage(${JSON.stringify(msg)})`);
-    // d(`onReceivedMavlinkMessage(${msg.name})`);
+    // log(`onReceivedMavlinkMessage(${msg.name})`);
 
     const sysid = msg && msg.header && msg.header.srcSystem || 0;
     // This came over UDP from some other machine and it wasn't the GCS. Ignore it!
