@@ -35,6 +35,10 @@ const routes = require('./routes');
 const dispatcher = require("./routes/dispatcher");
 const system = require("./routes/system");
 const dispatch = require("./util/dispatch");
+const favicon = require("serve-favicon");
+const errorHandler = require("errorhandler");
+const methodOverride = require("method-override");
+const morgan = require("morgan");
 const e = require("express");
 
 // Default, actually overridden in a config file if present.
@@ -107,17 +111,17 @@ function setupApp() {
     }
 
     app.use(compression({filter: shouldCompress}));
-    app.use(express.favicon());
-    app.use(express.logger('dev'));
+    app.use(favicon(path.join(__dirname, "public/favicon", "favicon.ico")));
     app.use(express.json());
     app.use(express.urlencoded());
-    app.use(express.methodOverride());
+    app.use(methodOverride());
 
     app.use(express.static(path.join(global.appRoot, 'public')));
 
     // development only
     if ('development' == app.get('env')) {
-        app.use(express.errorHandler());
+        app.use(morgan("combined"));
+        app.use(errorHandler());
     }
 
     //
@@ -218,7 +222,6 @@ function setupApp() {
         //
         // ENDPOINTS
         //
-        app.use("/", routes);
 
         // Dispatch
         app.get("/dispatch/start", dispatcher.start);
