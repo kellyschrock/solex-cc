@@ -346,7 +346,9 @@ function onUnload(msg) {
     }
 
     log(`Shutting ${workerId} down`);
-    process.exit(0);
+
+    process.send({ id: "worker_unloaded", msg: { worker_id: workerId, pid: process.pid } });    
+    setTimeout(function() { process.exit(0); }, 2000);
 }
 
 function onRemove(msg) {
@@ -637,6 +639,18 @@ function onIVCPeerDropped(peer) {
     }
 }
 
+function onGCSConnect(input) {
+    if(mWorker && mWorker.onGCSConnect) {
+        mWorker.onGCSConnect(input);
+    }
+}
+
+function onGCSDisconnect(input) {
+    if(mWorker && mWorker.onGCSDisconnect) {
+        mWorker.onGCSDisconnect(input);
+    }
+}
+
 function onPayloadStopRequest(msg) {
     log(`onPayloadStopRequest(${JSON.stringify(msg)})`);
 
@@ -706,7 +720,9 @@ const mFunctionMap = {
     "get_worker_config": onGetWorkerConfigRequest,
     "set_worker_config": onSetWorkerConfigRequest,
     "ivc_peer_add": onIVCPeerAdded,
-    "ivc_peer_drop": onIVCPeerDropped
+    "ivc_peer_drop": onIVCPeerDropped,
+    "gcs_connect": onGCSConnect,
+    "gcs_disconnect": onGCSDisconnect
 };
 
 // Incoming messages from the parent process

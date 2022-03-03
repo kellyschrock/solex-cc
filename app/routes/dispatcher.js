@@ -376,6 +376,17 @@ function getFeatures(req, res) {
     });
 }
 
+// NOT a request handler, gets messages from the app layer.
+function onGCSConnect(input) {
+    d(`onGCSConnect(): ${JSON.stringify(input)}`);
+    dispatch.onGCSConnect(input);
+}
+
+function onGCSDisconnect(input) {
+    d(`onGCSDisconnect(): ${JSON.stringify(input)}`);
+    dispatch.onGCSDisconnect(input);
+}
+
 function shutdown(req, res) {
     dispatch.shutdown();
 }
@@ -459,6 +470,8 @@ exports.monitorWorker = monitorWorker;
 exports.setConfig = setConfig;
 exports.shutdown = shutdown;
 exports.getFeatures = getFeatures;
+exports.onGCSConnect = onGCSConnect;
+exports.onGCSDisconnect = onGCSDisconnect;
 exports.onPayloadStart = onPayloadStart;
 exports.onPayloadCheck = onPayloadCheck;
 exports.onPayloadStop = onPayloadStop;

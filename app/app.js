@@ -111,7 +111,7 @@ function setupApp() {
     }
 
     app.use(compression({filter: shouldCompress}));
-    app.use(favicon(path.join(__dirname, "public/favicon", "favicon.ico")));
+    // app.use(favicon(path.join(__dirname, "public/favicon", "favicon.ico")));
     app.use(express.json());
     app.use(express.urlencoded());
     app.use(methodOverride());
@@ -386,6 +386,8 @@ function setupApp() {
             // log(`Client IP is ${client._socket.remoteAddress}`);
             client.ip_address = toIPv4(client._socket.remoteAddress);
             log(`Client IP is ${client.ip_address}`);
+
+            dispatcher.onGCSConnect({ address: client.ip_address });
         }
 
         // If we have queued messages waiting, send them now and clear them.
@@ -525,6 +527,8 @@ function setupApp() {
             if (idx >= 0) {
                 mGCSSubscribers.splice(idx, 1);
             }
+
+            dispatcher.onGCSDisconnect({ address: client.ip_address });
         }).on("error", (ex) => {
             log(`Websocket client error: ${ex.message}`);
         });

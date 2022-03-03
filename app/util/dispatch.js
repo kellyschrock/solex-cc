@@ -521,6 +521,7 @@ function mavlinkMessageFor(msg) {
 function setupWorkerCallbacks(child) {
     const childProcMap = {
         "worker_loaded": onWorkerLoaded,
+        "worker_unloaded": onWorkerUnloaded,
         "load_abort": onWorkerLoadAbort,
         "worker_log": onWorkerLog,
         "worker_removed": onWorkerRemoved,
@@ -548,7 +549,7 @@ function setupWorkerCallbacks(child) {
     function onWorkerLoaded(msg) {
         // msg.pid, msg.worker_id, msg.file
         // log(`workerLoaded(): ${JSON.stringify(msg)}`);
-        d(`workerLoaded(): ${msg.worker_id}`);
+        d(`onWorkerLoaded(): ${msg.worker_id}`);
 
         if(mWorkers && msg.pid) {
             const val = mWorkers[msg.pid];
@@ -563,6 +564,17 @@ function setupWorkerCallbacks(child) {
                         val.enabled = mWorkerEnabledStates[val.worker_id];
                     }
                 }
+            }
+        }
+    }
+
+    function onWorkerUnloaded(msg) {
+        d(`onWorkerUnlaoded(): ${msg.worker_id}`);
+
+        if(mWorkers && msg.pid) {
+            const w = mWorkers[msg.pid];
+            if(w) {
+                delete mWorkers[msg.pid];
             }
         }
     }
@@ -1839,6 +1851,24 @@ function onIVCPeerDropped(peer) {
     }
 }
 
+function onGCSConnect(input) {
+    for(let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if(worker && worker.child && worker.enabled) {
+            worker.child.send({ id: "gcs_connect", msg: input});
+        }
+    }
+}
+
+function onGCSDisconnect(input) {
+    for (let pid in mWorkers) {
+        const worker = mWorkers[pid];
+        if (worker && worker.child && worker.enabled) {
+            worker.child.send({ id: "gcs_disconnect", msg: input });
+        }
+    }
+}
+
 exports.start = start;
 exports.stop = stop;
 exports.running = running;
@@ -1873,4 +1903,5 @@ exports.onPayloadStop = onPayloadStop;
 exports.pingWorkerRoster = pingWorkerRoster;
 exports.onIVCPeerAdded = onIVCPeerAdded;
 exports.onIVCPeerDropped = onIVCPeerDropped;
-
+exports.onGCSConnect = onGCSConnect;
+exports.onGCSDisconnect = onGCSDisconnect;

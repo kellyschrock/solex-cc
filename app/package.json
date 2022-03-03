@@ -19,6 +19,7 @@
     "node-addon-api": "^4.2.0",
     "request": "^2.88.2",
     "serialport": "^9.2.8",
+    "serve-favicon": "^2.5.0",
     "supports-color": "^9.2.1",
     "underscore": "^1.13.2",
     "utf-8-validate": "^5.0.7",
