@@ -1,0 +1,35 @@
+#!/bin/bash
+
+usage() {
+    echo
+    echo "Usage: $0 enable | disable | reload worker_id"
+    echo
+}
+
+if [ $# -lt 2 ]; then
+    usage
+    exit 1
+fi
+
+url=http://localhost:80
+action=$1
+workerId=$2
+
+case $action in
+    enable)
+        wget -qO- $url/worker/enable/$workerId/true
+        echo
+    ;;
+
+    disable)
+        wget -qO- $url/worker/enable/$workerId/false
+        echo
+    ;;
+
+    reload)
+        echo "Reload $workerId"
+        wget -qO- $url/worker/reload/$workerId
+        echo
+    ;;
+esac
+

@@ -308,25 +308,11 @@ function onReload(msg) {
             try { mWorker.onUnload(); } catch(ex) { e(ex.message); }
         }
 
-        d("un-cache");
-        delete require.cache[require.resolve(mWorkerFile)];
-
-        d("load");
-        const worker = require(mWorkerFile);
-        const attrs = worker.getAttributes();
-        attachFunctionsTo(attrs);
-        attachApisTo(attrs);
-        attachConfigTo(attrs);
-
-        if(worker.onLoad) {
-            try {
-                worker.onLoad();
-                mWorker = worker;                
-            } catch(ex) {
-                e(ex.message);
-            }
-        }
+        // This process is stopping, and will be restarted.
+        process.send({ id: "worker_reload_unloaded", msg: { worker_id: mWorkerId, pid: process.pid, worker_file: mWorkerFile } });
     }
+
+    setTimeout(function () { process.exit(0); }, 500);
 }
 
 function onUnload(msg) {
@@ -348,7 +334,7 @@ function onUnload(msg) {
     log(`Shutting ${workerId} down`);
 
     process.send({ id: "worker_unloaded", msg: { worker_id: workerId, pid: process.pid } });    
-    setTimeout(function() { process.exit(0); }, 2000);
+    setTimeout(function() { process.exit(0); }, 500);
 }
 
 function onRemove(msg) {

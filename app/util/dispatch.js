@@ -522,6 +522,7 @@ function setupWorkerCallbacks(child) {
     const childProcMap = {
         "worker_loaded": onWorkerLoaded,
         "worker_unloaded": onWorkerUnloaded,
+        "worker_reload_unloaded": onWorkerUnloadedForReload,
         "load_abort": onWorkerLoadAbort,
         "worker_log": onWorkerLog,
         "worker_removed": onWorkerRemoved,
@@ -569,7 +570,7 @@ function setupWorkerCallbacks(child) {
     }
 
     function onWorkerUnloaded(msg) {
-        d(`onWorkerUnlaoded(): ${msg.worker_id}`);
+        d(`onWorkerUnloaded(): ${msg.worker_id}`);
 
         if(mWorkers && msg.pid) {
             const w = mWorkers[msg.pid];
@@ -577,6 +578,32 @@ function setupWorkerCallbacks(child) {
                 delete mWorkers[msg.pid];
             }
         }
+    }
+
+    function onWorkerUnloadedForReload(msg) {
+        d(`onWorkerUnloadedForReload(): ${msg.worker_id}`);
+
+        if(mWorkers && msg.pid) {
+            const w = mWorkers[msg.pid];
+
+            if(w) {
+                const dir = path.dirname(msg.worker_file);
+                d(`Worker dir is ${dir}`);
+                delete mWorkers[msg.pid];
+
+                if(fs.existsSync(dir)) {
+                    setTimeout(function() {
+                        loadWorkerRoot(dir);
+                    }, 2000);
+                } else {
+                    e(`Worker dir ${dir} not found`);
+                }
+            }
+
+        }
+
+        // TODO: Load the same worker file over again after a couple seconds.
+
     }
 
     // Worker told us it's been removed.

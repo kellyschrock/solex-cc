@@ -248,6 +248,7 @@ function setupApp() {
         app.post("/worker/install", dispatcher.installWorker);
         app.get("/worker/roster", dispatcher.pingWorkerRoster);
         app.get("/worker/reload/:worker_id", dispatcher.reloadWorker);
+        app.get("/worker/enable/:worker_id/:flag", dispatcher.enableWorker);
         app.get("/worker/details/:worker_id", dispatcher.getWorkerDetails);
         app.get("/worker/monitor/:worker_id/:monitor", dispatcher.monitorWorker);
         app.get("/worker/config/:worker_id", dispatcher.getWorkerConfig);

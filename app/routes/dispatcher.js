@@ -302,7 +302,7 @@ function enableWorker(req, res) {
         if(err) {
             res.status(404).json({message: err.message});
         } else {
-            res.status(200).json({enabled: enable});
+            res.status(200).json({ worker_id: workerId, enabled: enable });
         }
     });
 }
@@ -346,7 +346,7 @@ function removeWorker(req, res) {
 
 function reloadWorker(req, res) {
     if(dispatch.reloadWorker(req.params.worker_id)) {
-        res.status(200).json({message: "Reloaded"});
+        res.status(200).json({message: `reloading`, worker_id: req.params.worker_id });
     } else {
         res.status(404).json({message: `Worker ${req.params.worker_id} not found`});
     }
