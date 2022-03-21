@@ -108,6 +108,37 @@ function sendGuidedPosition(sysid, compid, lat, lng, alt, callback) {
     callback(msg);
 }
 
+exports.sendGuidedPos = function(sysid, compid, pos, callback) {
+    const hasYaw = (pos.yaw !== undefined);
+
+    const type_mask = (hasYaw)?
+        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE | MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE :
+        MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE | MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE | MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
+
+    const yaw = (pos.yaw !== undefined) ? Math.toRadians(pos.yaw): 0;
+
+    const msg = new mavlink.messages.set_position_target_global_int(
+        0, // time_boot_ms
+        sysid,
+        compid,
+        mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, // coordinate_frame
+        type_mask, // type_mask
+        (pos.lat * 1E7), // lat_int
+        (pos.lng * 1E7), // lon_int
+        pos.alt,
+        0, // vx
+        0, // vy
+        0, // vz
+        0, // afx
+        0, // afy
+        0, // afz
+        yaw, // yaw
+        (hasYaw)? 1: 0  // yaw_rate (rad/s)
+    );
+
+    callback(msg);
+}
+
 function sendGuidedPosInfo(sysid, compid, pos, callback) {
     let flags = MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE;
 

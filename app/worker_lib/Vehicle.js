@@ -588,8 +588,14 @@ function mavlinkCallback(msg) {
 function gotoPoint(point) {
     const valid = isValidLocation(point);
     if(valid) {
-        const alt = point.alt || 10; // default altitude, ignored by rovers
-        MavlinkCommands.sendGuidedPosition(mSysId, mCompId, point.lat, point.lng, alt, mavlinkCallback);
+        if(!point.alt) {
+            point.alt = 10;
+        }
+
+        MavlinkCommands.sendGuidedPos(mSysId, mCompId, point, mavlinkCallback);
+        
+        // const alt = point.alt || 10; // default altitude, ignored by rovers
+        // MavlinkCommands.sendGuidedPosition(mSysId, mCompId, point.lat, point.lng, alt, mavlinkCallback);
     }
 
     return valid;
