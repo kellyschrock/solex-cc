@@ -115,7 +115,8 @@ exports.sendGuidedPos = function(sysid, compid, pos, callback) {
         MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE | MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE :
         MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE | MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE | MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
 
-    const yaw = (pos.yaw !== undefined) ? Math.toRadians(pos.yaw): 0;
+    const yaw = (hasYaw) ? Math.toRadians(pos.yaw): 0;
+    const yawRate = (hasYaw && pos.yaw_speed !== undefined)? Math.toRadians(pos.yaw_speed): 0;
 
     const msg = new mavlink.messages.set_position_target_global_int(
         0, // time_boot_ms
@@ -133,7 +134,7 @@ exports.sendGuidedPos = function(sysid, compid, pos, callback) {
         0, // afy
         0, // afz
         yaw, // yaw
-        (hasYaw)? 1: 0  // yaw_rate (rad/s)
+        yawRate  // yaw_rate (rad/s)
     );
 
     callback(msg);
