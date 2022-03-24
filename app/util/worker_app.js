@@ -115,7 +115,7 @@ function loopCaller() {
 }
 
 // Load a worker. msg.file is the file to load.
-function loadWorker(msg) {
+function onLoadWorker(msg) {
     // d(`loadWorker(): ${msg.file}`);
 
     const enabledStates = msg.enabledStates;
@@ -143,11 +143,7 @@ function loadWorker(msg) {
         const workerId = attrs.id;
         const workerConfig = mWorkerConfig[workerId];
 
-        let workerEnabled = true;
-
-        if(enabledStates.hasOwnProperty(workerId)) {
-            workerEnabled = enabledStates[workerId];
-        }
+        let workerEnabled = enabledStates[workerId] || false;
 
         attachFunctionsTo(attrs);
         attachApisTo(attrs);
@@ -177,18 +173,25 @@ function loadWorker(msg) {
                 mWorkerAttributes = attrs;
                 mWorkerAttributes.enabled = shell.enabled;
                 mWorkerId = workerId;
+
                 worker.onLoad();
 
-                // d(`Loaded worker ${mWorkerId}`);
-                process.send({id: "worker_loaded", msg: { 
-                    worker_id: workerId, 
-                    file: file, 
-                    pid: process.pid,
-                    attributes: shell.attributes,
-                    enabled: shell.enabled
-                }});
+                if (worker.onEnabledChanged) {
+                    worker.onEnabledChanged(workerEnabled);
+                }
 
-                if(attrs.looper && workerEnabled) {
+                // d(`Loaded worker ${mWorkerId}`);
+                process.send({
+                    id: "worker_loaded", msg: {
+                        worker_id: workerId,
+                        file: file,
+                        pid: process.pid,
+                        attributes: shell.attributes,
+                        enabled: shell.enabled
+                    }
+                });
+
+                if (attrs.looper && workerEnabled) {
                     setTimeout(loopCaller, LOOP_INTERVAL);
                 }
 
@@ -678,11 +681,15 @@ function onWorkerEnable(msg) {
     }
 
     mWorkerAttributes.enabled = msg.enabled;
+
+    if(mWorker && mWorker.onEnabledChanged) {
+        mWorker.onEnabledChanged(mWorkerAttributes.enabled);
+    }
 }
 
 // Messages sent by the parent process
 const mFunctionMap = {
-    "load_worker": loadWorker,
+    "load_worker": onLoadWorker,
     "mavlink_msg": onMavlinkMessage,
     "gcs_msg": onGCSMessage,
     "worker_roster": onWorkerRoster,

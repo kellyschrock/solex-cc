@@ -1727,17 +1727,15 @@ function loadWorkerEnabledStates() {
     d(`loadWorkerEnabledStates()`);
 
     const file = getWorkerEnabledConfigFile();
-    fs.exists(file, function (exists) {
-        if (exists) {
-            fs.readFile(file, function (err, data) {
-                try {
-                    mWorkerEnabledStates = JSON.parse(data.toString());
-                } catch(ex) {
-                    e(`Error loading enabled state: ${ex.message}`);
-                }
-            });
+
+    if(fs.existsSync(file)) {
+        const data = fs.readFileSync(file);
+        try {
+            mWorkerEnabledStates = JSON.parse(data.toString());
+        } catch(ex) {
+            e(`Error loading enabled state: ${ex.message}`);
         }
-    });
+    }
 }
 
 function findWorkerById(workerId) {
