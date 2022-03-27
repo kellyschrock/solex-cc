@@ -229,6 +229,7 @@ function setupApp() {
         app.get("/dispatch/running", dispatcher.running);
         app.get("/dispatch/reload", dispatcher.reload);
         app.get("/dispatch/log_filter", dispatcher.getLogWorkers);
+        app.post("/dispatch/loadpath", dispatcher.loadWorkersFromPath);
         app.get("/dispatch/log_filter/:worker_ids", dispatcher.setLogWorkers);
         app.get("/dispatch/worker/enable/:worker_id/:flag", dispatcher.enableWorker);
         app.get("/dispatch/package/enable/:package_id/:flag", dispatcher.enablePackage);
@@ -249,6 +250,7 @@ function setupApp() {
         app.get("/worker/roster", dispatcher.pingWorkerRoster);
         app.get("/worker/reload/:worker_id", dispatcher.reloadWorker);
         app.get("/worker/enable/:worker_id/:flag", dispatcher.enableWorker);
+        app.get("/worker/stop/:worker_id", dispatcher.stopWorker);
         app.get("/worker/details/:worker_id", dispatcher.getWorkerDetails);
         app.get("/worker/monitor/:worker_id/:monitor", dispatcher.monitorWorker);
         app.get("/worker/config/:worker_id", dispatcher.getWorkerConfig);

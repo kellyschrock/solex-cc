@@ -352,6 +352,27 @@ function reloadWorker(req, res) {
     }
 }
 
+function stopWorker(req, res) {
+    if(dispatch.stopWorker(req.params.worker_id)) {
+        res.status(200).json({message: "stop", worker_id: req.params.worker_id});
+    } else {
+        res.status(404).json({message: `Worker ${req.params.worker_id} not found`});
+    }
+}
+
+function loadWorkersFromPath(req, res) {
+    const path = req.body.path;
+    if(path) {
+        if(dispatch.loadFromPath(path)) {
+            res.status(200).json({ message: `Loading workers from path: ${path}` });
+        } else {
+            res.status(404).json({ message: `Path not found: ${path}`});
+        }
+    } else {
+        res.status(400).json({message: "Path attribute is required in POST body"});
+    }
+}
+
 function getLogWorkers(req, res) {
     const workerIds = dispatch.getLogWorkers() || [];
     res.status(200).json({worker_ids: workerIds.join(",")});
@@ -448,6 +469,8 @@ exports.sysVersion = sysVersion;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
 exports.reloadWorker = reloadWorker;
+exports.stopWorker = stopWorker;
+exports.loadWorkersFromPath = loadWorkersFromPath;
 exports.removePackage = removePackage;
 exports.enableWorker = enableWorker;
 exports.enablePackage = enablePackage;

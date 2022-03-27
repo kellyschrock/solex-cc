@@ -318,6 +318,19 @@ function onReload(msg) {
     setTimeout(function () { process.exit(0); }, 500);
 }
 
+function onStop(msg) {
+    d(`onStop()`);
+
+    if(mWorker && mWorkerFile) {
+        if(mWorker.onUnload) {
+            console.log(`stop the worker`);
+            try { mWorker.onUnload(); } catch(ex) { e(ex.message); }
+        }
+
+        process.send({ id: "worker_stopped", msg: { worker_id: mWorkerId, pid: process.pid, worker_file: mWorkerFile } });
+    }
+}
+
 function onUnload(msg) {
     d("onUnload()");
 
@@ -695,6 +708,7 @@ const mFunctionMap = {
     "worker_roster": onWorkerRoster,
     "config": onConfig,
     "reload": onReload,
+    "stop": onStop,
     "unload": onUnload,
     "remove": onRemove,
     "load_libraries": onLoadLibraries,

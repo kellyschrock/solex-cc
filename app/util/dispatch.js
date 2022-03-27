@@ -427,6 +427,27 @@ function reloadWorker(workerId) {
     return false;
 }
 
+function stopWorker(workerId) {
+    const worker = findWorkerById(workerId);
+
+    if(worker) {
+        const child = worker.child;
+        child.send({id: "stop", msg: {}});
+        return true;
+    }
+
+    return false;
+}
+
+function loadFromPath(path) {
+    if(fs.existsSync(path)) {
+        loadWorkerRoot(path);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 function unloadWorker(worker) {
     const child = worker.child;
     child.send({id: "unload", msg: {}});
@@ -523,6 +544,7 @@ function setupWorkerCallbacks(child) {
         "worker_loaded": onWorkerLoaded,
         "worker_unloaded": onWorkerUnloaded,
         "worker_reload_unloaded": onWorkerUnloadedForReload,
+        "worker_stopped": onWorkerStopped,
         "load_abort": onWorkerLoadAbort,
         "worker_log": onWorkerLog,
         "worker_removed": onWorkerRemoved,
@@ -577,6 +599,15 @@ function setupWorkerCallbacks(child) {
             if(w) {
                 delete mWorkers[msg.pid];
             }
+        }
+    }
+
+    function onWorkerStopped(msg) {
+        d(`onWorkerStopped(): ${msg.worker_id}`);
+
+        if(mWorkers && msg.pid) {
+            delete mWorkers[msg.pid];
+            notifyRosterChanged();
         }
     }
 
@@ -1916,6 +1947,8 @@ exports.setConfig = setConfig;
 exports.installWorker = installWorker;
 exports.removeWorker = removeWorker;
 exports.reloadWorker = reloadWorker;
+exports.stopWorker = stopWorker;
+exports.loadFromPath = loadFromPath;
 exports.removePackage = removePackage;
 exports.enableWorker = enableWorker;
 exports.enablePackage = enablePackage;

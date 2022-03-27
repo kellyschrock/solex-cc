@@ -2,7 +2,12 @@
 
 usage() {
     echo
-    echo "Usage: $0 enable | disable | reload worker_id"
+    echo "Usage: $0 enable | disable | reload | stop worker_id"
+    echo "OR $0 load (full path)"
+    echo
+    echo "In the latter case, a worker that is not loaded (due to termination or a worker crash)"
+    echo "will be loaded from the specified path. Note that this will load all workers under that path."
+    echo "Which could be either handy, or a pain in the butt. You decide."
     echo
 }
 
@@ -11,7 +16,15 @@ if [ $# -lt 2 ]; then
     exit 1
 fi
 
-url=http://localhost:80
+url=$URL
+
+if [ -z $URL ]; then
+    url=http://localhost:80
+fi
+
+echo url=$url
+
+# url=http://localhost:80
 action=$1
 workerId=$2
 
@@ -26,10 +39,25 @@ case $action in
         echo
     ;;
 
+    stop)
+        wget -qO- $url/worker/stop/$workerId
+        echo
+    ;;
+
+    load)
+        wget -qO- --post-data="path=$workerId" $url/dispatch/loadpath
+        echo
+    ;;
+
     reload)
         echo "Reload $workerId"
         wget -qO- $url/worker/reload/$workerId
         echo
+    ;;
+
+    *)
+        usage
+        exit 1
     ;;
 esac
 
