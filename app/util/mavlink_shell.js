@@ -45,8 +45,14 @@ function parseBuffer(buffer) {
 }
 
 /** Pack the given message and return a buffer */
-function pack(msg) {
-    const packet = (mMavlink)? Buffer.from(msg.pack(mMavlink)): null;
+function pack(msg, srcSystem, srcComponent) {
+    const mav = {
+        srcSystem: srcSystem || mMavlink.srcSystem,
+        srcComponent: srcComponent || mMavlink.srcComponent,
+        seq: mMavlink.seq
+    };
+
+    const packet = (mMavlink)? Buffer.from(msg.pack(mav)): null;
     return packet;
 }
 

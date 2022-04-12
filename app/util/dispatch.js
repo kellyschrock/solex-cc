@@ -982,7 +982,10 @@ function setupWorkerCallbacks(child) {
             const mav = mavlinkMessageFor(msg.mavlinkMessage);
 
             if(mav) {
-                const packet = mavlink_shell.pack(mav);
+                const senderSysId = msg.mavlinkMessage.header && msg.mavlinkMessage.header.sysid;
+                const senderCompId = msg.mavlinkMessage.header && msg.mavlinkMessage.header.compid;
+
+                const packet = mavlink_shell.pack(mav, senderSysId, senderCompId);
 
                 if(packet) {
                     if (udpclient.isConnected()) {
